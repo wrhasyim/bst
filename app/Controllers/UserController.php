@@ -85,18 +85,38 @@ class UserController {
 
     // --- 4. HAPUS USER ---
     public function delete() {
-        $id = $_GET['id'] ?? 0;
-        if ($id == $_SESSION['user_id']) {
-            $_SESSION['error'] = "Anda tidak bisa menghapus akun Anda sendiri yang sedang aktif!";
-        } else {
+        $id = $_GET['id'] ?? null;
+        
+        if ($id) {
             try {
-                $stmt = $this->db->prepare("DELETE FROM users WHERE id=?");
+                // 1. CEK RIWAYAT SETORAN
+                $cekSetoran = $this->db->prepare("SELECT COUNT(*) FROM setoran WHERE user_id = ?");
+                $cekSetoran->execute([$id]);
+                if ($cekSetoran->fetchColumn() > 0) {
+                    $_SESSION['error'] = "Gagal! Pengguna ini tidak bisa dihapus karena memiliki riwayat Tabungan. Silakan gunakan fitur Edit -> Ubah Status menjadi NON-AKTIF.";
+                    header('Location: ' . BASE_URL . '/user');
+                    exit;
+                }
+
+                // 2. CEK RIWAYAT PENARIKAN
+                $cekTarik = $this->db->prepare("SELECT COUNT(*) FROM penarikan WHERE user_id = ?");
+                $cekTarik->execute([$id]);
+                if ($cekTarik->fetchColumn() > 0) {
+                    $_SESSION['error'] = "Gagal! Pengguna ini tidak bisa dihapus karena memiliki riwayat Penarikan Dana. Gunakan fitur NON-AKTIF.";
+                    header('Location: ' . BASE_URL . '/user');
+                    exit;
+                }
+
+                // JIKA AMAN (Belum pernah transaksi), BARU HAPUS
+                $stmt = $this->db->prepare("DELETE FROM users WHERE id = ?");
                 $stmt->execute([$id]);
-                $_SESSION['success'] = "Pengguna berhasil dihapus!";
+                $_SESSION['success'] = "Pengguna berhasil dihapus secara permanen.";
+                
             } catch (Exception $e) {
-                $_SESSION['error'] = "Gagal menghapus pengguna. Data terkait (setoran) masih ada.";
+                $_SESSION['error'] = "Terjadi kesalahan sistem saat menghapus data pengguna.";
             }
         }
+        
         header('Location: ' . BASE_URL . '/user');
         exit;
     }

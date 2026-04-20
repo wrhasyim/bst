@@ -65,17 +65,32 @@ class KelasController {
     }
 
     // Hapus Data Kelas
-    public function delete() {
-        if (isset($_GET['id'])) {
-            $id = $_GET['id'];
+   public function delete() {
+        $id = $_GET['id'] ?? null;
+
+        if ($id) {
             try {
-                $stmt = $this->db->prepare("DELETE FROM kelas WHERE id=?");
+                // CEK APAKAH MASIH ADA SISWA DI KELAS INI
+                $cekSiswa = $this->db->prepare("SELECT COUNT(*) FROM users WHERE kelas_id = ?");
+                $cekSiswa->execute([$id]);
+                
+                if ($cekSiswa->fetchColumn() > 0) {
+                    $_SESSION['error'] = "Gagal! Kelas ini tidak bisa dihapus karena masih ada siswa di dalamnya. Pindahkan atau luluskan siswa terlebih dahulu di menu Akademik.";
+                    header('Location: ' . BASE_URL . '/kelas');
+                    exit;
+                }
+
+                // JIKA KOSONG, BARU HAPUS
+                $stmt = $this->db->prepare("DELETE FROM kelas WHERE id = ?");
                 $stmt->execute([$id]);
-                $_SESSION['success'] = "Kelas berhasil dihapus!";
+                $_SESSION['success'] = "Kelas berhasil dihapus.";
+
             } catch (Exception $e) {
-                $_SESSION['error'] = "Gagal: Kelas ini tidak bisa dihapus karena masih ada siswa di dalamnya.";
+                $_SESSION['error'] = "Terjadi kesalahan sistem saat menghapus kelas.";
             }
         }
+        
         header('Location: ' . BASE_URL . '/kelas');
+        exit;
     }
 }
