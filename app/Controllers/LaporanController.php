@@ -114,4 +114,42 @@ class LaporanController {
         $content = __DIR__ . '/../../views/admin/laporan/setoran.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
+
+    // =================================================================
+    // 4. BUKU TABUNGAN PER NASABAH (FITUR BARU - LENGKAP)
+    // =================================================================
+    public function nasabah() {
+        $user_id = $_GET['user_id'] ?? null;
+        // Ambil daftar siswa untuk dropdown filter
+        $siswa_list = $this->db->query("SELECT u.id, u.nama, k.nama_kelas FROM users u LEFT JOIN kelas k ON u.kelas_id = k.id WHERE u.role = 'siswa' ORDER BY u.nama ASC")->fetchAll();
+        
+        $detail_siswa = null;
+        $riwayat = [];
+        $total_saldo = 0;
+
+        if ($user_id) {
+            // Ambil Detail Profil Siswa
+            $stmtUser = $this->db->prepare("SELECT u.*, k.nama_kelas FROM users u LEFT JOIN kelas k ON u.kelas_id = k.id WHERE u.id = ?");
+            $stmtUser->execute([$user_id]);
+            $detail_siswa = $stmtUser->fetch();
+
+            // Ambil Riwayat Setoran yang sudah VALID (Kredit)
+            $stmtRiwayat = $this->db->prepare("SELECT s.*, kat.nama_sampah 
+                                              FROM setoran s 
+                                              JOIN kategori_sampah kat ON s.kategori_id = kat.id 
+                                              WHERE s.user_id = ? AND s.status = 'valid' 
+                                              ORDER BY s.created_at DESC");
+            $stmtRiwayat->execute([$user_id]);
+            $riwayat = $stmtRiwayat->fetchAll();
+
+            // Hitung Total Saldo (Hanya dari setoran valid)
+            $stmtSaldo = $this->db->prepare("SELECT SUM(total_harga) FROM setoran WHERE user_id = ? AND status = 'valid'");
+            $stmtSaldo->execute([$user_id]);
+            $total_saldo = $stmtSaldo->fetchColumn() ?? 0;
+        }
+
+        $title = "Buku Tabungan Nasabah";
+        $content = __DIR__ . '/../../views/admin/laporan/nasabah.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
 }

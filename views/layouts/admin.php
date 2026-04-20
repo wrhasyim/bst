@@ -68,6 +68,9 @@
                     <a href="<?= BASE_URL ?>/penjualan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">🚛</span> Penjualan Pengepul
                     </a>
+                    <a href="<?= BASE_URL ?>/penarikan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🏧</span> Penarikan Saldo
+                    </a>
                     <a href="<?= BASE_URL ?>/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">💰</span> Pencairan Honor
                     </a>
@@ -84,15 +87,8 @@
                     <a href="<?= BASE_URL ?>/laporan/setoran" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">📄</span> Rekap Per Kelas
                     </a>
-                </div>
-
-                <div class="py-3">
-                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Akademik</p>
-                    <a href="<?= BASE_URL ?>/akademik/kenaikan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
-                        <span class="mr-3">🎓</span> Kenaikan Kelas
-                    </a>
-                    <a href="<?= BASE_URL ?>/akademik/kelulusan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
-                        <span class="mr-3">🚀</span> Kelulusan Alumni
+                    <a href="<?= BASE_URL ?>/laporan/nasabah" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📖</span> Buku Tabungan
                     </a>
                 </div>
 
@@ -162,6 +158,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const currentUrl = window.location.href.split(/[?#]/)[0];
             const links = document.querySelectorAll('.sidebar-link');
+            
             let bestMatch = null;
 
             links.forEach(link => {
@@ -172,6 +169,7 @@
                     }
                 }
             });
+
             if (bestMatch) {
                 bestMatch.classList.add('active');
             }
