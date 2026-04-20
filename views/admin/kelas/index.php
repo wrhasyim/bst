@@ -1,79 +1,88 @@
-<div class="max-w-6xl mx-auto space-y-6">
-
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+<div class="max-w-7xl mx-auto space-y-8 pb-10" x-data="{ showModal: false, isEdit: false, formData: { id: '', nama_kelas: '', walikelas_id: '' } }">
+    
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h2 class="text-2xl font-bold text-gray-900">Manajemen Kelas</h2>
-            <p class="text-gray-500 text-sm mt-1">Kelola daftar kelas, tentukan wali kelas, dan pantau populasi siswa.</p>
+            <h2 class="text-3xl font-black text-slate-800 italic uppercase tracking-tight">MASTER<span class="text-emerald-500">KELAS</span></h2>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Manajemen Ruang & Wali Kelas</p>
         </div>
-        <a href="<?= BASE_URL ?>/kelas/create" class="inline-flex items-center px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all duration-200 transform hover:-translate-y-0.5">
-            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-            Tambah Kelas Baru
-        </a>
+        <button @click="showModal = true; isEdit = false; formData = {id:'', nama_kelas:'', walikelas_id:''}" class="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-black transition-all">
+            + Tambah Kelas
+        </button>
     </div>
 
-    <?php if (isset($_SESSION['success'])): ?>
-        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg shadow-sm flex items-center">
-            <span class="text-emerald-800 font-medium"><?= $_SESSION['success']; unset($_SESSION['success']); ?></span>
-        </div>
-    <?php endif; ?>
-    <?php if (isset($_SESSION['error'])): ?>
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm flex items-center">
-            <span class="text-red-800 font-medium"><?= $_SESSION['error']; unset($_SESSION['error']); ?></span>
-        </div>
-    <?php endif; ?>
+    <?php if (isset($_SESSION['success'])): ?><div class="p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs font-bold shadow-sm">✅ <?= $_SESSION['success']; unset($_SESSION['success']); ?></div><?php endif; ?>
+    <?php if (isset($_SESSION['error'])): ?><div class="p-4 bg-red-50 border-l-4 border-red-500 text-red-800 text-xs font-bold shadow-sm">⚠️ <?= $_SESSION['error']; unset($_SESSION['error']); ?></div><?php endif; ?>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
-                        <th class="px-6 py-4">No</th>
-                        <th class="px-6 py-4">Nama Kelas</th>
-                        <th class="px-6 py-4">Wali Kelas</th>
-                        <th class="px-6 py-4 text-center">Total Siswa</th>
-                        <th class="px-6 py-4 text-center">Aksi</th>
+                    <tr class="bg-gray-50 border-b border-gray-100 text-[10px] uppercase text-slate-400 font-black tracking-widest">
+                        <th class="px-8 py-5">Nama Kelas</th>
+                        <th class="px-8 py-5">Wali Kelas</th>
+                        <th class="px-8 py-5 text-center">Total Siswa</th>
+                        <th class="px-8 py-5 text-center">Aksi</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
-                    <?php 
-                    $no = 1;
-                    foreach ($kelas as $row): 
-                    ?>
-                    <tr class="hover:bg-gray-50 transition-colors duration-150">
-                        <td class="px-6 py-4 text-sm text-gray-500"><?= $no++ ?></td>
-                        <td class="px-6 py-4 font-bold text-gray-800"><?= htmlspecialchars($row['nama_kelas']) ?></td>
-                        <td class="px-6 py-4">
-                            <?php if ($row['nama_wali']): ?>
-                                <span class="inline-flex items-center text-sm font-medium text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                                    👨‍🏫 <?= htmlspecialchars($row['nama_wali']) ?>
-                                </span>
-                            <?php else: ?>
-                                <span class="inline-flex items-center text-sm font-medium text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
-                                    Belum Diatur
-                                </span>
-                            <?php endif; ?>
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            <span class="text-sm font-bold <?= $row['total_siswa'] > 0 ? 'text-gray-800' : 'text-gray-400' ?>">
-                                <?= $row['total_siswa'] ?> Anak
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            <div class="flex justify-center space-x-3">
-                                <a href="<?= BASE_URL ?>/kelas/edit/<?= $row['id'] ?>" class="text-blue-500 hover:text-blue-700 transition">Edit</a>
-                                <a href="<?= BASE_URL ?>/kelas/delete/<?= $row['id'] ?>" onclick="return confirm('Yakin ingin menghapus kelas ini?')" class="text-red-500 hover:text-red-700 transition">Hapus</a>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                    
+                <tbody class="divide-y divide-gray-50">
                     <?php if(empty($kelas)): ?>
-                    <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">Belum ada data kelas.</td>
-                    </tr>
+                        <tr><td colspan="4" class="px-8 py-10 text-center text-slate-400 text-xs italic">Belum ada data kelas.</td></tr>
+                    <?php else: ?>
+                        <?php foreach($kelas as $k): ?>
+                        <tr class="hover:bg-slate-50 transition-all">
+                            <td class="px-8 py-5 font-black text-slate-800 text-sm uppercase italic tracking-tighter">
+                                KELAS <?= htmlspecialchars($k['nama_kelas']) ?>
+                            </td>
+                            <td class="px-8 py-5">
+                                <?php if(!empty($k['nama_walikelas'])): ?>
+                                    <div class="font-bold text-slate-700 text-sm"><?= htmlspecialchars($k['nama_walikelas']) ?></div>
+                                    <div class="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-1">PJ Honorarium</div>
+                                <?php else: ?>
+                                    <span class="px-3 py-1 bg-red-50 text-red-500 rounded-full text-[9px] font-black uppercase tracking-widest italic">Belum Diatur</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="px-8 py-5 text-center">
+                                <span class="text-lg font-black <?= ($k['total_siswa'] ?? 0) > 0 ? 'text-slate-800' : 'text-slate-300' ?>">
+                                    <?= $k['total_siswa'] ?? 0 ?> <span class="text-[9px] uppercase text-slate-400">Siswa</span>
+                                </span>
+                            </td>
+                            <td class="px-8 py-5 text-center space-x-2">
+                                <button @click="showModal = true; isEdit = true; formData = { id: '<?= $k['id'] ?>', nama_kelas: '<?= addslashes($k['nama_kelas']) ?>', walikelas_id: '<?= $k['walikelas_id'] ?>' }" class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Edit</button>
+                                <a href="<?= BASE_URL ?>/kelas/delete?id=<?= $k['id'] ?>" onclick="return confirm('Hapus kelas ini?')" class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Hapus</a>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div @click.away="showModal = false" class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden">
+            <div class="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <h3 class="font-black text-slate-800 text-lg uppercase italic tracking-tighter" x-text="isEdit ? 'Edit Kelas' : 'Tambah Kelas'"></h3>
+                <button @click="showModal = false" class="text-slate-400 hover:text-red-500 font-bold text-2xl">&times;</button>
+            </div>
+            <form :action="isEdit ? '<?= BASE_URL ?>/kelas/update' : '<?= BASE_URL ?>/kelas/store'" method="POST" class="p-8 space-y-6">
+                <input type="hidden" name="id" x-model="formData.id">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Nama Kelas</label>
+                    <input type="text" name="nama_kelas" x-model="formData.nama_kelas" required placeholder="Contoh: X IPA 1" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none uppercase">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Wali Kelas</label>
+                    <select name="walikelas_id" x-model="formData.walikelas_id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <option value="">-- Kosongkan / Pilih Guru --</option>
+                        <?php foreach($guru as $g): ?>
+                            <option value="<?= $g['id'] ?>"><?= htmlspecialchars($g['nama']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="pt-4">
+                    <button type="submit" class="w-full py-4 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-emerald-700 transition-all">Simpan Kelas</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

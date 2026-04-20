@@ -24,7 +24,9 @@ class SetoranController {
         $this->db = Database::getInstance()->getConnection();
     }
 
-    // Riwayat Tabungan Siswa
+    // =======================================================
+    // 1. RIWAYAT TABUNGAN SISWA
+    // =======================================================
     public function siswa() {
         $setoran = $this->setoranModel->getSetoranSiswa();
         $title = "Riwayat Tabungan";
@@ -32,7 +34,9 @@ class SetoranController {
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // Input Massal Per Kelas
+    // =======================================================
+    // 2. INPUT MASSAL PER KELAS (BATCH STORE)
+    // =======================================================
     public function siswa_kelas() {
         $all_kelas = $this->kelasModel->getAll();
         $all_sampah = $this->sampahModel->getAll();
@@ -50,19 +54,28 @@ class SetoranController {
                 if ((float)$jml > 0) {
                     $u = $this->userModel->getById($uid);
                     $kls = ($u['kelas_id']) ? $this->kelasModel->getById($u['kelas_id']) : null;
+                    
+                    // PERBAIKAN: Menggunakan harga_dasar, bukan harga_siswa
                     $this->setoranModel->create([
-                        'user_id' => $uid, 'kategori_id' => $_POST['kategori_id'], 'berat' => $jml,
-                        'total_harga' => $jml * $kat['harga_siswa'], 'total_pengepul' => $jml * $kat['harga_pengepul'],
-                        'walikelas_id' => $kls['walikelas_id'] ?? null, 'status' => 'pending'
+                        'user_id' => $uid, 
+                        'kategori_id' => $_POST['kategori_id'], 
+                        'berat' => $jml,
+                        'total_harga' => $jml * $kat['harga_dasar'], 
+                        'total_pengepul' => $jml * $kat['harga_pengepul'],
+                        'walikelas_id' => $kls['walikelas_id'] ?? null, 
+                        'status' => 'pending'
                     ]);
                 }
             }
             $_SESSION['success'] = "Setoran Pcs berhasil disimpan.";
             header('Location: ' . BASE_URL . '/setoran/siswa');
+            exit;
         }
     }
 
-    // --- BAGIAN GURU (SUDAH PCS) ---
+    // =======================================================
+    // 3. BAGIAN GURU
+    // =======================================================
     public function guru() {
         $setoran = $this->setoranModel->getSetoranGuru();
         $title = "Setoran Guru (Pcs)";
@@ -74,16 +87,26 @@ class SetoranController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
+            
+            // PERBAIKAN: Menggunakan harga_dasar, bukan harga_guru
             $this->setoranModel->create([
-                'user_id' => $_POST['user_id'], 'kategori_id' => $_POST['kategori_id'], 'berat' => $jml,
-                'total_harga' => $jml * $kat['harga_guru'], 'total_pengepul' => $jml * $kat['harga_pengepul'],
-                'walikelas_id' => null, 'status' => 'pending'
+                'user_id' => $_POST['user_id'], 
+                'kategori_id' => $_POST['kategori_id'], 
+                'berat' => $jml,
+                'total_harga' => $jml * $kat['harga_dasar'], 
+                'total_pengepul' => $jml * $kat['harga_pengepul'],
+                'walikelas_id' => null, 
+                'status' => 'pending'
             ]);
             $_SESSION['success'] = "Setoran guru ($jml Pcs) disimpan.";
             header('Location: ' . BASE_URL . '/setoran/guru');
+            exit;
         }
     }
 
+    // =======================================================
+    // 4. VALIDASI SETORAN
+    // =======================================================
     public function validasi() {
         $pending = $this->setoranModel->getPending();
         $title = "Validasi Setoran";
@@ -106,16 +129,21 @@ class SetoranController {
     public function update_pending($id) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
-            $setoran = $this->setoranModel->getById($id);
             $jml = (float)$_POST['berat'];
-            $harga_satuan = ($setoran['role'] == 'guru') ? $kat['harga_guru'] : $kat['harga_siswa'];
+            
+            // PERBAIKAN: Menyamakan harga satuan menggunakan harga_dasar
+            $harga_satuan = $kat['harga_dasar'];
 
             $this->setoranModel->update($id, [
-                'kategori_id' => $_POST['kategori_id'], 'berat' => $jml,
-                'total_harga' => $jml * $harga_satuan, 'total_pengepul' => $jml * $kat['harga_pengepul']
+                'kategori_id' => $_POST['kategori_id'], 
+                'berat' => $jml,
+                'total_harga' => $jml * $harga_satuan, 
+                'total_pengepul' => $jml * $kat['harga_pengepul']
             ]);
+            
             $_SESSION['success'] = "Data $jml Pcs diperbarui.";
             header('Location: ' . BASE_URL . '/setoran/validasi');
+            exit;
         }
     }
 
@@ -123,10 +151,13 @@ class SetoranController {
         $this->setoranModel->updateStatus($id, 'valid');
         $_SESSION['success'] = "Data divalidasi.";
         header('Location: ' . BASE_URL . '/setoran/validasi');
+        exit;
     }
 
     public function hapus_pending($id) {
         $this->setoranModel->delete($id);
+        $_SESSION['success'] = "Data pending berhasil dihapus.";
         header('Location: ' . BASE_URL . '/setoran/validasi');
+        exit;
     }
 }
