@@ -14,27 +14,49 @@ class DashboardController {
     }
 
     public function index() {
-        // 1. Stok Gudang (Sampah Valid yang belum terjual)
-        $stmtStok = $this->db->query("SELECT SUM(berat) FROM setoran WHERE status = 'valid' AND is_sold = 0");
-        $stok_gudang = $stmtStok->fetchColumn() ?? 0;
+        $role = $_SESSION['role'];
+        $user_id = $_SESSION['user_id'];
+        $data = []; // Menyimpan data spesifik sesuai role
 
-        // 2. Total Tabungan (Kewajiban bayar ke Nasabah - Hanya yang Valid)
-        $stmtTabungan = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE status = 'valid'");
-        $total_tabungan = $stmtTabungan->fetchColumn() ?? 0;
+        // ==========================================
+        // LOGIKA ADMIN & STAFF
+        // ==========================================
+        if ($role === 'admin' || $role === 'staff') {
+            $data['stok_gudang'] = $this->db->query("SELECT SUM(berat) FROM setoran WHERE status = 'valid' AND is_sold = 0")->fetchColumn() ?? 0;
+            $data['total_tabungan'] = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE status = 'valid'")->fetchColumn() ?? 0;
+            $data['kas_masuk'] = $this->db->query("SELECT SUM(total_pendapatan) FROM penjualan")->fetchColumn() ?? 0;
+            $data['keuntungan_bersih'] = $this->db->query("SELECT IFNULL((SELECT SUM(total_pendapatan) FROM penjualan), 0) - IFNULL((SELECT SUM(total_harga) FROM setoran WHERE is_sold = 1 AND status = 'valid'), 0)")->fetchColumn() ?? 0;
+            $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1")->fetchColumn() ?? 0;
+            $data['jml_guru'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'guru' AND is_active = 1")->fetchColumn() ?? 0;
+        } 
+        
+        // ==========================================
+        // LOGIKA SISWA & GURU (NASABAH)
+        // ==========================================
+        else if ($role === 'siswa' || $role === 'guru') {
+            // Hitung Saldo Bersih Pribadi
+            $setoran = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn() ?? 0;
+            $tarik = $this->db->query("SELECT SUM(jumlah) FROM penarikan WHERE user_id = $user_id")->fetchColumn() ?? 0;
+            $data['saldo_pribadi'] = $setoran - $tarik;
 
-        // 3. Kas Nyata (Total uang dari Pengepul)
-        $stmtKas = $this->db->query("SELECT SUM(total_pendapatan) FROM penjualan");
-        $kas_masuk = $stmtKas->fetchColumn() ?? 0;
+            // Total Pcs Disetor
+            $data['total_pcs'] = $this->db->query("SELECT SUM(berat) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn() ?? 0;
 
-        // 4. Margin Keuntungan Bersih (Selisih harga dari barang yang TERJUAL)
-        $stmtMargin = $this->db->query("SELECT 
-            IFNULL((SELECT SUM(total_pendapatan) FROM penjualan), 0) - 
-            IFNULL((SELECT SUM(total_harga) FROM setoran WHERE is_sold = 1 AND status = 'valid'), 0) as profit");
-        $keuntungan_bersih = $stmtMargin->fetchColumn() ?? 0;
+            // Riwayat Tabungan Terakhir
+            $data['riwayat_pribadi'] = $this->db->query("SELECT s.*, k.nama_sampah FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.user_id = $user_id ORDER BY s.created_at DESC LIMIT 5")->fetchAll();
 
-        // 5. Statistik Anggota Aktif
-        $jml_siswa = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1")->fetchColumn();
-        $jml_guru = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'guru' AND is_active = 1")->fetchColumn();
+            // CEK KHUSUS WALI KELAS (Jika role = guru)
+            $data['is_walikelas'] = false;
+            $data['data_kelas'] = null;
+            if ($role === 'guru') {
+                $cek_wali = $this->db->query("SELECT * FROM kelas WHERE walikelas_id = $user_id LIMIT 1")->fetch();
+                if ($cek_wali) {
+                    $data['is_walikelas'] = true;
+                    $data['data_kelas'] = $cek_wali;
+                    // Bisa ditambahkan query honor di sini jika mau
+                }
+            }
+        }
 
         $title = "Dashboard BST System";
         $content = __DIR__ . '/../../views/admin/dashboard.php';
