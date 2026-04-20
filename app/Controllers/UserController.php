@@ -151,4 +151,27 @@ class UserController {
             exit;
         }
     }
+    // =================================================================
+    // FITUR BARU: DOWNLOAD TEMPLATE IMPORT CSV
+    // =================================================================
+    public function download_template() {
+        $filename = "Template_Import_Siswa_BST.csv";
+        header("Content-Type: text/csv");
+        header("Content-Disposition: attachment; filename=\"$filename\"");
+        header("Pragma: no-cache");
+        header("Expires: 0");
+
+        $output = fopen("php://output", "w");
+        
+        // 1. Tulis Header Kolom (Harus persis sama dengan urutan di proses_import)
+        fputcsv($output, ['Nama Lengkap', 'Username', 'Password', 'Angkatan']);
+        
+        // 2. Tulis Contoh Data yang Benar
+        fputcsv($output, ['Budi Santoso', 'budi.s', '123456', '2023']);
+        fputcsv($output, ['Siti Aminah', 'siti.a', '123456', '2023']);
+        fputcsv($output, ['Andi Darmawan', 'andi.d', '123456', '2024']);
+        
+        fclose($output);
+        exit;
+    }
 }

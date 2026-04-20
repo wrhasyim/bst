@@ -64,17 +64,38 @@ class SampahController {
     }
 
     // Hapus Data
-    public function delete() {
-        if (isset($_GET['id'])) {
-            $id = $_GET['id'];
-            try {
-                $stmt = $this->db->prepare("DELETE FROM kategori_sampah WHERE id=?");
-                $stmt->execute([$id]);
-                $_SESSION['success'] = "Kategori sampah berhasil dihapus.";
-            } catch (Exception $e) {
-                $_SESSION['error'] = "Gagal menghapus: Kategori ini masih digunakan pada data transaksi/setoran.";
+  public function delete() {
+        $id = $_GET['id'];
+        
+        try {
+            // 1. Cek apakah sampah ini sudah ada di tabungan siswa
+            $cekSetoran = $this->db->prepare("SELECT COUNT(*) FROM setoran WHERE kategori_id = ?");
+            $cekSetoran->execute([$id]);
+            if ($cekSetoran->fetchColumn() > 0) {
+                $_SESSION['error'] = "Gagal! Kategori sampah ini tidak bisa dihapus karena sudah digunakan dalam Tabungan Nasabah.";
+                header('Location: ' . BASE_URL . '/sampah');
+                exit;
             }
+
+            // 2. Cek apakah sampah ini sudah ada di riwayat penjualan
+            $cekJual = $this->db->prepare("SELECT COUNT(*) FROM penjualan WHERE kategori_id = ?");
+            $cekJual->execute([$id]);
+            if ($cekJual->fetchColumn() > 0) {
+                $_SESSION['error'] = "Gagal! Kategori sampah ini tidak bisa dihapus karena sudah ada di Riwayat Penjualan Pengepul.";
+                header('Location: ' . BASE_URL . '/sampah');
+                exit;
+            }
+
+            // 3. Jika aman, baru hapus
+            $stmt = $this->db->prepare("DELETE FROM kategori_sampah WHERE id = ?");
+            $stmt->execute([$id]);
+            $_SESSION['success'] = "Kategori sampah berhasil dihapus.";
+            
+        } catch (Exception $e) {
+            $_SESSION['error'] = "Terjadi kesalahan sistem saat menghapus data.";
         }
+
         header('Location: ' . BASE_URL . '/sampah');
+        exit;
     }
 }
