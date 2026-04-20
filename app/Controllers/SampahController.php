@@ -1,94 +1,80 @@
 <?php
 // app/Controllers/SampahController.php
-require_once __DIR__ . '/../Models/KategoriSampah.php';
+require_once __DIR__ . '/../Core/Database.php';
 
 class SampahController {
-    private $sampahModel;
+    private $db;
 
     public function __construct() {
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $_SESSION['error'] = 'Akses ditolak! Khusus Administrator.';
             header('Location: ' . BASE_URL . '/dashboard');
             exit;
         }
-        $this->sampahModel = new KategoriSampah();
+        $this->db = Database::getInstance()->getConnection();
     }
 
+    // Tampilkan Data
     public function index() {
-        $sampah = $this->sampahModel->getAll();
-        $title = "Master Kategori Sampah";
+        $kategori = $this->db->query("SELECT * FROM kategori_sampah ORDER BY nama_sampah ASC")->fetchAll();
+        
+        $title = "Kategori & Harga Sampah";
         $content = __DIR__ . '/../../views/admin/sampah/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // Menampilkan Form Tambah
-    public function create() {
-        $title = "Tambah Kategori Sampah";
-        $content = __DIR__ . '/../../views/admin/sampah/create.php';
-        require_once __DIR__ . '/../../views/layouts/admin.php';
-    }
-
-    // Memproses Data Tambah
+    // Tambah Data Baru
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $data = [
-                'nama_sampah' => trim($_POST['nama_sampah']),
-                'harga_siswa' => $_POST['harga_siswa'],
-                'harga_guru' => $_POST['harga_guru'],
-                'harga_pengepul' => $_POST['harga_pengepul']
-            ];
+            $nama = $_POST['nama_sampah'];
+            $harga_dasar = $_POST['harga_dasar']; // Disinkronkan dengan DB
+            $harga_pengepul = $_POST['harga_pengepul'];
 
-            if ($this->sampahModel->create($data)) {
-                $_SESSION['success'] = "Kategori sampah baru berhasil ditambahkan!";
+            if ($harga_pengepul < $harga_dasar) {
+                $_SESSION['error'] = "Gagal: Harga Jual (Pengepul) tidak boleh lebih kecil dari Harga Dasar (Nasabah).";
             } else {
-                $_SESSION['error'] = "Gagal menambahkan data.";
+                $sql = "INSERT INTO kategori_sampah (nama_sampah, harga_dasar, harga_pengepul, satuan) VALUES (?, ?, ?, 'Pcs')";
+                $stmt = $this->db->prepare($sql);
+                if ($stmt->execute([$nama, $harga_dasar, $harga_pengepul])) {
+                    $_SESSION['success'] = "Kategori sampah baru berhasil ditambahkan.";
+                }
             }
-            header('Location: ' . BASE_URL . '/sampah');
-            exit;
-        }
-    }
-
-    // Menampilkan Form Edit
-    public function edit($id) {
-        $sampah = $this->sampahModel->getById($id);
-        if (!$sampah) {
-            $_SESSION['error'] = "Data tidak ditemukan!";
-            header('Location: ' . BASE_URL . '/sampah');
-            exit;
-        }
-
-        $title = "Edit Kategori Sampah";
-        $content = __DIR__ . '/../../views/admin/sampah/edit.php';
-        require_once __DIR__ . '/../../views/layouts/admin.php';
-    }
-
-    // Memproses Data Edit
-    public function update($id) {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $data = [
-                'nama_sampah' => trim($_POST['nama_sampah']),
-                'harga_siswa' => $_POST['harga_siswa'],
-                'harga_guru' => $_POST['harga_guru'],
-                'harga_pengepul' => $_POST['harga_pengepul']
-            ];
-
-            if ($this->sampahModel->update($id, $data)) {
-                $_SESSION['success'] = "Kategori sampah berhasil diperbarui!";
-            } else {
-                $_SESSION['error'] = "Gagal memperbarui data.";
-            }
-            header('Location: ' . BASE_URL . '/sampah');
-            exit;
-        }
-    }
-
-    public function delete($id) {
-        if ($this->sampahModel->delete($id)) {
-            $_SESSION['success'] = "Kategori sampah berhasil dihapus!";
-        } else {
-            $_SESSION['error'] = "Gagal menghapus data. Mungkin sedang digunakan di riwayat setoran.";
         }
         header('Location: ' . BASE_URL . '/sampah');
-        exit;
+    }
+
+    // Update Data
+    public function update() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $id = $_POST['id'];
+            $nama = $_POST['nama_sampah'];
+            $harga_dasar = $_POST['harga_dasar']; // Disinkronkan dengan DB
+            $harga_pengepul = $_POST['harga_pengepul'];
+
+            if ($harga_pengepul < $harga_dasar) {
+                $_SESSION['error'] = "Update Gagal: Harga Pengepul harus lebih besar/sama dengan Harga Dasar.";
+            } else {
+                $sql = "UPDATE kategori_sampah SET nama_sampah=?, harga_dasar=?, harga_pengepul=? WHERE id=?";
+                $stmt = $this->db->prepare($sql);
+                if ($stmt->execute([$nama, $harga_dasar, $harga_pengepul, $id])) {
+                    $_SESSION['success'] = "Data harga sampah berhasil diperbarui.";
+                }
+            }
+        }
+        header('Location: ' . BASE_URL . '/sampah');
+    }
+
+    // Hapus Data
+    public function delete() {
+        if (isset($_GET['id'])) {
+            $id = $_GET['id'];
+            try {
+                $stmt = $this->db->prepare("DELETE FROM kategori_sampah WHERE id=?");
+                $stmt->execute([$id]);
+                $_SESSION['success'] = "Kategori sampah berhasil dihapus.";
+            } catch (Exception $e) {
+                $_SESSION['error'] = "Gagal menghapus: Kategori ini masih digunakan pada data transaksi/setoran.";
+            }
+        }
+        header('Location: ' . BASE_URL . '/sampah');
     }
 }

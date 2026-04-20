@@ -1,58 +1,93 @@
 <?php
 // app/Controllers/PengaturanController.php
-require_once __DIR__ . '/../Models/Pengaturan.php';
+require_once __DIR__ . '/../Core/Database.php';
 
 class PengaturanController {
-    private $pengaturanModel;
+    private $db;
 
     public function __construct() {
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $_SESSION['error'] = 'Akses ditolak! Khusus Administrator.';
             header('Location: ' . BASE_URL . '/dashboard');
             exit;
         }
-        $this->pengaturanModel = new Pengaturan();
+        $this->db = Database::getInstance()->getConnection();
     }
 
     public function index() {
-        $settings = $this->pengaturanModel->getAllSettings();
+        $stmt = $this->db->query("SELECT kunci, nilai FROM pengaturan");
+        $data = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         $title = "Pengaturan Sistem";
         $content = __DIR__ . '/../../views/admin/pengaturan/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    public function update() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $p_pengelola = (float)$_POST['persen_pengelola'];
-            $p_wali = (float)$_POST['persen_walikelas'];
-            $p_sekolah = (float)$_POST['persen_kas_sekolah'];
-            $p_bst = (float)$_POST['persen_kas_banksampah'];
+    public function maintenance() {
+        $title = "Pemeliharaan Data";
+        $content = __DIR__ . '/../../views/admin/pengaturan/maintenance.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
 
-            $totalPersen = $p_pengelola + $p_wali + $p_sekolah + $p_bst;
-            
-            if ($totalPersen != 100) {
-                $_SESSION['error'] = "Total persentase harus 100%. Total Anda: {$totalPersen}%.";
+    public function update_identitas() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Cek Total Persentase (Server Side Protection)
+            $total = $_POST['persen_kas_bst'] + $_POST['persen_kas_sekolah'] + 
+                     $_POST['persen_honor_pengelola'] + $_POST['persen_honor_walikelas'];
+
+            if ($total != 100) {
+                $_SESSION['error'] = "Gagal! Total alokasi honor harus tepat 100% (Input Anda: $total%)";
                 header('Location: ' . BASE_URL . '/pengaturan');
                 exit;
             }
 
-            $dataUpdate = [
-                'nama_sekolah' => $_POST['nama_sekolah'],
-                'alamat_sekolah' => $_POST['alamat_sekolah'],
-                'persen_pengelola' => $p_pengelola,
-                'persen_walikelas' => $p_wali,
-                'persen_kas_sekolah' => $p_sekolah,
-                'persen_kas_banksampah' => $p_bst
-            ];
-
-            if ($this->pengaturanModel->updateSettings($dataUpdate)) {
-                $_SESSION['success'] = "Pengaturan berhasil diperbarui!";
-            } else {
-                $_SESSION['error'] = "Gagal memperbarui database.";
+            foreach ($_POST as $kunci => $nilai) {
+                $stmt = $this->db->prepare("UPDATE pengaturan SET nilai = :v WHERE kunci = :k");
+                $stmt->execute(['v' => $nilai, 'k' => $kunci]);
             }
-
-            header('Location: ' . BASE_URL . '/pengaturan');
-            exit;
+            $_SESSION['success'] = "Pengaturan & Kebijakan Honor berhasil diperbarui!";
         }
+        header('Location: ' . BASE_URL . '/pengaturan');
+    }
+
+    // Fungsi Maintenance (Backup, Restore, Reset)
+    public function backup() {
+        $tables = array();
+        $result = $this->db->query("SHOW TABLES");
+        while ($row = $result->fetch(PDO::FETCH_NUM)) { $tables[] = $row[0]; }
+        $return = "-- Backup BST SYSTEM \n-- Date: " . date('Y-m-d H:i:s') . "\n\n";
+        foreach ($tables as $table) {
+            $result = $this->db->query("SELECT * FROM $table");
+            $num_fields = $result->columnCount();
+            $return .= "DROP TABLE IF EXISTS $table;";
+            $row2 = $this->db->query("SHOW CREATE TABLE $table")->fetch(PDO::FETCH_NUM);
+            $return .= "\n\n" . $row2[1] . ";\n\n";
+            while ($row = $result->fetch(PDO::FETCH_NUM)) {
+                $return .= "INSERT INTO $table VALUES(";
+                for ($j = 0; $j < $num_fields; $j++) {
+                    $row[$j] = addslashes($row[$j]);
+                    $return .= isset($row[$j]) ? '"'.$row[$j].'"' : '""';
+                    if ($j < ($num_fields - 1)) $return .= ',';
+                }
+                $return .= ");\n";
+            }
+            $return .= "\n\n\n";
+        }
+        header('Content-Type: application/octet-stream');
+        header("Content-disposition: attachment; filename=\"backup-bst-".date('Y-m-d').".sql\"");
+        echo $return; exit;
+    }
+
+    public function restore() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['sql_file'])) {
+            $sql = file_get_contents($_FILES['sql_file']['tmp_name']);
+            try { $this->db->exec($sql); $_SESSION['success'] = "Sistem Berhasil Dipulihkan!"; } 
+            catch (Exception $e) { $_SESSION['error'] = "Gagal Restore Database."; }
+        }
+        header('Location: ' . BASE_URL . '/pengaturan/maintenance');
+    }
+
+    public function reset_transaksi() {
+        $this->db->exec("SET FOREIGN_KEY_CHECKS = 0; TRUNCATE setoran; TRUNCATE penjualan; SET FOREIGN_KEY_CHECKS = 1;");
+        $_SESSION['success'] = "Data transaksi berhasil dikosongkan.";
+        header('Location: ' . BASE_URL . '/pengaturan/maintenance');
     }
 }

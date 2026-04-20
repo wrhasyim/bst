@@ -14,7 +14,6 @@ class SetoranController {
 
     public function __construct() {
         if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'staff'])) {
-            $_SESSION['error'] = 'Akses ditolak!';
             header('Location: ' . BASE_URL . '/dashboard');
             exit;
         }
@@ -25,77 +24,109 @@ class SetoranController {
         $this->db = Database::getInstance()->getConnection();
     }
 
-    // --- MENAMPILKAN RIWAYAT SETORAN SISWA ---
-    // Method ini dipanggil saat URL: /setoran/siswa
+    // Riwayat Tabungan Siswa
     public function siswa() {
         $setoran = $this->setoranModel->getSetoranSiswa();
-        $title = "Riwayat Setoran Siswa";
+        $title = "Riwayat Tabungan";
         $content = __DIR__ . '/../../views/admin/setoran/siswa_index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // --- MENAMPILKAN FORM SETORAN SISWA ---
-    // Method ini dipanggil saat URL: /setoran/siswa_create
-    public function siswa_create() {
-        $stmtSiswa = $this->db->query("SELECT id, nama FROM users WHERE role = 'siswa' AND is_active = 1 ORDER BY nama ASC");
-        $siswa = $stmtSiswa->fetchAll();
-
-        $sampah = $this->sampahModel->getAll();
-
-        $title = "Input Setoran Siswa";
-        $content = __DIR__ . '/../../views/admin/setoran/siswa_create.php';
+    // Input Massal Per Kelas
+    public function siswa_kelas() {
+        $all_kelas = $this->kelasModel->getAll();
+        $all_sampah = $this->sampahModel->getAll();
+        $kelas_id = $_GET['kelas_id'] ?? null;
+        $siswa_list = $kelas_id ? $this->db->query("SELECT id, nama FROM users WHERE kelas_id = $kelas_id AND role = 'siswa' AND is_active = 1 ORDER BY nama ASC")->fetchAll() : [];
+        $title = "Setoran Per Kelas (Pcs)";
+        $content = __DIR__ . '/../../views/admin/setoran/siswa_kelas.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // --- MEMPROSES INPUT SETORAN SISWA ---
-    // Method ini dipanggil saat URL: /setoran/siswa_store
-    public function siswa_store() {
+    public function siswa_batch_store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $user_id = $_POST['user_id'];
-            $kategori_id = $_POST['kategori_id'];
-            $berat = (float)$_POST['berat'];
-
-            if ($berat <= 0) {
-                $_SESSION['error'] = "Berat sampah harus lebih dari 0!";
-                header('Location: ' . BASE_URL . '/setoran/siswa_create');
-                exit;
+            $kat = $this->sampahModel->getById($_POST['kategori_id']);
+            foreach ($_POST['berat'] as $uid => $jml) {
+                if ((float)$jml > 0) {
+                    $u = $this->userModel->getById($uid);
+                    $kls = ($u['kelas_id']) ? $this->kelasModel->getById($u['kelas_id']) : null;
+                    $this->setoranModel->create([
+                        'user_id' => $uid, 'kategori_id' => $_POST['kategori_id'], 'berat' => $jml,
+                        'total_harga' => $jml * $kat['harga_siswa'], 'total_pengepul' => $jml * $kat['harga_pengepul'],
+                        'walikelas_id' => $kls['walikelas_id'] ?? null, 'status' => 'pending'
+                    ]);
+                }
             }
-
-            $sampah = $this->sampahModel->getById($kategori_id);
-            if (!$sampah) {
-                $_SESSION['error'] = "Kategori sampah tidak valid!";
-                header('Location: ' . BASE_URL . '/setoran/siswa_create');
-                exit;
-            }
-
-            $total_harga = $berat * $sampah['harga_siswa']; 
-            $total_pengepul = $berat * $sampah['harga_pengepul']; 
-
-            $siswa = $this->userModel->getById($user_id);
-            $walikelas_id = null;
-            if ($siswa && $siswa['kelas_id']) {
-                $kelas = $this->kelasModel->getById($siswa['kelas_id']);
-                $walikelas_id = $kelas['walikelas_id'] ?? null;
-            }
-
-            $data = [
-                'user_id' => $user_id,
-                'kategori_id' => $kategori_id,
-                'berat' => $berat,
-                'total_harga' => $total_harga,
-                'total_pengepul' => $total_pengepul,
-                'walikelas_id' => $walikelas_id,
-                'status' => 'pending' 
-            ];
-
-            if ($this->setoranModel->create($data)) {
-                $_SESSION['success'] = "Berhasil! Setoran sebesar Rp " . number_format($total_harga, 0, ',', '.') . " masuk ke tabungan.";
-            } else {
-                $_SESSION['error'] = "Gagal menyimpan data setoran.";
-            }
-            
+            $_SESSION['success'] = "Setoran Pcs berhasil disimpan.";
             header('Location: ' . BASE_URL . '/setoran/siswa');
+        }
+    }
+
+    // --- BAGIAN GURU (SUDAH PCS) ---
+    public function guru() {
+        $setoran = $this->setoranModel->getSetoranGuru();
+        $title = "Setoran Guru (Pcs)";
+        $content = __DIR__ . '/../../views/admin/setoran/guru.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
+
+    public function guru_store() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $kat = $this->sampahModel->getById($_POST['kategori_id']);
+            $jml = (float)$_POST['berat'];
+            $this->setoranModel->create([
+                'user_id' => $_POST['user_id'], 'kategori_id' => $_POST['kategori_id'], 'berat' => $jml,
+                'total_harga' => $jml * $kat['harga_guru'], 'total_pengepul' => $jml * $kat['harga_pengepul'],
+                'walikelas_id' => null, 'status' => 'pending'
+            ]);
+            $_SESSION['success'] = "Setoran guru ($jml Pcs) disimpan.";
+            header('Location: ' . BASE_URL . '/setoran/guru');
+        }
+    }
+
+    public function validasi() {
+        $pending = $this->setoranModel->getPending();
+        $title = "Validasi Setoran";
+        $content = __DIR__ . '/../../views/admin/setoran/validasi.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
+
+    public function edit_pending($id) {
+        $setoran = $this->setoranModel->getById($id);
+        if (!$setoran || $setoran['status'] != 'pending') {
+            header('Location: ' . BASE_URL . '/setoran/validasi');
             exit;
         }
+        $sampah = $this->sampahModel->getAll();
+        $title = "Koreksi Data (Pcs)";
+        $content = __DIR__ . '/../../views/admin/setoran/edit_pending.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
+
+    public function update_pending($id) {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $kat = $this->sampahModel->getById($_POST['kategori_id']);
+            $setoran = $this->setoranModel->getById($id);
+            $jml = (float)$_POST['berat'];
+            $harga_satuan = ($setoran['role'] == 'guru') ? $kat['harga_guru'] : $kat['harga_siswa'];
+
+            $this->setoranModel->update($id, [
+                'kategori_id' => $_POST['kategori_id'], 'berat' => $jml,
+                'total_harga' => $jml * $harga_satuan, 'total_pengepul' => $jml * $kat['harga_pengepul']
+            ]);
+            $_SESSION['success'] = "Data $jml Pcs diperbarui.";
+            header('Location: ' . BASE_URL . '/setoran/validasi');
+        }
+    }
+
+    public function proses_validasi($id) {
+        $this->setoranModel->updateStatus($id, 'valid');
+        $_SESSION['success'] = "Data divalidasi.";
+        header('Location: ' . BASE_URL . '/setoran/validasi');
+    }
+
+    public function hapus_pending($id) {
+        $this->setoranModel->delete($id);
+        header('Location: ' . BASE_URL . '/setoran/validasi');
     }
 }

@@ -1,102 +1,142 @@
-<div class="max-w-7xl mx-auto space-y-6">
-
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+<div class="max-w-7xl mx-auto space-y-8 pb-10" x-data="{ showModal: false, isEdit: false, formData: { id: '', username: '', nama: '', role: 'siswa', kelas_id: '', angkatan: '', is_active: 1 } }">
+    
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h2 class="text-2xl font-bold text-gray-900">Data Pengguna</h2>
-            <p class="text-gray-500 text-sm mt-1">Kelola data akses Admin, Staff, Guru, dan Siswa.</p>
+            <h2 class="text-3xl font-black text-slate-800 italic uppercase tracking-tight">MANAJEMEN<span class="text-emerald-500">USER</span></h2>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Kelola Admin, Guru, dan Siswa</p>
         </div>
-        <div class="flex space-x-3">
-            <a href="<?= BASE_URL ?>/user/import" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition-all">
-                <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                Import CSV
+        <div class="flex gap-2">
+            <a href="<?= BASE_URL ?>/user/import" class="px-6 py-3 bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-sm hover:bg-blue-600 hover:text-white transition-all flex items-center">
+                📥 Import CSV
             </a>
-            <a href="<?= BASE_URL ?>/user/create" class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all">
-                + Tambah Baru
-            </a>
+            <button @click="showModal = true; isEdit = false; formData = {id:'', username:'', nama:'', role:'siswa', kelas_id:'', angkatan:'', is_active: 1}" class="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-black transition-all flex items-center">
+                + Tambah User
+            </button>
         </div>
     </div>
 
     <?php if (isset($_SESSION['success'])): ?>
-        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg shadow-sm flex items-center">
-            <span class="text-emerald-800 font-medium"><?= $_SESSION['success']; unset($_SESSION['success']); ?></span>
-        </div>
+        <div class="p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs font-bold shadow-sm flex items-center">✅ <span class="ml-2"><?= $_SESSION['success']; unset($_SESSION['success']); ?></span></div>
     <?php endif; ?>
     <?php if (isset($_SESSION['error'])): ?>
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm flex items-center">
-            <span class="text-red-800 font-medium"><?= $_SESSION['error']; unset($_SESSION['error']); ?></span>
-        </div>
+        <div class="p-4 bg-red-50 border-l-4 border-red-500 text-red-800 text-xs font-bold shadow-sm flex items-center">⚠️ <span class="ml-2"><?= $_SESSION['error']; unset($_SESSION['error']); ?></span></div>
     <?php endif; ?>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
-                        <th class="px-6 py-4">Nama & Username</th>
-                        <th class="px-6 py-4">Peran (Role)</th>
-                        <th class="px-6 py-4">Kelas / Angkatan</th>
-                        <th class="px-6 py-4 text-center">Status</th>
-                        <th class="px-6 py-4 text-center">Aksi</th>
+                    <tr class="bg-gray-50 border-b border-gray-100 text-[10px] uppercase text-slate-400 font-black tracking-widest">
+                        <th class="px-8 py-5">Identitas</th>
+                        <th class="px-8 py-5 text-center">Status</th>
+                        <th class="px-8 py-5">Role & Penempatan</th>
+                        <th class="px-8 py-5 text-center">Aksi</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
-                    <?php if (empty($users)): ?>
-                        <tr>
-                            <td colspan="5" class="px-6 py-8 text-center text-gray-500">
-                                Belum ada data pengguna.
-                            </td>
-                        </tr>
-                    <?php else: ?>
-                        <?php foreach ($users as $row): ?>
-                        <tr class="hover:bg-gray-50 transition-colors duration-150">
-                            <td class="px-6 py-4">
-                                <div class="font-bold text-gray-800"><?= htmlspecialchars($row['nama']) ?></div>
-                                <div class="text-xs text-gray-500 mt-1">@<?= htmlspecialchars($row['username']) ?></div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <?php 
-                                    // Pewarnaan dinamis berdasarkan role
-                                    $colors = [
-                                        'admin' => 'bg-purple-100 text-purple-800 border-purple-200',
-                                        'staff' => 'bg-blue-100 text-blue-800 border-blue-200',
-                                        'guru' => 'bg-amber-100 text-amber-800 border-amber-200',
-                                        'siswa' => 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                                        'alumni' => 'bg-gray-100 text-gray-800 border-gray-200',
-                                    ];
-                                    $c = $colors[$row['role']] ?? $colors['alumni'];
-                                ?>
-                                <span class="px-3 py-1 text-[11px] font-bold uppercase rounded-full border <?= $c ?>">
-                                    <?= htmlspecialchars($row['role']) ?>
-                                </span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <?php if ($row['role'] === 'siswa' || $row['role'] === 'alumni'): ?>
-                                    <div class="text-sm font-semibold text-gray-700"><?= htmlspecialchars($row['nama_kelas'] ?? 'Belum ada kelas') ?></div>
-                                    <div class="text-[11px] text-gray-500">Angkatan: <?= htmlspecialchars($row['angkatan'] ?? '-') ?></div>
-                                <?php else: ?>
-                                    <span class="text-gray-400 text-sm">-</span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                <?php if ($row['is_active']): ?>
-                                    <span class="w-3 h-3 inline-block bg-green-500 rounded-full shadow-sm" title="Aktif"></span>
-                                <?php else: ?>
-                                    <span class="w-3 h-3 inline-block bg-red-500 rounded-full shadow-sm" title="Nonaktif"></span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                <div class="flex justify-center space-x-3">
-                                    <a href="<?= BASE_URL ?>/user/edit/<?= $row['id'] ?>" class="text-blue-500 hover:text-blue-700 transition">Edit</a>
-                                    <?php if ($row['id'] != $_SESSION['user_id']): ?>
-                                        <a href="<?= BASE_URL ?>/user/delete/<?= $row['id'] ?>" onclick="return confirm('Yakin hapus akun ini?')" class="text-red-500 hover:text-red-700 transition">Hapus</a>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                <tbody class="divide-y divide-gray-50">
+                    <?php foreach($users as $u): ?>
+                    <tr class="hover:bg-slate-50 transition-all">
+                        <td class="px-8 py-5">
+                            <div class="font-black text-slate-800 text-sm uppercase italic tracking-tighter"><?= htmlspecialchars($u['nama']) ?></div>
+                            <div class="text-[10px] font-bold text-slate-400 mt-1">@<?= htmlspecialchars($u['username']) ?></div>
+                        </td>
+                        <td class="px-8 py-5 text-center">
+                            <?php if($u['is_active']): ?>
+                                <span class="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase tracking-widest">Aktif</span>
+                            <?php else: ?>
+                                <span class="px-3 py-1 bg-slate-100 text-slate-400 rounded-full text-[9px] font-black uppercase tracking-widest">Non-Aktif</span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="px-8 py-5">
+                            <div class="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center">
+                                <span class="px-2 py-0.5 rounded-md text-[8px] font-black text-white mr-2 <?= $u['role'] === 'admin' ? 'bg-red-500' : ($u['role'] === 'guru' ? 'bg-blue-500' : 'bg-emerald-500') ?>"><?= $u['role'] ?></span>
+                                <?= $u['role'] === 'siswa' ? 'KELAS ' . ($u['nama_kelas'] ?? '???') : 'STAF INTERNAL' ?>
+                            </div>
+                            <?php if($u['role'] === 'siswa' && !empty($u['angkatan'])): ?>
+                                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Angkatan: <?= htmlspecialchars($u['angkatan']) ?></div>
+                            <?php endif; ?>
+                        </td>
+                        <td class="px-8 py-5 text-center space-x-2">
+                            <button @click="showModal = true; isEdit = true; formData = { id: '<?= $u['id'] ?>', username: '<?= $u['username'] ?>', nama: '<?= addslashes($u['nama']) ?>', role: '<?= $u['role'] ?>', kelas_id: '<?= $u['kelas_id'] ?>', angkatan: '<?= $u['angkatan'] ?>', is_active: '<?= $u['is_active'] ?>' }" class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Edit</button>
+                            <a href="<?= BASE_URL ?>/user/delete?id=<?= $u['id'] ?>" onclick="return confirm('Hapus pengguna ini permanen?')" class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Hapus</a>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div @click.away="showModal = false" class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden h-[90vh] flex flex-col">
+            
+            <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+                <h3 class="font-black text-slate-800 text-lg uppercase italic tracking-tighter" x-text="isEdit ? 'Update Data User' : 'Daftarkan User Baru'"></h3>
+                <button @click="showModal = false" class="text-slate-400 hover:text-red-500 font-bold text-2xl">&times;</button>
+            </div>
+
+            <div class="overflow-y-auto custom-scrollbar p-6">
+                <form :action="isEdit ? '<?= BASE_URL ?>/user/update' : '<?= BASE_URL ?>/user/store'" method="POST" class="space-y-5">
+                    <input type="hidden" name="id" x-model="formData.id">
+                    
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Nama Lengkap</label>
+                        <input type="text" name="nama" x-model="formData.nama" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Username Login</label>
+                            <input type="text" name="username" x-model="formData.username" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1" x-text="isEdit ? 'Ganti Password (Opsional)' : 'Password Awal'"></label>
+                            <input type="password" name="password" :required="!isEdit" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Peran Akses</label>
+                            <select name="role" x-model="formData.role" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="siswa">Siswa (Nasabah)</option>
+                                <option value="guru">Guru / Staf</option>
+                                <option value="admin">Administrator</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Status Akun</label>
+                            <select name="is_active" x-model="formData.is_active" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="1">Aktif</option>
+                                <option value="0">Non-Aktif / Lulus</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div x-show="formData.role === 'siswa'" x-collapse class="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl space-y-4">
+                        <p class="text-[9px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-200 pb-2">Informasi Akademik Nasabah</p>
+                        <div>
+                            <label class="block text-[10px] font-bold text-emerald-600 uppercase mb-2 ml-1">Kelas Saat Ini</label>
+                            <select name="kelas_id" x-model="formData.kelas_id" :required="formData.role === 'siswa'" class="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="">-- Pilih Kelas --</option>
+                                <?php foreach($kelas as $k): ?>
+                                    <option value="<?= $k['id'] ?>">Kelas <?= htmlspecialchars($k['nama_kelas']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-emerald-600 uppercase mb-2 ml-1">Tahun Angkatan</label>
+                            <input type="text" name="angkatan" x-model="formData.angkatan" placeholder="Misal: 2024" class="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        <button type="submit" class="w-full py-4 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-black transition-all transform active:scale-95">
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>

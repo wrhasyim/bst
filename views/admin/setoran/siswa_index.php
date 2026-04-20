@@ -1,68 +1,55 @@
-<div class="max-w-7xl mx-auto space-y-6">
-
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+<div class="max-w-7xl mx-auto">
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
         <div>
-            <h2 class="text-2xl font-bold text-gray-900">Data Setoran Siswa</h2>
-            <p class="text-gray-500 text-sm mt-1">Pantau seluruh riwayat setoran tabungan sampah siswa.</p>
+            <h2 class="text-xl font-bold text-gray-800">Riwayat Tabungan Siswa</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Daftar transaksi masuk (Satuan: Pcs).</p>
         </div>
-        <a href="<?= BASE_URL ?>/setoran/siswa_create" class="inline-flex items-center px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all duration-200 transform hover:-translate-y-0.5">
-            <span class="mr-2">⚖️</span> Timbang Setoran Baru
+        <a href="<?= BASE_URL ?>/setoran/siswa_kelas" class="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-sm transition-all">
+            <span class="mr-2">🏫</span> Input Setoran Per Kelas
         </a>
     </div>
 
     <?php if (isset($_SESSION['success'])): ?>
-        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg shadow-sm flex items-center">
-            <span class="text-emerald-800 font-medium"><?= $_SESSION['success']; unset($_SESSION['success']); ?></span>
-        </div>
-    <?php endif; ?>
-    <?php if (isset($_SESSION['error'])): ?>
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm flex items-center">
-            <span class="text-red-800 font-medium"><?= $_SESSION['error']; unset($_SESSION['error']); ?></span>
+        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-3 rounded-r-lg shadow-sm mb-4">
+            <span class="text-emerald-800 text-sm font-medium"><?= $_SESSION['success']; unset($_SESSION['success']); ?></span>
         </div>
     <?php endif; ?>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
-                        <th class="px-6 py-4">Tanggal & Waktu</th>
-                        <th class="px-6 py-4">Nama Siswa</th>
-                        <th class="px-6 py-4">Jenis Sampah</th>
-                        <th class="px-6 py-4 text-center">Berat</th>
-                        <th class="px-6 py-4 text-right">Nilai Tabungan</th>
-                        <th class="px-6 py-4 text-center">Status</th>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-[11px] uppercase tracking-wider text-gray-500 font-bold">
+                        <th class="px-5 py-3">Waktu</th>
+                        <th class="px-5 py-3">Siswa</th>
+                        <th class="px-5 py-3 text-center">Jumlah</th>
+                        <th class="px-5 py-3 text-right">Tabungan</th>
+                        <th class="px-5 py-3 text-center">Status</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     <?php if (empty($setoran)): ?>
-                        <tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">Belum ada transaksi setoran.</td></tr>
+                        <tr><td colspan="5" class="px-5 py-10 text-center text-gray-400 text-sm italic">Belum ada transaksi terekam.</td></tr>
                     <?php else: ?>
                         <?php foreach ($setoran as $row): ?>
-                        <tr class="hover:bg-gray-50 transition-colors duration-150">
-                            <td class="px-6 py-4 text-sm text-gray-500">
-                                <div class="font-medium text-gray-800"><?= date('d M Y', strtotime($row['created_at'])) ?></div>
-                                <div class="text-[11px]"><?= date('H:i', strtotime($row['created_at'])) ?> WIB</div>
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-5 py-3 text-xs text-gray-500">
+                                <span class="font-semibold text-gray-700"><?= date('d/m/y', strtotime($row['created_at'])) ?></span>
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="font-bold text-gray-800"><?= htmlspecialchars($row['nama_siswa']) ?></div>
-                                <div class="text-[11px] text-gray-500"><?= htmlspecialchars($row['nama_kelas'] ?? 'Tanpa Kelas') ?></div>
+                            <td class="px-5 py-3">
+                                <div class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($row['nama_siswa']) ?></div>
+                                <div class="text-[10px] text-emerald-600 font-bold uppercase"><?= htmlspecialchars($row['nama_kelas'] ?? '-') ?></div>
                             </td>
-                            <td class="px-6 py-4 text-sm font-medium text-gray-700">
-                                ♻️ <?= htmlspecialchars($row['nama_sampah']) ?>
+                            <td class="px-5 py-3 text-center font-bold text-emerald-700 text-sm">
+                                <?= number_format($row['berat'], 0) ?> <span class="text-[10px] font-normal text-gray-400 uppercase">Pcs</span>
                             </td>
-                            <td class="px-6 py-4 text-center font-bold text-emerald-700 bg-emerald-50/30">
-                                <?= $row['berat'] ?> Kg
+                            <td class="px-5 py-3 text-right font-bold text-gray-800 text-sm">
+                                Rp<?= number_format($row['total_harga'], 0, ',', '.') ?>
                             </td>
-                            <td class="px-6 py-4 text-right">
-                                <span class="font-bold text-gray-800">Rp <?= number_format($row['total_harga'], 0, ',', '.') ?></span>
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                <?php if ($row['status'] == 'pending'): ?>
-                                    <span class="px-3 py-1 text-[11px] font-bold uppercase rounded-full border bg-amber-50 text-amber-700 border-amber-200">Pending</span>
-                                <?php else: ?>
-                                    <span class="px-3 py-1 text-[11px] font-bold uppercase rounded-full border bg-green-50 text-green-700 border-green-200">Valid</span>
-                                <?php endif; ?>
+                            <td class="px-5 py-3 text-center">
+                                <span class="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full border <?= $row['status'] == 'pending' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200' ?>">
+                                    <?= $row['status'] ?>
+                                </span>
                             </td>
                         </tr>
                         <?php endforeach; ?>

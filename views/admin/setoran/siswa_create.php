@@ -2,9 +2,10 @@
     <div class="mb-6 flex items-center justify-between">
         <div>
             <h2 class="text-2xl font-bold text-gray-900">Input Setoran Tabungan</h2>
-            <p class="text-gray-500 text-sm mt-1">Catat hasil timbangan sampah dari siswa.</p>
+            <p class="text-gray-500 text-sm mt-1">Catat hasil timbangan sampah dari siswa (Gunakan titik untuk desimal, misal: 0.2 untuk 200g).</p>
         </div>
-        <a href="<?= BASE_URL ?>/setoran/siswa" class="text-gray-500 hover:text-gray-800 flex items-center text-sm font-medium">
+        <a href="<?= BASE_URL ?>/setoran/siswa" class="text-gray-500 hover:text-gray-800 flex items-center text-sm font-medium transition-colors">
+            <svg class="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
             Kembali
         </a>
     </div>
@@ -28,7 +29,7 @@
             <div class="grid grid-cols-1 gap-6">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2">Pilih Penyetor (Siswa) <span class="text-red-500">*</span></label>
-                    <select name="user_id" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500">
+                    <select name="user_id" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all">
                         <option value="">-- Ketik / Pilih Nama Siswa --</option>
                         <?php foreach($siswa as $s): ?>
                             <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['nama']) ?></option>
@@ -39,7 +40,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">Jenis Sampah <span class="text-red-500">*</span></label>
-                        <select name="kategori_id" x-model="katId" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500">
+                        <select name="kategori_id" x-model="katId" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all">
                             <option value="">-- Pilih Sampah --</option>
                             <?php foreach($sampah as $kat): ?>
                                 <option value="<?= $kat['id'] ?>"><?= htmlspecialchars($kat['nama_sampah']) ?></option>
@@ -49,11 +50,13 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Hasil Timbangan <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Hasil Timbangan (Kg) <span class="text-red-500">*</span></label>
                         <div class="relative">
-                            <input type="number" name="berat" x-model.number="berat" step="0.1" min="0.1" required class="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 font-bold text-lg text-gray-800">
+                            <input type="number" name="berat" x-model.number="berat" step="0.01" min="0.01" required 
+                                   class="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 font-bold text-lg text-gray-800 transition-all">
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Kg</span>
                         </div>
+                        <p class="text-[10px] text-gray-400 mt-1 italic">*Gunakan titik untuk gram, contoh: 0.2 = 200g, 0.05 = 50g</p>
                     </div>
                 </div>
             </div>
@@ -67,7 +70,8 @@
             </div>
 
             <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-                <button type="submit" class="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all transform hover:-translate-y-0.5">
+                <button type="submit" class="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
                     Simpan Transaksi
                 </button>
             </div>

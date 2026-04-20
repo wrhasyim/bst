@@ -3,138 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?? 'BST' ?> - Bank Sampah TKM</title>
+    <title><?= $title ?? 'BST SYSTEM'; ?></title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
     <style>
-        /* Custom Scrollbar untuk Sidebar agar lebih elegan */
-        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
-        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-        .sidebar-scroll::-webkit-scrollbar-thumb { background: #065f46; border-radius: 10px; }
-        .sidebar-scroll:hover::-webkit-scrollbar-thumb { background: #047857; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        [x-cloak] { display: none !important; }
+        
+        /* STYLE SOROT AKTIF (GLOW EMERALD) */
+        .sidebar-link.active { 
+            background-color: rgba(30, 41, 59, 1) !important; 
+            color: #ffffff !important; 
+            border-left: 4px solid #10b981 !important;
+            box-shadow: inset 10px 0 20px -10px rgba(16, 185, 129, 0.6);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        
+        .nav-header { font-style: italic; letter-spacing: 0.15em; }
     </style>
 </head>
-<body class="bg-gray-50 flex h-screen overflow-hidden font-sans text-gray-800" x-data="{ sidebarOpen: false }">
-    
-    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed inset-y-0 left-0 w-64 bg-emerald-900 text-white transition-transform duration-300 md:relative md:translate-x-0 flex flex-col z-50 shadow-2xl">
+<body x-data="{ sidebarOpen: false }">
+
+    <div class="flex h-screen overflow-hidden">
         
-        <div class="h-16 flex items-center justify-center bg-emerald-950 border-b border-emerald-800/50">
-            <div class="flex items-center space-x-2">
-                <svg class="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                <h1 class="text-2xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-100 to-emerald-400">BST</h1>
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" 
+               class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-0 shadow-2xl flex flex-col">
+            
+            <div class="flex items-center justify-center h-20 bg-slate-950 border-b border-slate-800 flex-shrink-0">
+                <span class="text-2xl font-black text-white italic tracking-tighter uppercase">BST<span class="text-emerald-500">SYSTEM</span></span>
             </div>
-        </div>
 
-        <nav class="flex-1 p-4 space-y-1 overflow-y-auto sidebar-scroll">
-            
-            <a href="<?= BASE_URL ?>/dashboard" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-50 hover:text-white group">
-                <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">📊</span>
-                <span class="font-medium text-sm">Dashboard</span>
-            </a>
-            
-            <?php if(in_array($_SESSION['role'], ['admin', 'staff'])): ?>
-                <div class="pt-5 pb-2">
-                    <p class="px-4 text-[10px] font-bold text-emerald-500/70 uppercase tracking-wider">Operasional</p>
-                </div>
-                <a href="<?= BASE_URL ?>/setoran/siswa" class="flex items-center py-2px px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group mb-1">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">📝</span>
-                    <span class="font-medium text-sm">Setoran Siswa</span>
-                </a>
-                <a href="<?= BASE_URL ?>/setoran/guru" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">📝</span>
-                    <span class="font-medium text-sm">Setoran Guru</span>
-                </a>
-            <?php endif; ?>
-
-            <?php if($_SESSION['role'] === 'admin'): ?>
+            <nav class="flex-1 mt-4 px-4 space-y-1 overflow-y-auto custom-scrollbar">
                 
-                <div class="pt-5 pb-2">
-                    <p class="px-4 text-[10px] font-bold text-emerald-500/70 uppercase tracking-wider">Keuangan & Validasi</p>
+                <div class="pb-3">
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Utama</p>
+                    <a href="<?= BASE_URL ?>/dashboard" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📊</span> Dashboard
+                    </a>
                 </div>
-                <a href="<?= BASE_URL ?>/validasi" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group mb-1">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">✅</span>
-                    <span class="font-medium text-sm">Validasi Setoran</span>
-                </a>
-                <a href="<?= BASE_URL ?>/pencairan" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">💰</span>
-                    <span class="font-medium text-sm">Pencairan Honor</span>
-                </a>
 
-                <div class="pt-5 pb-2">
-                    <p class="px-4 text-[10px] font-bold text-emerald-500/70 uppercase tracking-wider">Laporan</p>
+                <div class="py-3">
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Operasional</p>
+                    <a href="<?= BASE_URL ?>/setoran/siswa_kelas" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🎒</span> Setoran Siswa
+                    </a>
+                    <a href="<?= BASE_URL ?>/setoran/guru" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📝</span> Setoran Guru
+                    </a>
+                    <a href="<?= BASE_URL ?>/setoran/siswa" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📋</span> Riwayat Tabungan
+                    </a>
                 </div>
-                <a href="<?= BASE_URL ?>/laporan/setoran" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group mb-1">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">📄</span>
-                    <span class="font-medium text-sm">Laporan Setoran</span>
-                </a>
-                <a href="<?= BASE_URL ?>/laporan/keuangan" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">📈</span>
-                    <span class="font-medium text-sm">Laporan Keuangan</span>
-                </a>
 
-                <div class="pt-5 pb-2">
-                    <p class="px-4 text-[10px] font-bold text-emerald-500/70 uppercase tracking-wider">Akademik</p>
+                <div class="py-3">
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Keuangan & Validasi</p>
+                    <a href="<?= BASE_URL ?>/setoran/validasi" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">✅</span> Validasi Setoran
+                    </a>
+                    <a href="<?= BASE_URL ?>/penjualan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🚛</span> Penjualan Pengepul
+                    </a>
+                    <a href="<?= BASE_URL ?>/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">💰</span> Pencairan Honor
+                    </a>
                 </div>
-                <a href="<?= BASE_URL ?>/akademik/kenaikan" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group mb-1">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">🎓</span>
-                    <span class="font-medium text-sm">Kenaikan Kelas</span>
-                </a>
-                <a href="<?= BASE_URL ?>/akademik/kelulusan" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">🚀</span>
-                    <span class="font-medium text-sm">Kelulusan Alumni</span>
-                </a>
 
-                <div class="pt-5 pb-2">
-                    <p class="px-4 text-[10px] font-bold text-emerald-500/70 uppercase tracking-wider">Master Data</p>
+                <div class="py-3">
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Laporan</p>
+                    <a href="<?= BASE_URL ?>/laporan/keuangan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📈</span> Laporan Keuangan
+                    </a>
+                    <a href="<?= BASE_URL ?>/laporan/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🏅</span> Laporan Honor
+                    </a>
+                    <a href="<?= BASE_URL ?>/laporan/setoran" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📄</span> Rekap Per Kelas
+                    </a>
                 </div>
-                <a href="<?= BASE_URL ?>/sampah" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group mb-1">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">♻️</span>
-                    <span class="font-medium text-sm">Kategori Sampah</span>
-                </a>
-                <a href="<?= BASE_URL ?>/kelas" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group mb-1">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">🏫</span>
-                    <span class="font-medium text-sm">Data Kelas</span>
-                </a>
-                <a href="<?= BASE_URL ?>/user" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group mb-1">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">👥</span>
-                    <span class="font-medium text-sm">Data Pengguna</span>
-                </a>
-                <a href="<?= BASE_URL ?>/pengaturan" class="flex items-center py-2.5 px-4 rounded-lg transition-colors duration-200 hover:bg-emerald-800 text-emerald-100 hover:text-white group">
-                    <span class="mr-3 text-emerald-400 group-hover:text-emerald-300">⚙️</span>
-                    <span class="font-medium text-sm">Pengaturan Sistem</span>
-                </a>
 
-            <?php endif; ?>
-            
-            <div class="h-10"></div> </nav>
-    </aside>
+                <div class="py-3">
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Akademik</p>
+                    <a href="<?= BASE_URL ?>/akademik/kenaikan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🎓</span> Kenaikan Kelas
+                    </a>
+                    <a href="<?= BASE_URL ?>/akademik/kelulusan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🚀</span> Kelulusan Alumni
+                    </a>
+                </div>
 
-    <div class="flex-1 flex flex-col overflow-hidden w-full bg-gray-50/50">
-        
-        <header class="h-16 bg-white shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border-b border-gray-100 flex items-center justify-between px-6 z-10">
-            <div class="flex items-center">
-                <button @click="sidebarOpen = !sidebarOpen" class="md:hidden mr-4 text-gray-400 hover:text-emerald-600 focus:outline-none transition-colors">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                <div class="py-3 border-t border-slate-800 mt-4">
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Master Data</p>
+                    <a href="<?= BASE_URL ?>/sampah" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">♻️</span> Kategori Sampah
+                    </a>
+                    <a href="<?= BASE_URL ?>/kelas" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🏫</span> Data Kelas
+                    </a>
+                    <a href="<?= BASE_URL ?>/user" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">👥</span> Data Pengguna
+                    </a>
+                    <a href="<?= BASE_URL ?>/user/import" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📥</span> Import Siswa Massal
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="flex items-center justify-between h-16 px-8 bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
+                <button @click="sidebarOpen = true" class="lg:hidden text-gray-500 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
-                <h2 class="text-xl font-bold text-gray-800 tracking-tight"><?= $title ?? 'Dashboard' ?></h2>
-            </div>
-            
-            <div class="flex items-center space-x-5">
-                <div class="flex flex-col text-right hidden sm:block">
-                    <span class="text-sm font-bold text-gray-700 block leading-tight"><?= htmlspecialchars($_SESSION['nama'] ?? 'User') ?></span>
-                    <span class="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider block"><?= htmlspecialchars($_SESSION['role'] ?? 'Guest') ?></span>
-                </div>
                 
-                <div class="h-8 w-px bg-gray-200"></div> <a href="<?= BASE_URL ?>/auth/logout" class="flex items-center text-sm font-bold text-red-500 hover:text-red-700 transition-colors group">
-                    <span class="hidden sm:inline mr-2">Keluar</span>
-                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                </a>
-            </div>
-        </header>
-        
-        <main class="flex-1 p-6 lg:p-8 overflow-auto">
-            <?php require_once $content; ?>
-        </main>
+                <div class="ml-auto relative" x-data="{ open: false }">
+                    <button @click="open = !open" class="flex items-center space-x-3 p-1 rounded-2xl hover:bg-gray-50 transition-all focus:outline-none">
+                        <div class="text-right hidden sm:block">
+                            <p class="text-xs font-black text-slate-800 leading-none"><?= $_SESSION['nama'] ?></p>
+                            <p class="text-[9px] text-emerald-500 font-bold uppercase mt-1 tracking-widest italic">Status: Online</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-sm font-black shadow-lg">
+                            <?= strtoupper(substr($_SESSION['nama'], 0, 1)) ?>
+                        </div>
+                    </button>
+
+                    <div x-show="open" @click.away="open = false" x-cloak 
+                         class="absolute right-0 mt-3 w-64 bg-white border border-gray-200 rounded-[2rem] shadow-2xl z-50 overflow-hidden py-2 animate-in fade-in zoom-in duration-200">
+                        <div class="px-6 py-2 border-b border-gray-50 bg-gray-50/50">
+                            <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Sistem Konfigurasi</p>
+                        </div>
+                        <a href="<?= BASE_URL ?>/pengaturan" class="flex items-center px-6 py-3.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 font-bold transition-all">
+                            <span class="mr-3 text-lg">⚙️</span> Pengaturan Sistem
+                        </a>
+                        <a href="<?= BASE_URL ?>/pengaturan/maintenance" class="flex items-center px-6 py-3.5 text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-600 font-bold transition-all">
+                            <span class="mr-3 text-lg">📦</span> Pemeliharaan Data
+                        </a>
+                        <hr class="border-gray-50 my-1">
+                        <a href="<?= BASE_URL ?>/auth/logout" class="flex items-center px-6 py-3.5 text-xs text-red-600 hover:bg-red-50 font-bold transition-all">
+                            <span class="mr-3 text-lg">🚪</span> Keluar Aplikasi
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-1 overflow-x-hidden overflow-y-auto p-8 bg-slate-50/50">
+                <div class="container mx-auto">
+                    <?php require_once $content; ?>
+                </div>
+            </main>
+        </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentUrl = window.location.href.split(/[?#]/)[0];
+            const links = document.querySelectorAll('.sidebar-link');
+            
+            let bestMatch = null;
+
+            links.forEach(link => {
+                const linkUrl = link.href.split(/[?#]/)[0];
+                
+                // Cek apakah URL sekarang persis sama atau dimulai dengan URL link
+                if (currentUrl === linkUrl || (currentUrl.startsWith(linkUrl) && linkUrl !== window.location.origin + '/')) {
+                    if (!bestMatch || linkUrl.length > bestMatch.href.split(/[?#]/)[0].length) {
+                        bestMatch = link;
+                    }
+                }
+            });
+
+            if (bestMatch) {
+                bestMatch.classList.add('active');
+            }
+        });
+    </script>
 </body>
 </html>

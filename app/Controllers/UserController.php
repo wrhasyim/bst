@@ -1,11 +1,9 @@
 <?php
 // app/Controllers/UserController.php
-require_once __DIR__ . '/../Models/User.php';
-require_once __DIR__ . '/../Models/Kelas.php';
+require_once __DIR__ . '/../Core/Database.php';
 
 class UserController {
-    private $userModel;
-    private $kelasModel;
+    private $db;
 
     public function __construct() {
         if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -13,42 +11,40 @@ class UserController {
             header('Location: ' . BASE_URL . '/dashboard');
             exit;
         }
-        $this->userModel = new User();
-        $this->kelasModel = new Kelas();
+        $this->db = Database::getInstance()->getConnection();
     }
 
+    // --- 1. TAMPILKAN DATA (DENGAN MODAL) ---
     public function index() {
-        $users = $this->userModel->getAll();
-        $title = "Data Pengguna";
+        $sql = "SELECT u.*, k.nama_kelas 
+                FROM users u 
+                LEFT JOIN kelas k ON u.kelas_id = k.id 
+                ORDER BY u.role ASC, u.nama ASC";
+        $users = $this->db->query($sql)->fetchAll();
+        $kelas = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
+
+        $title = "Manajemen Data Pengguna";
         $content = __DIR__ . '/../../views/admin/user/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    public function create() {
-        $kelas = $this->kelasModel->getAll(); // Ambil data kelas untuk pilihan Dropdown
-        $title = "Tambah Pengguna Baru";
-        $content = __DIR__ . '/../../views/admin/user/create.php';
-        require_once __DIR__ . '/../../views/layouts/admin.php';
-    }
-
+    // --- 2. TAMBAH USER ---
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $data = [
-                'nama' => trim($_POST['nama']),
-                'username' => trim($_POST['username']),
-                'password' => password_hash($_POST['password'], PASSWORD_DEFAULT),
-                'role' => $_POST['role'],
-                'kelas_id' => ($_POST['role'] === 'siswa') ? $_POST['kelas_id'] : null,
-                'angkatan' => ($_POST['role'] === 'siswa') ? $_POST['angkatan'] : null,
-                'is_active' => $_POST['is_active']
-            ];
+            $nama = trim($_POST['nama']);
+            $username = trim($_POST['username']);
+            $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+            $role = $_POST['role'];
+            $kelas_id = ($role === 'siswa') ? $_POST['kelas_id'] : null;
+            $angkatan = ($role === 'siswa') ? $_POST['angkatan'] : null;
+            $is_active = $_POST['is_active'];
 
             try {
-                if ($this->userModel->create($data)) {
-                    $_SESSION['success'] = "Pengguna berhasil ditambahkan!";
-                }
+                $sql = "INSERT INTO users (username, password, nama, role, kelas_id, angkatan, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([$username, $password, $nama, $role, $kelas_id, $angkatan, $is_active]);
+                $_SESSION['success'] = "Pengguna berhasil ditambahkan!";
             } catch (PDOException $e) {
-                // Tangkap error jika username duplikat (asumsi field username unique di DB, atau dicek manual)
                 $_SESSION['error'] = "Gagal! Username mungkin sudah digunakan.";
             }
             header('Location: ' . BASE_URL . '/user');
@@ -56,41 +52,29 @@ class UserController {
         }
     }
 
-    public function edit($id) {
-        $user = $this->userModel->getById($id);
-        $kelas = $this->kelasModel->getAll();
-
-        if (!$user) {
-            $_SESSION['error'] = "Data pengguna tidak ditemukan!";
-            header('Location: ' . BASE_URL . '/user');
-            exit;
-        }
-
-        $title = "Edit Data Pengguna";
-        $content = __DIR__ . '/../../views/admin/user/edit.php';
-        require_once __DIR__ . '/../../views/layouts/admin.php';
-    }
-
-    public function update($id) {
+    // --- 3. UPDATE USER ---
+    public function update() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $data = [
-                'nama' => trim($_POST['nama']),
-                'username' => trim($_POST['username']),
-                'role' => $_POST['role'],
-                'kelas_id' => ($_POST['role'] === 'siswa') ? $_POST['kelas_id'] : null,
-                'angkatan' => ($_POST['role'] === 'siswa') ? $_POST['angkatan'] : null,
-                'is_active' => $_POST['is_active']
-            ];
-
-            // Jika password diisi, kita hash. Jika kosong, biarkan array tetap kosong
-            if (!empty($_POST['password'])) {
-                $data['password'] = password_hash($_POST['password'], PASSWORD_DEFAULT);
-            }
+            $id = $_POST['id'];
+            $nama = trim($_POST['nama']);
+            $username = trim($_POST['username']);
+            $role = $_POST['role'];
+            $kelas_id = ($role === 'siswa') ? $_POST['kelas_id'] : null;
+            $angkatan = ($role === 'siswa') ? $_POST['angkatan'] : null;
+            $is_active = $_POST['is_active'];
 
             try {
-                if ($this->userModel->update($id, $data)) {
-                    $_SESSION['success'] = "Data pengguna berhasil diperbarui!";
+                if (!empty($_POST['password'])) {
+                    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+                    $sql = "UPDATE users SET username=?, password=?, nama=?, role=?, kelas_id=?, angkatan=?, is_active=? WHERE id=?";
+                    $stmt = $this->db->prepare($sql);
+                    $stmt->execute([$username, $password, $nama, $role, $kelas_id, $angkatan, $is_active, $id]);
+                } else {
+                    $sql = "UPDATE users SET username=?, nama=?, role=?, kelas_id=?, angkatan=?, is_active=? WHERE id=?";
+                    $stmt = $this->db->prepare($sql);
+                    $stmt->execute([$username, $nama, $role, $kelas_id, $angkatan, $is_active, $id]);
                 }
+                $_SESSION['success'] = "Data pengguna berhasil diperbarui!";
             } catch (PDOException $e) {
                 $_SESSION['error'] = "Gagal! Username mungkin sudah digunakan orang lain.";
             }
@@ -99,28 +83,33 @@ class UserController {
         }
     }
 
-    public function delete($id) {
+    // --- 4. HAPUS USER ---
+    public function delete() {
+        $id = $_GET['id'] ?? 0;
         if ($id == $_SESSION['user_id']) {
             $_SESSION['error'] = "Anda tidak bisa menghapus akun Anda sendiri yang sedang aktif!";
         } else {
-            if ($this->userModel->delete($id)) {
+            try {
+                $stmt = $this->db->prepare("DELETE FROM users WHERE id=?");
+                $stmt->execute([$id]);
                 $_SESSION['success'] = "Pengguna berhasil dihapus!";
-            } else {
-                $_SESSION['error'] = "Gagal menghapus pengguna. Data terkait (seperti setoran) mungkin masih ada.";
+            } catch (Exception $e) {
+                $_SESSION['error'] = "Gagal menghapus pengguna. Data terkait (setoran) masih ada.";
             }
         }
         header('Location: ' . BASE_URL . '/user');
         exit;
     }
-    // --- MENAMPILKAN FORM IMPORT CSV ---
+
+    // --- 5. TAMPILKAN FORM IMPORT CSV ---
     public function import() {
-        $kelas = $this->kelasModel->getAll(); // Ambil data kelas untuk dropdown
+        $kelas = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
         $title = "Import Data Siswa";
         $content = __DIR__ . '/../../views/admin/user/import.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // --- MEMPROSES FILE CSV ---
+    // --- 6. PROSES FILE CSV ---
     public function processImport() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $kelas_id = $_POST['kelas_id'];
@@ -133,46 +122,31 @@ class UserController {
                 exit;
             }
 
-            // Buka file CSV
             $handle = fopen($file, "r");
-            $sukses = 0;
-            $gagal = 0;
-            $baris = 0;
+            $sukses = 0; $gagal = 0; $baris = 0;
+            $password = password_hash('123456', PASSWORD_DEFAULT);
 
-            // Baca baris per baris
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                 $baris++;
-                
-                // Lewati baris pertama jika itu adalah judul kolom (Header: Nama, Username)
                 if ($baris == 1 && strtolower(trim($data[0])) == 'nama') continue;
 
                 $nama = trim($data[0]);
-                $username = trim($data[1]);
-                $password = password_hash('123456', PASSWORD_DEFAULT); // Password default
+                $username = strtolower(str_replace(' ', '', trim($data[1])));
 
                 if (!empty($nama) && !empty($username)) {
-                    $userData = [
-                        'nama' => $nama,
-                        'username' => strtolower(str_replace(' ', '', $username)), // Pastikan username tanpa spasi
-                        'password' => $password,
-                        'role' => 'siswa',
-                        'kelas_id' => $kelas_id,
-                        'angkatan' => $angkatan,
-                        'is_active' => 1
-                    ];
-
                     try {
-                        if ($this->userModel->create($userData)) {
+                        $sql = "INSERT INTO users (username, password, nama, role, kelas_id, angkatan, is_active) VALUES (?, ?, ?, 'siswa', ?, ?, 1)";
+                        $stmt = $this->db->prepare($sql);
+                        if ($stmt->execute([$username, $password, $nama, $kelas_id, $angkatan])) {
                             $sukses++;
                         }
                     } catch (PDOException $e) {
-                        $gagal++; // Gagal biasanya karena Username sudah ada di database (Duplikat)
+                        $gagal++;
                     }
                 }
             }
             fclose($handle);
-
-            $_SESSION['success'] = "Proses Import Selesai! Berhasil: $sukses siswa. Gagal/Duplikat: $gagal siswa.";
+            $_SESSION['success'] = "Import Selesai! Berhasil: $sukses. Gagal/Duplikat: $gagal.";
             header('Location: ' . BASE_URL . '/user');
             exit;
         }
