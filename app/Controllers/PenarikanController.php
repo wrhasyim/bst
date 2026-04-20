@@ -13,15 +13,19 @@ class PenarikanController {
         $this->db = Database::getInstance()->getConnection();
     }
 
-    // TAMPILKAN HALAMAN PENARIKAN MASSAL
+    // =================================================================
+    // 1. TAMPILAN HALAMAN PENARIKAN MASSAL PER KELAS
+    // =================================================================
     public function index() {
         $kelas_id = $_GET['kelas_id'] ?? null;
         $all_kelas = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
         
         $siswa_list = [];
+        $total_saldo_kelas = 0; // Untuk summary kasir
+
         if ($kelas_id) {
-            // Query Cerdas: Hitung Saldo Bersih per Siswa (Total Setoran Valid - Total Penarikan)
-            $sql = "SELECT u.id, u.nama, 
+            // Hitung Saldo Bersih per Siswa (Total Setoran Valid - Total Penarikan)
+            $sql = "SELECT u.id, u.nama, u.username,
                     (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
                     (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_tersedia
                     FROM users u 
@@ -30,6 +34,13 @@ class PenarikanController {
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['kid' => $kelas_id]);
             $siswa_list = $stmt->fetchAll();
+
+            // Hitung total uang yang harus disiapkan Admin untuk kelas ini
+            foreach ($siswa_list as $s) {
+                if ($s['saldo_tersedia'] > 0) {
+                    $total_saldo_kelas += $s['saldo_tersedia'];
+                }
+            }
         }
 
         // Riwayat Penarikan Global (20 Terakhir)
@@ -39,49 +50,69 @@ class PenarikanController {
                                     JOIN kelas k ON u.kelas_id = k.id 
                                     ORDER BY p.tanggal_tarik DESC LIMIT 20")->fetchAll();
 
-        $title = "Penarikan Saldo Massal";
+        $title = "Kasir Pencairan Kelas";
         $content = __DIR__ . '/../../views/admin/penarikan/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // PROSES SIMPAN PENARIKAN MASSAL (BATCH)
+    // =================================================================
+    // 2. PROSES PENARIKAN 1 KELAS FULL (AUTO-CALCULATE)
+    // =================================================================
     public function batch_store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $penarikan_data = $_POST['jumlah_tarik']; // Array [user_id => nominal]
-            $keterangan_global = $_POST['keterangan'] ?? 'Penarikan Massal';
+            $kelas_id = $_POST['kelas_id'] ?? null;
+            $keterangan_global = $_POST['keterangan'] ?? 'Pencairan Tabungan Kolektif';
+
+            if (!$kelas_id) {
+                $_SESSION['error'] = "Kelas belum dipilih!";
+                header('Location: ' . BASE_URL . '/penarikan');
+                exit;
+            }
 
             try {
                 $this->db->beginTransaction();
+
+                // 1. Ambil seluruh siswa di kelas ini beserta saldonya
+                $sqlSaldo = "SELECT u.id,
+                             (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
+                             (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_aktif
+                             FROM users u WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1";
+                
+                $stmtS = $this->db->prepare($sqlSaldo);
+                $stmtS->execute(['kid' => $kelas_id]);
+                $siswa_kelas = $stmtS->fetchAll();
+
                 $count = 0;
+                $total_keluar = 0;
 
-                foreach ($penarikan_data as $uid => $nominal) {
-                    $nominal = (float)$nominal;
-                    if ($nominal > 0) {
-                        // 1. Validasi Saldo (Server Side)
-                        $sqlSaldo = "SELECT (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = :uid AND status = 'valid') - 
-                                            (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = :uid) as saldo";
-                        $stmtS = $this->db->prepare($sqlSaldo);
-                        $stmtS->execute(['uid' => $uid]);
-                        $saldo_aktif = $stmtS->fetchColumn();
-
-                        if ($nominal > $saldo_aktif) {
-                            throw new Exception("Saldo salah satu siswa tidak mencukupi!");
-                        }
-
-                        // 2. Insert Data Penarikan
+                // 2. Tarik semua saldo yang > 0
+                foreach ($siswa_kelas as $s) {
+                    $saldo = (float)$s['saldo_aktif'];
+                    
+                    if ($saldo > 0) {
                         $stmtI = $this->db->prepare("INSERT INTO penarikan (user_id, jumlah, keterangan) VALUES (?, ?, ?)");
-                        $stmtI->execute([$uid, $nominal, $keterangan_global]);
+                        $stmtI->execute([$s['id'], $saldo, $keterangan_global]);
+                        
                         $count++;
+                        $total_keluar += $saldo;
                     }
                 }
 
-                $this->db->commit();
-                $_SESSION['success'] = "Berhasil memproses penarikan untuk $count nasabah.";
+                // 3. Konfirmasi
+                if ($count > 0) {
+                    $this->db->commit();
+                    $_SESSION['success'] = "Selesai! Berhasil mencairkan seluruh saldo untuk $count siswa. Uang yang harus diserahkan ke Wali Kelas: Rp" . number_format($total_keluar, 0, ',', '.');
+                } else {
+                    $this->db->rollBack();
+                    $_SESSION['error'] = "Gagal! Semua siswa di kelas ini saldonya Rp0 (Kosong).";
+                }
+
             } catch (Exception $e) {
                 $this->db->rollBack();
-                $_SESSION['error'] = "Gagal memproses penarikan: " . $e->getMessage();
+                $_SESSION['error'] = "Terjadi Kesalahan Sistem: " . $e->getMessage();
             }
         }
+        
         header('Location: ' . BASE_URL . '/penarikan?kelas_id=' . ($_POST['kelas_id'] ?? ''));
         exit;
     }

@@ -133,21 +133,25 @@ class LaporanController {
             $detail_siswa = $stmtUser->fetch();
 
             /** * QUERY MUTASI (UNION)
-             * Menggabungkan Setoran (Masuk) dan Penarikan (Keluar)
-             * Fix: Menggunakan created_at untuk setoran agar tidak Error
+             * PERBAIKAN: Menggunakan alias parameter :uid1 dan :uid2 
+             * untuk mencegah error "Invalid parameter number" pada mode strict PDO
              */
             $sqlMutasi = "SELECT created_at as tanggal, 'setoran' as tipe, nama_sampah as ket, berat as qty, total_harga as jumlah
                           FROM setoran s 
                           JOIN kategori_sampah k ON s.kategori_id = k.id 
-                          WHERE s.user_id = :uid AND s.status = 'valid'
+                          WHERE s.user_id = :uid1 AND s.status = 'valid'
                           UNION ALL
                           SELECT tanggal_tarik as tanggal, 'penarikan' as tipe, keterangan as ket, 0 as qty, jumlah
                           FROM penarikan 
-                          WHERE user_id = :uid
+                          WHERE user_id = :uid2
                           ORDER BY tanggal DESC";
             
             $stmtMutasi = $this->db->prepare($sqlMutasi);
-            $stmtMutasi->execute(['uid' => $user_id]);
+            // Binding parameter secara terpisah
+            $stmtMutasi->execute([
+                'uid1' => $user_id, 
+                'uid2' => $user_id
+            ]);
             $mutasi = $stmtMutasi->fetchAll();
 
             // Hitung Saldo Bersih (Kredit - Debit)
