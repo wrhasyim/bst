@@ -13,7 +13,6 @@
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
         [x-cloak] { display: none !important; }
         
-        /* STYLE SOROT AKTIF (GLOW EMERALD) */
         .sidebar-link.active { 
             background-color: rgba(30, 41, 59, 1) !important; 
             color: #ffffff !important; 
@@ -163,20 +162,16 @@
         document.addEventListener('DOMContentLoaded', function() {
             const currentUrl = window.location.href.split(/[?#]/)[0];
             const links = document.querySelectorAll('.sidebar-link');
-            
             let bestMatch = null;
 
             links.forEach(link => {
                 const linkUrl = link.href.split(/[?#]/)[0];
-                
-                // Cek apakah URL sekarang persis sama atau dimulai dengan URL link
                 if (currentUrl === linkUrl || (currentUrl.startsWith(linkUrl) && linkUrl !== window.location.origin + '/')) {
                     if (!bestMatch || linkUrl.length > bestMatch.href.split(/[?#]/)[0].length) {
                         bestMatch = link;
                     }
                 }
             });
-
             if (bestMatch) {
                 bestMatch.classList.add('active');
             }
