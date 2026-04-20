@@ -95,6 +95,7 @@ class PengaturanController {
             $this->db->exec("TRUNCATE pencairan_honor;");
             $this->db->exec("TRUNCATE penjualan;");
             $this->db->exec("TRUNCATE setoran;");
+            $this->db->exec("TRUNCATE penarikan;"); // TAMBAHKAN INI
             $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
             $_SESSION['success'] = "Seluruh data transaksi (Tabungan & Penjualan) berhasil dikosongkan.";
         } catch (Exception $e) {
@@ -106,19 +107,13 @@ class PengaturanController {
     public function reset_total() {
         try {
             $this->db->exec("SET FOREIGN_KEY_CHECKS = 0;");
-            
-            // 1. Kosongkan Tabel Transaksi
             $this->db->exec("TRUNCATE pencairan_honor");
             $this->db->exec("TRUNCATE penjualan");
             $this->db->exec("TRUNCATE setoran");
-            
-            // 2. Kosongkan Tabel Master
+            $this->db->exec("TRUNCATE penarikan"); // TAMBAHKAN INI
             $this->db->exec("TRUNCATE kelas");
             $this->db->exec("TRUNCATE kategori_sampah");
-            
-            // 3. Hapus User kecuali Admin (Menggunakan DELETE agar tidak menghapus koneksi admin saat ini)
             $this->db->exec("DELETE FROM users WHERE role != 'admin'");
-            
             $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
             $_SESSION['success'] = "Reset Total Berhasil! Seluruh data dihapus kecuali akun Administrator.";
         } catch (Exception $e) {

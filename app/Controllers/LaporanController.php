@@ -32,7 +32,6 @@ class LaporanController {
 
         $margin_total = $data['margin_total'] ?? 0;
 
-        // Bangun Array Laporan (Kunci-kunci ini harus ada untuk View)
         $laporan = [
             'total_kotor'     => $data['kotor'] ?? 0,
             'beban_nasabah'   => $data['beban_nasabah'] ?? 0,
@@ -116,7 +115,7 @@ class LaporanController {
     }
 
     // =================================================================
-    // 4. BUKU TABUNGAN PER NASABAH (FITUR BARU - LENGKAP)
+    // 4. BUKU TABUNGAN PER NASABAH (INDIVIDUAL MUTATION)
     // =================================================================
     public function nasabah() {
         $user_id = $_GET['user_id'] ?? null;
@@ -124,7 +123,7 @@ class LaporanController {
         $siswa_list = $this->db->query("SELECT u.id, u.nama, k.nama_kelas FROM users u LEFT JOIN kelas k ON u.kelas_id = k.id WHERE u.role = 'siswa' ORDER BY u.nama ASC")->fetchAll();
         
         $detail_siswa = null;
-        $riwayat = [];
+        $mutasi = [];
         $total_saldo = 0;
 
         if ($user_id) {
@@ -133,19 +132,34 @@ class LaporanController {
             $stmtUser->execute([$user_id]);
             $detail_siswa = $stmtUser->fetch();
 
-            // Ambil Riwayat Setoran yang sudah VALID (Kredit)
-            $stmtRiwayat = $this->db->prepare("SELECT s.*, kat.nama_sampah 
-                                              FROM setoran s 
-                                              JOIN kategori_sampah kat ON s.kategori_id = kat.id 
-                                              WHERE s.user_id = ? AND s.status = 'valid' 
-                                              ORDER BY s.created_at DESC");
-            $stmtRiwayat->execute([$user_id]);
-            $riwayat = $stmtRiwayat->fetchAll();
+            /** * QUERY MUTASI (UNION)
+             * Menggabungkan Setoran (Masuk) dan Penarikan (Keluar)
+             * Fix: Menggunakan created_at untuk setoran agar tidak Error
+             */
+            $sqlMutasi = "SELECT created_at as tanggal, 'setoran' as tipe, nama_sampah as ket, berat as qty, total_harga as jumlah
+                          FROM setoran s 
+                          JOIN kategori_sampah k ON s.kategori_id = k.id 
+                          WHERE s.user_id = :uid AND s.status = 'valid'
+                          UNION ALL
+                          SELECT tanggal_tarik as tanggal, 'penarikan' as tipe, keterangan as ket, 0 as qty, jumlah
+                          FROM penarikan 
+                          WHERE user_id = :uid
+                          ORDER BY tanggal DESC";
+            
+            $stmtMutasi = $this->db->prepare($sqlMutasi);
+            $stmtMutasi->execute(['uid' => $user_id]);
+            $mutasi = $stmtMutasi->fetchAll();
 
-            // Hitung Total Saldo (Hanya dari setoran valid)
-            $stmtSaldo = $this->db->prepare("SELECT SUM(total_harga) FROM setoran WHERE user_id = ? AND status = 'valid'");
-            $stmtSaldo->execute([$user_id]);
-            $total_saldo = $stmtSaldo->fetchColumn() ?? 0;
+            // Hitung Saldo Bersih (Kredit - Debit)
+            $stmtSetoran = $this->db->prepare("SELECT SUM(total_harga) FROM setoran WHERE user_id = ? AND status = 'valid'");
+            $stmtSetoran->execute([$user_id]);
+            $total_setoran = $stmtSetoran->fetchColumn() ?? 0;
+
+            $stmtTarik = $this->db->prepare("SELECT SUM(jumlah) FROM penarikan WHERE user_id = ?");
+            $stmtTarik->execute([$user_id]);
+            $total_tarik = $stmtTarik->fetchColumn() ?? 0;
+
+            $total_saldo = $total_setoran - $total_tarik;
         }
 
         $title = "Buku Tabungan Nasabah";

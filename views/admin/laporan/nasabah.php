@@ -19,19 +19,21 @@
                     <?php endforeach; ?>
                 </select>
             </div>
-            <button type="submit" class="w-full md:w-auto px-10 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-black transition-all">Buka Buku</button>
+            <button type="submit" class="w-full md:w-auto px-10 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-black transition-all">
+                Buka Buku
+            </button>
         </form>
     </div>
 
     <?php if(isset($user_id) && $detail_siswa): ?>
         <div class="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm print:border-none print:p-0">
             <div class="flex justify-between items-start border-b-4 border-slate-900 pb-8 mb-8">
-                <div>
+                <div class="space-y-1">
                     <h1 class="text-2xl font-black uppercase italic tracking-tighter text-slate-900">BUKU TABUNGAN DIGITAL</h1>
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bank Sampah TKM (BST SYSTEM)</p>
                 </div>
                 <div class="text-right">
-                    <div class="px-6 py-4 bg-emerald-600 rounded-2xl text-white">
+                    <div class="px-6 py-4 bg-emerald-600 rounded-2xl text-white shadow-xl shadow-emerald-100">
                         <p class="text-[9px] font-black uppercase opacity-70 mb-1">Total Saldo Bersih</p>
                         <p class="text-2xl font-black">Rp<?= number_format($total_saldo, 0, ',', '.') ?></p>
                     </div>
@@ -56,23 +58,57 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50">
-                        <?php foreach($riwayat as $r): ?>
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-6 py-4 text-[10px] font-bold text-slate-500"><?= date('d/m/Y | H:i', strtotime($r['created_at'])) ?></td>
-                            <td class="px-6 py-4 font-black text-slate-800 uppercase italic text-xs"><?= htmlspecialchars($r['nama_sampah']) ?></td>
-                            <td class="px-6 py-4 text-center text-xs font-bold text-slate-700"><?= number_format($r['berat'], 0) ?> Pcs</td>
-                            <td class="px-6 py-4 text-right text-sm font-black text-emerald-600">+ Rp<?= number_format($r['total_harga'], 0, ',', '.') ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                        </tbody>
+                        <?php if(empty($mutasi)): ?>
+                            <tr><td colspan="4" class="px-6 py-10 text-center text-slate-400 italic font-bold uppercase tracking-widest">Belum ada mutasi transaksi.</td></tr>
+                        <?php else: ?>
+                            <?php foreach($mutasi as $m): ?>
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-6 py-4 text-[10px] font-bold text-slate-500">
+                                    <?= date('d/m/Y | H:i', strtotime($m['tanggal'])) ?>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <p class="font-black text-slate-800 uppercase italic text-xs tracking-tighter"><?= htmlspecialchars($m['ket']) ?></p>
+                                    <span class="text-[8px] font-black px-2 py-0.5 rounded <?= $m['tipe'] == 'setoran' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600' ?>">
+                                        <?= strtoupper($m['tipe']) ?>
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-center text-xs font-bold text-slate-700">
+                                    <?= $m['qty'] > 0 ? number_format($m['qty'], 0).' Pcs' : '-' ?>
+                                </td>
+                                <td class="px-6 py-4 text-right text-sm font-black <?= $m['tipe'] == 'setoran' ? 'text-emerald-600' : 'text-red-600' ?>">
+                                    <?= $m['tipe'] == 'setoran' ? '+' : '-' ?> Rp<?= number_format($m['jumlah'], 0, ',', '.') ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
                 </table>
             </div>
 
+            <div class="hidden print:grid grid-cols-2 mt-20 text-center text-[10px] font-bold uppercase tracking-widest">
+                <div>
+                    <p class="mb-20">Mengetahui,<br>Wali Kelas</p>
+                    <p class="border-t border-slate-900 inline-block px-10 pt-1">( ................................ )</p>
+                </div>
+                <div>
+                    <p class="mb-20">Petugas,<br>Bank Sampah TKM</p>
+                    <p class="border-t border-slate-900 inline-block px-10 pt-1"><?= $_SESSION['nama'] ?></p>
+                </div>
+            </div>
+
             <div class="mt-10 no-print flex justify-end">
-                <button onclick="window.print()" class="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:bg-black transition-all">🖨️ Cetak Buku</button>
+                <button onclick="window.print()" class="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:bg-black transition-all">
+                    🖨️ Cetak Buku Tabungan
+                </button>
             </div>
         </div>
     <?php endif; ?>
 </div>
 
-<style> @media print { .no-print { display: none !important; } body { background: white !important; } main { padding: 0 !important; } } </style>
+<style>
+    @media print { 
+        .no-print { display: none !important; } 
+        body { background: white !important; }
+        main { padding: 0 !important; }
+    }
+</style>
