@@ -1,58 +1,57 @@
-<div class="max-w-4xl mx-auto space-y-6">
-    <div class="mb-6 flex items-center justify-between">
+<div class="max-w-4xl mx-auto space-y-8 pb-10">
+    <div class="flex items-center justify-between">
         <div>
-            <h2 class="text-2xl font-bold text-gray-900">Import Data Siswa (CSV)</h2>
-            <p class="text-gray-500 text-sm mt-1">Masukkan data siswa dalam jumlah banyak sekaligus.</p>
+            <h2 class="text-3xl font-black text-slate-800 italic uppercase tracking-tight">IMPORT<span class="text-emerald-500">SISWA</span></h2>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Pendaftaran Nasabah Massal via CSV/Excel</p>
         </div>
-        <a href="<?= BASE_URL ?>/user" class="text-gray-500 hover:text-gray-800 flex items-center text-sm font-medium transition-colors">
-            Kembali
-        </a>
+        <a href="<?= BASE_URL ?>/user" class="px-5 py-2 bg-slate-100 text-slate-600 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all">🔙 Kembali</a>
     </div>
 
-    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-6 shadow-sm">
-        <h3 class="text-blue-800 font-bold text-lg mb-2 flex items-center">
-            <svg class="w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            Panduan File Excel (CSV)
-        </h3>
-        <ol class="list-decimal list-inside text-blue-700 text-sm space-y-2 mt-3">
-            <li>Buat file di Microsoft Excel dengan 2 kolom saja: <strong>Kolom A (Nama)</strong> dan <strong>Kolom B (Username)</strong>.</li>
-            <li>Baris pertama boleh diisi judul kolom (akan diabaikan oleh sistem).</li>
-            <li><strong>Password otomatis</strong> akan diatur menjadi: <code class="bg-blue-200 px-2 py-0.5 rounded text-blue-900 font-bold">123456</code> untuk semua siswa.</li>
-            <li>Pastikan saat menyimpan file di Excel, pilih format <strong>CSV (Comma delimited) (*.csv)</strong>.</li>
-        </ol>
-    </div>
-
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <form action="<?= BASE_URL ?>/user/processImport" method="POST" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-6">
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Pilih Kelas Tujuan <span class="text-red-500">*</span></label>
-                    <select name="kelas_id" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all">
-                        <option value="">-- Semua siswa di file ini masuk ke kelas: --</option>
-                        <?php foreach($kelas as $k): ?>
-                            <option value="<?= $k['id'] ?>"><?= htmlspecialchars($k['nama_kelas']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Tahun Angkatan <span class="text-red-500">*</span></label>
-                    <input type="text" name="angkatan" required placeholder="Contoh: 2024" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all">
-                </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="md:col-span-1 space-y-6">
+            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                <h3 class="font-black text-slate-800 text-[11px] uppercase tracking-widest border-b pb-4 mb-4">Panduan Import</h3>
+                <ul class="space-y-4">
+                    <li class="flex gap-3">
+                        <span class="w-5 h-5 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">1</span>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase leading-relaxed">Unduh template CSV yang telah disediakan.</p>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="w-5 h-5 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">2</span>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase leading-relaxed">Isi data siswa tanpa mengubah urutan kolom header.</p>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="w-5 h-5 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">3</span>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase leading-relaxed">Simpan file dan upload pada form di samping.</p>
+                    </li>
+                </ul>
             </div>
 
-            <div class="pt-4">
-                <label class="block text-sm font-bold text-gray-700 mb-2">Upload File CSV <span class="text-red-500">*</span></label>
-                <input type="file" name="file_csv" accept=".csv" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-            </div>
+            <a href="<?= BASE_URL ?>/user/download_template" class="block w-full py-4 bg-slate-900 text-white text-center text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-black transition-all shadow-lg">
+                📥 Download Template CSV
+            </a>
+        </div>
 
-            <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-                <button type="submit" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                    Mulai Import Data
+        <div class="md:col-span-2">
+            <form action="<?= BASE_URL ?>/user/proses_import" method="POST" enctype="multipart/form-data" class="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm space-y-8">
+                <div class="border-4 border-dashed border-slate-100 rounded-[2rem] p-10 text-center space-y-4">
+                    <div class="text-5xl">📁</div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Pilih File CSV Anda</label>
+                        <input type="file" name="file_csv" required class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                    <p class="text-[10px] font-bold text-blue-700 uppercase tracking-wide italic">
+                        *Sistem akan otomatis mengenali angkatan dan membuat akun aktif. Username tidak boleh duplikat.
+                    </p>
+                </div>
+
+                <button type="submit" class="w-full py-5 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-[0.3em] rounded-2xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100">
+                    🚀 Jalankan Import Siswa
                 </button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
