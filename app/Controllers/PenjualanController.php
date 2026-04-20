@@ -1,74 +1,79 @@
 <?php
 // app/Controllers/PenjualanController.php
-require_once __DIR__ . '/../Models/Penjualan.php';
-require_once __DIR__ . '/../Models/KategoriSampah.php';
+require_once __DIR__ . '/../Core/Database.php';
 
 class PenjualanController {
-    private $penjualanModel;
-    private $sampahModel;
+    private $db;
 
     public function __construct() {
-        if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'staff'])) {
+        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
             header('Location: ' . BASE_URL . '/dashboard');
             exit;
         }
-        $this->penjualanModel = new Penjualan();
-        $this->sampahModel = new KategoriSampah();
+        $this->db = Database::getInstance()->getConnection();
     }
 
+    // --- 1. TAMPILKAN STOK & RIWAYAT ---
     public function index() {
-        $penjualan = $this->penjualanModel->getAll();
+        // Ambil stok gudang: Sampah Valid yang BELUM DIJUAL (is_sold = 0)
+        $sqlStock = "SELECT k.id as kategori_id, k.nama_sampah, k.harga_pengepul,
+                            SUM(s.berat) as total_pcs,
+                            SUM(s.total_pengepul) as estimasi_pendapatan
+                     FROM kategori_sampah k
+                     JOIN setoran s ON k.id = s.kategori_id
+                     WHERE s.status = 'valid' AND s.is_sold = 0
+                     GROUP BY k.id, k.nama_sampah, k.harga_pengepul
+                     HAVING total_pcs > 0";
+        $stok = $this->db->query($sqlStock)->fetchAll();
+
+        // Ambil riwayat penjualan sebelumnya
+        $sqlHistory = "SELECT p.*, k.nama_sampah 
+                       FROM penjualan p 
+                       JOIN kategori_sampah k ON p.kategori_id = k.id 
+                       ORDER BY p.tanggal_jual DESC LIMIT 20";
+        $riwayat = $this->db->query($sqlHistory)->fetchAll();
+
         $title = "Penjualan Pengepul";
         $content = __DIR__ . '/../../views/admin/penjualan/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    public function create() {
-        $stok = $this->penjualanModel->getReadyStock();
-        $kategori = $this->sampahModel->getAll();
-        
-        foreach ($kategori as &$k) {
-            $k['stok_pcs'] = 0;
-            foreach ($stok as $s) {
-                if ($s['kategori_id'] == $k['id']) {
-                    $k['stok_pcs'] = (int)$s['total_stok'];
-                }
-            }
-        }
-
-        $title = "Jual ke Pengepul (Pcs)";
-        $content = __DIR__ . '/../../views/admin/penjualan/create.php';
-        require_once __DIR__ . '/../../views/layouts/admin.php';
-    }
-
-    public function store() {
+    // --- 2. PROSES PENJUALAN ---
+    public function jual() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $kategori_id = $_POST['kategori_id'];
-            $jumlah_jual = (int)$_POST['total_berat']; // DB tetap total_berat, logika tetap Pcs
-            $harga_deal = (float)$_POST['harga_per_kg'];
 
-            // Proteksi stok agar tidak minus
-            $current_stok = $this->penjualanModel->getReadyStock($kategori_id);
-            $stok_asli = $current_stok ? (int)$current_stok['total_stok'] : 0;
+            try {
+                // Kunci database untuk transaksi aman
+                $this->db->beginTransaction();
 
-            if ($jumlah_jual > $stok_asli) {
-                $_SESSION['error'] = "Gagal! Jumlah jual ($jumlah_jual Pcs) melebihi stok gudang ($stok_asli Pcs).";
-                header('Location: ' . BASE_URL . '/penjualan/create');
-                exit;
-            }
+                // 1. Hitung total Pcs dan Uang dari setoran yang ada
+                $stmtCalc = $this->db->prepare("SELECT SUM(berat) as total_pcs, SUM(total_pengepul) as total_rp 
+                                                FROM setoran 
+                                                WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0");
+                $stmtCalc->execute([$kategori_id]);
+                $data = $stmtCalc->fetch();
 
-            $data = [
-                'kategori_id' => $kategori_id,
-                'total_berat' => $jumlah_jual,
-                'harga_per_kg' => $harga_deal,
-                'total_pendapatan' => $jumlah_jual * $harga_deal,
-                'keterangan' => $_POST['keterangan']
-            ];
+                if (!$data['total_pcs']) {
+                    throw new Exception("Tidak ada stok valid untuk dijual pada kategori ini.");
+                }
 
-            if ($this->penjualanModel->create($data)) {
-                $_SESSION['success'] = "Penjualan $jumlah_jual Pcs berhasil dicatat.";
-            } else {
-                $_SESSION['error'] = "Gagal mencatat penjualan.";
+                // 2. Catat ke tabel Penjualan
+                $stmtJual = $this->db->prepare("INSERT INTO penjualan (kategori_id, total_berat, total_pendapatan) VALUES (?, ?, ?)");
+                $stmtJual->execute([$kategori_id, $data['total_pcs'], $data['total_rp']]);
+
+                // 3. Update status Setoran menjadi "TERJUAL" (is_sold = 1)
+                $stmtUpdate = $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0");
+                $stmtUpdate->execute([$kategori_id]);
+
+                // Eksekusi semua perintah
+                $this->db->commit();
+                $_SESSION['success'] = "Berhasil menjual " . number_format($data['total_pcs'], 0) . " Pcs ke Pengepul!";
+                
+            } catch (Exception $e) {
+                // Jika gagal, batalkan semua perintah database
+                $this->db->rollBack();
+                $_SESSION['error'] = "Gagal menjual: " . $e->getMessage();
             }
             header('Location: ' . BASE_URL . '/penjualan');
             exit;
