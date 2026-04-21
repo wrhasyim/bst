@@ -6,13 +6,18 @@
     <title><?= $title ?? 'BST SYSTEM'; ?></title>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #f8fafc; 
+        }
         [x-cloak] { display: none !important; }
         
+        /* Sidebar Active Link Style */
         .sidebar-link.active { 
             background-color: rgba(30, 41, 59, 1) !important; 
             color: #ffffff !important; 
@@ -20,6 +25,7 @@
             box-shadow: inset 10px 0 20px -10px rgba(16, 185, 129, 0.6);
         }
 
+        /* Custom Scrollbar for Sidebar */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
@@ -82,7 +88,7 @@
                 </div>
 
                 <div class="py-3 border-t border-slate-800 mt-4">
-                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Laporan</p>
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Sistem Laporan</p>
                     <a href="<?= BASE_URL ?>/laporan/keuangan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">📈</span> Laporan Keuangan
                     </a>
@@ -94,6 +100,16 @@
                     </a>
                     <a href="<?= BASE_URL ?>/laporan/nasabah" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">📖</span> Buku Tabungan
+                    </a>
+                </div>
+
+                <div class="py-3 border-t border-slate-800 mt-4">
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Manajemen Akademik</p>
+                    <a href="<?= BASE_URL ?>/akademik/kenaikan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">⏫</span> Kenaikan Kelas
+                    </a>
+                    <a href="<?= BASE_URL ?>/akademik/kelulusan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🎓</span> Kelulusan Alumni
                     </a>
                 </div>
 
@@ -110,10 +126,12 @@
                     </a>
                 </div>
                 <?php endif; ?>
+
             </nav>
         </aside>
 
         <div class="flex-1 flex flex-col overflow-hidden">
+            
             <header class="flex items-center justify-between h-16 px-8 bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
                 <button @click="sidebarOpen = true" class="lg:hidden text-gray-500 focus:outline-none">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -122,7 +140,7 @@
                 <div class="ml-auto relative" x-data="{ open: false }">
                     <button @click="open = !open" class="flex items-center space-x-3 p-1 rounded-2xl hover:bg-gray-50 transition-all focus:outline-none">
                         <div class="text-right hidden sm:block">
-                            <p class="text-xs font-black text-slate-800 leading-none"><?= $_SESSION['nama'] ?></p>
+                            <p class="text-xs font-black text-slate-800 leading-none"><?= htmlspecialchars($_SESSION['nama']) ?></p>
                             <p class="text-[9px] text-emerald-500 font-bold uppercase mt-1 tracking-widest italic">Akses: <?= strtoupper($_SESSION['role']) ?></p>
                         </div>
                         <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-sm font-black shadow-lg uppercase">
@@ -130,11 +148,15 @@
                         </div>
                     </button>
 
-                    <div x-show="open" @click.away="open = false" x-cloak 
+                    <div x-show="open" 
+                         @click.away="open = false" 
+                         x-cloak 
                          class="absolute right-0 mt-3 w-64 bg-white border border-gray-200 rounded-[2rem] shadow-2xl z-50 overflow-hidden py-2 animate-in fade-in zoom-in duration-200">
+                        
                         <div class="px-6 py-2 border-b border-gray-50 bg-gray-50/50">
                             <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Akun Saya</p>
                         </div>
+
                         <a href="<?= BASE_URL ?>/profil" class="flex items-center px-6 py-3.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 font-bold transition-all">
                             <span class="mr-3 text-lg">👤</span> Profil & Sandi
                         </a>
@@ -172,6 +194,7 @@
             
             links.forEach(link => {
                 const linkUrl = link.href.split(/[?#]/)[0];
+                // Mengecek kecocokan URL tepat atau jika URL saat ini adalah sub-halaman dari link tersebut
                 if (currentUrl === linkUrl || (currentUrl.startsWith(linkUrl) && linkUrl !== window.location.origin + '/')) {
                     link.classList.add('active');
                 }
