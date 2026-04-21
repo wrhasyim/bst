@@ -3,7 +3,7 @@
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
             <h2 class="text-3xl font-black text-slate-800 italic uppercase tracking-tight">MANAJEMEN<span class="text-emerald-500">USER</span></h2>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Kelola Admin, Guru, dan Siswa</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Kelola Admin, Staff, Guru, dan Siswa</p>
         </div>
         <div class="flex gap-2">
             <a href="<?= BASE_URL ?>/user/import" class="px-6 py-3 bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-sm hover:bg-blue-600 hover:text-white transition-all flex items-center">
@@ -49,15 +49,27 @@
                         </td>
                         <td class="px-8 py-5">
                             <div class="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center">
-                                <span class="px-2 py-0.5 rounded-md text-[8px] font-black text-white mr-2 <?= $u['role'] === 'admin' ? 'bg-red-500' : ($u['role'] === 'guru' ? 'bg-blue-500' : 'bg-emerald-500') ?>"><?= $u['role'] ?></span>
-                                <?= $u['role'] === 'siswa' ? 'KELAS ' . ($u['nama_kelas'] ?? '???') : 'STAF INTERNAL' ?>
+                                <?php 
+                                    $bgRole = 'bg-emerald-500';
+                                    if ($u['role'] === 'admin') $bgRole = 'bg-red-500';
+                                    if ($u['role'] === 'staff') $bgRole = 'bg-amber-500';
+                                    if ($u['role'] === 'guru') $bgRole = 'bg-blue-500';
+                                ?>
+                                <span class="px-2 py-0.5 rounded-md text-[8px] font-black text-white mr-2 <?= $bgRole ?>"><?= strtoupper($u['role']) ?></span>
+                                
+                                <?php
+                                    if ($u['role'] === 'siswa') echo 'KLS ' . htmlspecialchars($u['nama_kelas'] ?? '-');
+                                    else if ($u['role'] === 'guru') echo 'GURU / NASABAH';
+                                    else if ($u['role'] === 'staff') echo 'PETUGAS INPUT';
+                                    else echo 'SUPER ADMIN';
+                                ?>
                             </div>
                             <?php if($u['role'] === 'siswa' && !empty($u['angkatan'])): ?>
                                 <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Angkatan: <?= htmlspecialchars($u['angkatan']) ?></div>
                             <?php endif; ?>
                         </td>
                         <td class="px-8 py-5 text-center space-x-2">
-                            <button @click="showModal = true; isEdit = true; formData = { id: '<?= $u['id'] ?>', username: '<?= $u['username'] ?>', nama: '<?= addslashes($u['nama']) ?>', role: '<?= $u['role'] ?>', kelas_id: '<?= $u['kelas_id'] ?>', angkatan: '<?= $u['angkatan'] ?>', is_active: '<?= $u['is_active'] ?>' }" class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Edit</button>
+                            <button @click="showModal = true; isEdit = true; formData = { id: '<?= $u['id'] ?>', username: '<?= htmlspecialchars($u['username']) ?>', nama: '<?= addslashes($u['nama']) ?>', role: '<?= $u['role'] ?>', kelas_id: '<?= $u['kelas_id'] ?>', angkatan: '<?= htmlspecialchars($u['angkatan']) ?>', is_active: '<?= $u['is_active'] ?>' }" class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Edit</button>
                             <a href="<?= BASE_URL ?>/user/delete?id=<?= $u['id'] ?>" onclick="return confirm('Hapus pengguna ini permanen?')" class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Hapus</a>
                         </td>
                     </tr>
@@ -97,10 +109,11 @@
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Peran Akses</label>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Peran Akses (Role)</label>
                             <select name="role" x-model="formData.role" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
                                 <option value="siswa">Siswa (Nasabah)</option>
-                                <option value="guru">Guru / Staf</option>
+                                <option value="guru">Guru (Nasabah Pribadi)</option>
+                                <option value="staff">Staff (Petugas Input)</option>
                                 <option value="admin">Administrator</option>
                             </select>
                         </div>
@@ -128,6 +141,10 @@
                             <label class="block text-[10px] font-bold text-emerald-600 uppercase mb-2 ml-1">Tahun Angkatan</label>
                             <input type="text" name="angkatan" x-model="formData.angkatan" placeholder="Misal: 2024" class="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
                         </div>
+                    </div>
+
+                    <div x-show="formData.role === 'staff' || formData.role === 'admin'" x-collapse class="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <p class="text-[9px] font-bold text-amber-700 italic">*Perhatian: Akun ini memiliki akses ke sistem internal operasional (bukan nasabah).</p>
                     </div>
 
                     <div class="pt-4">
