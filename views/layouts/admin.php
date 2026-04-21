@@ -12,10 +12,18 @@
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
         [x-cloak] { display: none !important; }
-        .sidebar-link.active { background-color: rgba(30, 41, 59, 1) !important; color: #ffffff !important; border-left: 4px solid #10b981 !important; box-shadow: inset 10px 0 20px -10px rgba(16, 185, 129, 0.6); }
+        
+        .sidebar-link.active { 
+            background-color: rgba(30, 41, 59, 1) !important; 
+            color: #ffffff !important; 
+            border-left: 4px solid #10b981 !important;
+            box-shadow: inset 10px 0 20px -10px rgba(16, 185, 129, 0.6);
+        }
+
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        
         .nav-header { font-style: italic; letter-spacing: 0.15em; }
     </style>
 </head>
@@ -23,7 +31,9 @@
 
     <div class="flex h-screen overflow-hidden">
         
-        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-0 shadow-2xl flex flex-col">
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" 
+               class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-0 shadow-2xl flex flex-col">
+            
             <div class="flex items-center justify-center h-20 bg-slate-950 border-b border-slate-800 flex-shrink-0">
                 <span class="text-2xl font-black text-white italic tracking-tighter uppercase">BST<span class="text-emerald-500">SYSTEM</span></span>
             </div>
@@ -48,7 +58,7 @@
                     </a>
                     <?php if($_SESSION['role'] === 'admin'): ?>
                     <a href="<?= BASE_URL ?>/setoran/siswa" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
-                        <span class="mr-3">📋</span> Riwayat Global
+                        <span class="mr-3">📋</span> Riwayat Tabungan
                     </a>
                     <?php endif; ?>
                 </div>
@@ -61,10 +71,10 @@
                         <span class="mr-3">✅</span> Validasi Setoran
                     </a>
                     <a href="<?= BASE_URL ?>/penjualan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
-                        <span class="mr-3">🚛</span> Jual Pengepul
+                        <span class="mr-3">🚛</span> Penjualan Pengepul
                     </a>
                     <a href="<?= BASE_URL ?>/penarikan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
-                        <span class="mr-3">🏧</span> Kasir Penarikan
+                        <span class="mr-3">🏧</span> Penarikan Saldo
                     </a>
                     <a href="<?= BASE_URL ?>/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">💰</span> Pencairan Honor
@@ -72,20 +82,34 @@
                 </div>
 
                 <div class="py-3 border-t border-slate-800 mt-4">
-                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Sistem Laporan</p>
-                    <a href="<?= BASE_URL ?>/laporan/keuangan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all"><span class="mr-3">📈</span> Laporan Keuangan</a>
-                    <a href="<?= BASE_URL ?>/laporan/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all"><span class="mr-3">🏅</span> Laporan Honor</a>
-                    <a href="<?= BASE_URL ?>/laporan/nasabah" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all"><span class="mr-3">📖</span> Buku Tabungan</a>
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Laporan</p>
+                    <a href="<?= BASE_URL ?>/laporan/keuangan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📈</span> Laporan Keuangan
+                    </a>
+                    <a href="<?= BASE_URL ?>/laporan/buku_kas" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📓</span> Buku Kas Umum
+                    </a>
+                    <a href="<?= BASE_URL ?>/laporan/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🏅</span> Laporan Honor
+                    </a>
+                    <a href="<?= BASE_URL ?>/laporan/nasabah" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">📖</span> Buku Tabungan
+                    </a>
                 </div>
 
                 <div class="py-3 border-t border-slate-800 mt-4">
                     <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Master Data</p>
-                    <a href="<?= BASE_URL ?>/sampah" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all"><span class="mr-3">♻️</span> Kategori Sampah</a>
-                    <a href="<?= BASE_URL ?>/kelas" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all"><span class="mr-3">🏫</span> Data Kelas</a>
-                    <a href="<?= BASE_URL ?>/user" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all"><span class="mr-3">👥</span> Data Pengguna</a>
+                    <a href="<?= BASE_URL ?>/sampah" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">♻️</span> Kategori Sampah
+                    </a>
+                    <a href="<?= BASE_URL ?>/kelas" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">🏫</span> Data Kelas
+                    </a>
+                    <a href="<?= BASE_URL ?>/user" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">👥</span> Data Pengguna
+                    </a>
                 </div>
                 <?php endif; ?>
-
             </nav>
         </aside>
 
@@ -98,21 +122,37 @@
                 <div class="ml-auto relative" x-data="{ open: false }">
                     <button @click="open = !open" class="flex items-center space-x-3 p-1 rounded-2xl hover:bg-gray-50 transition-all focus:outline-none">
                         <div class="text-right hidden sm:block">
-                            <p class="text-xs font-black text-slate-800 leading-none"><?= htmlspecialchars($_SESSION['nama']) ?></p>
+                            <p class="text-xs font-black text-slate-800 leading-none"><?= $_SESSION['nama'] ?></p>
                             <p class="text-[9px] text-emerald-500 font-bold uppercase mt-1 tracking-widest italic">Akses: <?= strtoupper($_SESSION['role']) ?></p>
                         </div>
-                        <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-sm font-black shadow-lg">
-                            <?= strtoupper(substr($_SESSION['nama'], 0, 1)) ?>
+                        <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-sm font-black shadow-lg uppercase">
+                            <?= substr($_SESSION['nama'], 0, 1) ?>
                         </div>
                     </button>
 
-                    <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 mt-3 w-64 bg-white border border-gray-200 rounded-[2rem] shadow-2xl z-50 overflow-hidden py-2">
+                    <div x-show="open" @click.away="open = false" x-cloak 
+                         class="absolute right-0 mt-3 w-64 bg-white border border-gray-200 rounded-[2rem] shadow-2xl z-50 overflow-hidden py-2 animate-in fade-in zoom-in duration-200">
+                        <div class="px-6 py-2 border-b border-gray-50 bg-gray-50/50">
+                            <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Akun Saya</p>
+                        </div>
+                        <a href="<?= BASE_URL ?>/profil" class="flex items-center px-6 py-3.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 font-bold transition-all">
+                            <span class="mr-3 text-lg">👤</span> Profil & Sandi
+                        </a>
+                        
                         <?php if($_SESSION['role'] === 'admin'): ?>
-                            <a href="<?= BASE_URL ?>/pengaturan" class="flex items-center px-6 py-3.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 font-bold transition-all"><span class="mr-3 text-lg">⚙️</span> Pengaturan Sistem</a>
-                            <a href="<?= BASE_URL ?>/pengaturan/maintenance" class="flex items-center px-6 py-3.5 text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-600 font-bold transition-all"><span class="mr-3 text-lg">📦</span> Pemeliharaan Data</a>
                             <hr class="border-gray-50 my-1">
+                            <a href="<?= BASE_URL ?>/pengaturan" class="flex items-center px-6 py-3.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 font-bold transition-all">
+                                <span class="mr-3 text-lg">⚙️</span> Pengaturan Sistem
+                            </a>
+                            <a href="<?= BASE_URL ?>/pengaturan/maintenance" class="flex items-center px-6 py-3.5 text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-600 font-bold transition-all">
+                                <span class="mr-3 text-lg">📦</span> Pemeliharaan Data
+                            </a>
                         <?php endif; ?>
-                        <a href="<?= BASE_URL ?>/auth/logout" class="flex items-center px-6 py-3.5 text-xs text-red-600 hover:bg-red-50 font-bold transition-all"><span class="mr-3 text-lg">🚪</span> Keluar Aplikasi</a>
+
+                        <hr class="border-gray-50 my-1">
+                        <a href="<?= BASE_URL ?>/auth/logout" class="flex items-center px-6 py-3.5 text-xs text-red-600 hover:bg-red-50 font-bold transition-all">
+                            <span class="mr-3 text-lg">🚪</span> Keluar Aplikasi
+                        </a>
                     </div>
                 </div>
             </header>
@@ -128,8 +168,11 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const currentUrl = window.location.href.split(/[?#]/)[0];
-            document.querySelectorAll('.sidebar-link').forEach(link => {
-                if (currentUrl === link.href.split(/[?#]/)[0] || (currentUrl.startsWith(link.href.split(/[?#]/)[0]) && link.href !== window.location.origin + '/')) {
+            const links = document.querySelectorAll('.sidebar-link');
+            
+            links.forEach(link => {
+                const linkUrl = link.href.split(/[?#]/)[0];
+                if (currentUrl === linkUrl || (currentUrl.startsWith(linkUrl) && linkUrl !== window.location.origin + '/')) {
                     link.classList.add('active');
                 }
             });

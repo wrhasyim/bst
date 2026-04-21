@@ -170,4 +170,83 @@ class LaporanController {
         $content = __DIR__ . '/../../views/admin/laporan/nasabah.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
+    // =================================================================
+    // 5. BUKU KAS UMUM (ARUS KAS RIL / FISIK) - FITUR BARU
+    // =================================================================
+    public function buku_kas() {
+        // Filter Tutup Buku (Bulan & Tahun)
+        $bulan = $_GET['bulan'] ?? date('m');
+        $tahun = $_GET['tahun'] ?? date('Y');
+        
+        $periode = $tahun . '-' . str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        // QUERY SAKTI: Menyatukan 3 Tabel Transaksi (Uang Masuk & Uang Keluar)
+        // 1. Penjualan Pengepul (KAS MASUK / DEBIT)
+        // 2. Penarikan Nasabah (KAS KELUAR / KREDIT)
+        // 3. Pencairan Honor (KAS KELUAR / KREDIT)
+        $sql = "
+            SELECT 
+                tanggal_jual AS waktu, 
+                'Penjualan Pengepul' AS uraian, 
+                keterangan AS detail,
+                total_pendapatan AS debit, 
+                0 AS kredit,
+                'masuk' as jenis
+            FROM penjualan
+            WHERE DATE_FORMAT(tanggal_jual, '%Y-%m') = :periode1
+
+            UNION ALL
+
+            SELECT 
+                p.tanggal_tarik AS waktu, 
+                CONCAT('Penarikan Tunai: ', u.nama) AS uraian, 
+                p.keterangan AS detail,
+                0 AS debit, 
+                p.jumlah AS kredit,
+                'keluar_nasabah' as jenis
+            FROM penarikan p
+            JOIN users u ON p.user_id = u.id
+            WHERE DATE_FORMAT(p.tanggal_tarik, '%Y-%m') = :periode2
+
+            UNION ALL
+
+            SELECT 
+                h.tanggal_cair AS waktu, 
+                CONCAT('Pencairan Honor: ', u.nama) AS uraian, 
+                h.keterangan AS detail,
+                0 AS debit, 
+                h.jumlah AS kredit,
+                'keluar_honor' as jenis
+            FROM pencairan_honor h
+            JOIN users u ON h.user_id = u.id
+            WHERE DATE_FORMAT(h.tanggal_cair, '%Y-%m') = :periode3
+
+            ORDER BY waktu ASC
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            'periode1' => $periode,
+            'periode2' => $periode,
+            'periode3' => $periode
+        ]);
+        $buku_kas = $stmt->fetchAll();
+
+        // Hitung Saldo Bulan Lalu (Untuk Saldo Awal Bulan Ini)
+        // Ini memastikan uang dari bulan lalu tidak hilang dari hitungan laci
+        $sqlSaldoAwal = "
+            SELECT 
+                (SELECT IFNULL(SUM(total_pendapatan), 0) FROM penjualan WHERE DATE_FORMAT(tanggal_jual, '%Y-%m') < :p1) -
+                (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE DATE_FORMAT(tanggal_tarik, '%Y-%m') < :p2) -
+                (SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE DATE_FORMAT(tanggal_cair, '%Y-%m') < :p3) 
+            AS saldo_awal
+        ";
+        $stmtAwal = $this->db->prepare($sqlSaldoAwal);
+        $stmtAwal->execute(['p1' => $periode, 'p2' => $periode, 'p3' => $periode]);
+        $saldo_awal = $stmtAwal->fetchColumn() ?? 0;
+
+        $title = "Buku Kas Umum (Kas Ril)";
+        $content = __DIR__ . '/../../views/admin/laporan/buku_kas.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
 }
