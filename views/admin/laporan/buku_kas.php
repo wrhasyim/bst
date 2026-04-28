@@ -143,7 +143,7 @@
             <div class="space-y-24">
                 <div>
                     <p class="font-bold">Mengetahui,</p>
-                    <p class="font-black uppercase italic mt-1">Kepala Sekolah / Penanggung Jawab</p>
+                    <p class="font-black uppercase italic mt-1">Kepala Sekolah</p>
                 </div>
                 <div>
                     <p class="font-black underline">( ___________________________ )</p>
