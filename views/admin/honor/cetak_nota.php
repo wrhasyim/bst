@@ -12,7 +12,7 @@
         }
         @page { size: A4 portrait; margin: 1.5cm; }
         
-        /* Garis tabel hitam tegas untuk cetak */
+        /* Garis tabel hitam tegas untuk standar dokumen kantor */
         table, th, td {
             border: 1px solid black !important;
         }
@@ -30,11 +30,11 @@
 
         <table class="w-full border-collapse text-sm">
             <thead>
-                <tr class="bg-gray-100 uppercase text-xs">
+                <tr class="bg-gray-100 uppercase text-[10px]">
                     <th class="px-4 py-3 w-12 text-center">No</th>
                     <th class="px-4 py-3 text-center">Nama Wali Kelas</th>
                     <th class="px-4 py-3 text-center">Nominal Cair</th>
-                    <th class="px-4 py-3 w-56 text-center">Tanda Tangan</th>
+                    <th class="px-4 py-3 w-64 text-center">Tanda Tangan</th>
                 </tr>
             </thead>
             <tbody>
@@ -50,18 +50,20 @@
                 <?php else: ?>
                     <?php foreach($data_honor as $i => $d): $total += $d['jumlah']; ?>
                     <tr>
-                        <td class="px-4 py-6 text-center font-bold"><?= $i+1 ?></td>
+                        <td class="px-4 py-8 text-center font-bold text-base"><?= $i+1 ?></td>
                         
-                        <td class="px-4 py-6 text-center uppercase font-bold text-sm">
+                        <td class="px-4 py-8 text-center uppercase font-bold text-sm">
                             <?= htmlspecialchars($d['nama']) ?>
                         </td>
                         
-                        <td class="px-4 py-6 text-center font-bold text-sm">
+                        <td class="px-4 py-8 text-center font-bold text-sm">
                             Rp <?= number_format($d['jumlah'], 0, ',', '.') ?>
                         </td>
                         
-                        <td class="px-2 py-2 h-20 align-top text-left">
-                            <span class="text-[10px] font-bold text-black italic"><?= $i+1 ?>. ...................................</span>
+                        <td class="px-2 py-2 h-24 relative">
+                            <div class="absolute <?= ($i % 2 == 0) ? 'top-2 left-2' : 'bottom-2 right-12' ?> text-lg font-black text-black">
+                                <?= $i+1 ?>. <span class="text-xs font-normal italic text-slate-300 ml-1"></span>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -69,9 +71,9 @@
             </tbody>
             <tfoot>
                 <tr class="font-bold bg-gray-50 text-sm">
-                    <td colspan="2" class="px-4 py-4 text-center uppercase">Total Dana Dikeluarkan</td>
-                    <td class="px-4 py-4 text-center">Rp <?= number_format($total, 0, ',', '.') ?></td>
-                    <td class="border-none"></td>
+                    <td colspan="2" class="px-4 py-5 text-center uppercase">Total Dana Dikeluarkan</td>
+                    <td class="px-4 py-5 text-center text-base">Rp <?= number_format($total, 0, ',', '.') ?></td>
+                    <td class="bg-gray-200"></td>
                 </tr>
             </tfoot>
         </table>
@@ -80,12 +82,12 @@
             <div>
                 <p>Mengetahui,</p>
                 <p class="font-bold mt-1 mb-24 uppercase text-xs">Kepala Sekolah</p>
-                <p class="font-bold underline uppercase">( _________________________ )</p>
+                <p class="font-bold underline uppercase text-sm">( _________________________ )</p>
             </div>
             <div>
                 <p>Diserahkan Oleh,</p>
                 <p class="font-bold mt-1 mb-24 uppercase text-xs">Pengelola Bank Sampah</p>
-                <p class="font-bold underline uppercase">( <?= htmlspecialchars($_SESSION['nama']) ?> )</p>
+                <p class="font-bold underline uppercase text-sm">( <?= htmlspecialchars($_SESSION['nama']) ?> )</p>
             </div>
         </div>
         
