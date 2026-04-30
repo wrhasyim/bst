@@ -18,6 +18,23 @@ class DashboardController {
         $user_id = $_SESSION['user_id'];
         $data = [];
 
+        /// =======================================================
+        // DATA LEADERBOARD: TOP 5 NASABAH BULAN INI (GLOBAL)
+        // =======================================================
+        $bulan_ini = date('Y-m');
+        $stmtLb = $this->db->prepare("
+            SELECT u.id, u.nama, k.nama_kelas, SUM(s.berat) as total_pcs 
+            FROM setoran s 
+            JOIN users u ON s.user_id = u.id 
+            LEFT JOIN kelas k ON u.kelas_id = k.id
+            WHERE DATE_FORMAT(s.created_at, '%Y-%m') = :bulan_ini 
+            AND s.status = 'valid' AND u.role = 'siswa'
+            GROUP BY u.id 
+            ORDER BY total_pcs DESC LIMIT 5
+        ");
+        $stmtLb->execute(['bulan_ini' => $bulan_ini]);
+        $data['leaderboard'] = $stmtLb->fetchAll();
+
         // =======================================================
         // 1. DASHBOARD ADMIN & STAFF (METRIK SEKOLAH)
         // =======================================================
@@ -31,10 +48,9 @@ class DashboardController {
         } 
         
         // =======================================================
-        // 2. DASHBOARD SISWA & GURU & WALI KELAS (PERSONAL)
+        // 2. DASHBOARD SISWA, GURU & WALI KELAS
         // =======================================================
         else {
-            // A. DATA DASAR TABUNGAN PRIBADI
             $setoran = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn() ?? 0;
             $tarik = $this->db->query("SELECT SUM(jumlah) FROM penarikan WHERE user_id = $user_id")->fetchColumn() ?? 0;
             $data['saldo_pribadi'] = $setoran - $tarik;
@@ -42,28 +58,17 @@ class DashboardController {
             $data['total_pcs'] = $this->db->query("SELECT SUM(berat) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn() ?? 0;
             $data['riwayat_pribadi'] = $this->db->query("SELECT s.*, k.nama_sampah FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.user_id = $user_id ORDER BY s.created_at DESC LIMIT 5")->fetchAll();
 
-            // B. CEK JABATAN WALI KELAS AKTIF
             $cek_wali = $this->db->query("SELECT * FROM kelas WHERE walikelas_id = $user_id LIMIT 1")->fetch();
             $data['is_walikelas_aktif'] = $cek_wali ? true : false;
             $data['kelas_dikelola'] = $cek_wali;
 
-            // C. LOGIKA HONOR (UNTUK MANTAN & WALI KELAS AKTIF)
-            // 1. Ambil persentase honor dari database (contoh: 15% berarti 0.15)
             $persen_wali = ($this->db->query("SELECT nilai FROM pengaturan WHERE kunci = 'persen_honor_walikelas'")->fetchColumn() ?? 0) / 100;
-            
-            // 2. Hitung Total Jatah (Dari barang yg valid, terjual, dan ID walikelas-nya cocok)
             $total_jatah = $this->db->query("SELECT SUM(total_pengepul - total_harga) * $persen_wali FROM setoran WHERE walikelas_id = $user_id AND status = 'valid' AND is_sold = 1")->fetchColumn() ?? 0;
-            
-            // 3. Hitung Total Honor yg Sudah Diambil dari tabel pencairan_honor
             $total_cair = $this->db->query("SELECT SUM(jumlah) FROM pencairan_honor WHERE user_id = $user_id")->fetchColumn() ?? 0;
             
-            // 4. Sisa Belum Cair (Jatah dikurangi Cair)
             $data['honor_belum_cair'] = $total_jatah - $total_cair;
-            
-            // 5. Ambil 5 Riwayat Pencairan Terakhir
             $data['history_honor'] = $this->db->query("SELECT * FROM pencairan_honor WHERE user_id = $user_id ORDER BY tanggal_cair DESC LIMIT 5")->fetchAll();
 
-            // D. RANKING SISWA (Hanya muncul jika sedang menjabat Wali Kelas)
             $data['ranking_siswa'] = [];
             if($data['is_walikelas_aktif']) {
                 $kid = $data['kelas_dikelola']['id'];

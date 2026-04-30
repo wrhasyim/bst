@@ -160,4 +160,63 @@ class SetoranController {
         header('Location: ' . BASE_URL . '/setoran/validasi');
         exit;
     }
+    // =================================================================
+    // FITUR GAMIFIKASI: BERIKAN REWARD KE NASABAH TERBAIK
+    // =================================================================
+    public function reward() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Validasi hak akses, pastikan hanya admin yang bisa beri reward
+            if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+                $_SESSION['error'] = "Akses ditolak!";
+                header('Location: ' . BASE_URL . '/dashboard');
+                exit;
+            }
+
+            $user_id = $_POST['user_id'];
+            $nominal = (float) $_POST['nominal'];
+            $nama_siswa = $_POST['nama_siswa'] ?? 'Siswa';
+
+            if ($nominal <= 0) {
+                $_SESSION['error'] = "Nominal hadiah tidak valid.";
+                header('Location: ' . BASE_URL . '/dashboard');
+                exit;
+            }
+
+            try {
+                $this->db->beginTransaction();
+
+                // 1. Cek apakah Kategori "🌟 REWARD PRESTASI" sudah ada di database
+                $stmtCek = $this->db->query("SELECT id FROM kategori_sampah WHERE nama_sampah = '🌟 REWARD PRESTASI'");
+                $kategori = $stmtCek->fetch();
+
+                if (!$kategori) {
+                    // Jika belum ada, buat otomatis secara transparan (Harga pengepul 0, Harga dasar 1 untuk rasio Pcs)
+                    $this->db->query("INSERT INTO kategori_sampah (nama_sampah, harga_dasar, harga_pengepul, satuan) VALUES ('🌟 REWARD PRESTASI', 1, 0, 'Bonus')");
+                    $kategori_id = $this->db->lastInsertId();
+                } else {
+                    $kategori_id = $kategori['id'];
+                }
+
+                // 2. Ambil data wali kelas dari siswa tersebut
+                $stmtWali = $this->db->prepare("SELECT k.walikelas_id FROM users u LEFT JOIN kelas k ON u.kelas_id = k.id WHERE u.id = ?");
+                $stmtWali->execute([$user_id]);
+                $wali_id = $stmtWali->fetchColumn() ?? 0;
+
+                // 3. Suntikkan Reward ke Tabel Setoran
+                // KUNCI PENTING: is_sold di-set 1 agar reward ini tidak terhitung di Stok Gudang Fisik!
+                $sql = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
+                        VALUES (?, ?, ?, 1, ?, 0, 'valid', 1)";
+                $this->db->prepare($sql)->execute([$user_id, $wali_id, $kategori_id, $nominal]);
+
+                $this->db->commit();
+                $_SESSION['success'] = "Berhasil mengirimkan hadiah Rp " . number_format($nominal, 0, ',', '.') . " ke rekening " . htmlspecialchars($nama_siswa) . "!";
+            } catch (Exception $e) {
+                $this->db->rollBack();
+                $_SESSION['error'] = "Gagal memproses hadiah: " . $e->getMessage();
+            }
+
+            header('Location: ' . BASE_URL . '/dashboard');
+            exit;
+        }
+    }
 }
