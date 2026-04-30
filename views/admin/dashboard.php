@@ -83,19 +83,20 @@
                     <input type="hidden" name="user_id" id="userIdTarget">
                     <input type="hidden" name="nama_siswa" id="namaSiswaInput">
                     
-                    <div class="space-y-6">
+                    <div class="space-y-4">
                         <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Pilih Nominal Hadiah (Rp)</label>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Tentukan Nominal Hadiah (Rp)</label>
                             
-                            <!-- Perbaikan Select & Option Colors -->
-                            <select name="nominal" required class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:border-amber-400 focus:ring-0 outline-none cursor-pointer">
-                                <option value="10000" class="text-slate-900 bg-white font-bold">Rp 10.000 (Standar Top 3)</option>
-                                <option value="25000" class="text-slate-900 bg-white font-bold">Rp 25.000 (Juara 2)</option>
-                                <option value="50000" class="text-slate-900 bg-white font-bold">Rp 50.000 (Juara 1 Spesial)</option>
-                                <option value="100000" class="text-slate-900 bg-white font-bold">Rp 100.000 (Reward Akhir Semester)</option>
-                            </select>
+                            <!-- Input Nominal Kustom yang Bebas Diisi -->
+                            <input type="number" id="inputNominal" name="nominal" placeholder="Contoh: 15000" required class="w-full px-5 py-4 bg-white border-2 border-slate-200 rounded-2xl text-xl font-black text-slate-800 text-center focus:border-amber-400 focus:ring-0 outline-none mb-3">
                             
-                            <p class="text-[9px] italic text-slate-400 mt-2">Nominal ini akan langsung masuk ke tabungan siswa.</p>
+                            <!-- Tombol Preset Cepat -->
+                            <div class="grid grid-cols-3 gap-2">
+                                <button type="button" onclick="document.getElementById('inputNominal').value = 10000" class="py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-100 transition-colors">10K</button>
+                                <button type="button" onclick="document.getElementById('inputNominal').value = 25000" class="py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-100 transition-colors">25K</button>
+                                <button type="button" onclick="document.getElementById('inputNominal').value = 50000" class="py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-100 transition-colors">50K</button>
+                            </div>
+                            <p class="text-[9px] italic text-slate-400 mt-4 text-center">Nominal ini akan ditambahkan ke Tabungan Siswa dan tercatat sebagai <strong class="text-amber-600">Pengeluaran Kas Sekolah</strong>.</p>
                         </div>
                     </div>
 
@@ -129,6 +130,7 @@
             const modal = document.getElementById('modalReward');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+            document.getElementById('inputNominal').value = ''; // Reset input saat ditutup
         }
     </script>
     <?php endif; ?>

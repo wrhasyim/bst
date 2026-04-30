@@ -190,7 +190,7 @@ class SetoranController {
                 $kategori = $stmtCek->fetch();
 
                 if (!$kategori) {
-                    // Jika belum ada, buat otomatis secara transparan (Harga pengepul 0, Harga dasar 1 untuk rasio Pcs)
+                    // Jika belum ada, buat otomatis (Harga pengepul 0, Harga dasar 1 untuk rasio Pcs)
                     $this->db->query("INSERT INTO kategori_sampah (nama_sampah, harga_dasar, harga_pengepul, satuan) VALUES ('🌟 REWARD PRESTASI', 1, 0, 'Bonus')");
                     $kategori_id = $this->db->lastInsertId();
                 } else {
