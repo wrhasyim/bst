@@ -6,6 +6,7 @@ class LaporanController {
     private $db;
 
     public function __construct() {
+        // Pastikan hanya user yang sudah login yang bisa mengakses controller ini
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_URL . '/auth/login');
             exit;
@@ -17,7 +18,7 @@ class LaporanController {
     // 1. LAPORAN KEUANGAN GLOBAL 
     // =================================================================
     public function keuangan() {
-        // Ambil Konfigurasi Persentase
+        // Ambil Konfigurasi Persentase dari Database
         $stmtConfig = $this->db->query("SELECT kunci, nilai FROM pengaturan WHERE kunci LIKE 'persen_%'");
         $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
 
@@ -27,7 +28,7 @@ class LaporanController {
         $total_kotor = $this->db->query("SELECT SUM(total_pendapatan) FROM penjualan")->fetchColumn() ?? 0;
 
         // 2. Ambil Beban Nasabah (Kewajiban bayar atas sampah yang sudah dijual)
-        // PENTING: Mengecualikan Kategori Reward agar tidak dihitung ganda
+        // PENTING: Mengecualikan Kategori Reward agar tidak dihitung ganda sebagai beban HPP
         $sqlBebanNasabah = "SELECT SUM(s.total_harga) 
                             FROM setoran s 
                             JOIN kategori_sampah k ON s.kategori_id = k.id 
@@ -42,6 +43,7 @@ class LaporanController {
         // =========================================================
         
         // 4A. MENGAMBIL AKUMULASI HONOR WALI KELAS SECARA LANGSUNG
+        // Menghitung hak wali kelas dari selisih (Harga Jual - Harga Dasar)
         $sql_honor_wali = "SELECT SUM((s.total_pengepul - s.total_harga) * :persen)
                            FROM setoran s
                            JOIN users u ON s.walikelas_id = u.id
@@ -83,7 +85,7 @@ class LaporanController {
             'honor_walikelas' => $honor_walikelas
         ];
 
-        // Histori Penjualan Terbaru
+        // Histori Penjualan Terbaru untuk dilampirkan di bawah Laporan Keuangan
         $history = $this->db->query("SELECT p.*, k.nama_sampah 
                                      FROM penjualan p 
                                      JOIN kategori_sampah k ON p.kategori_id = k.id 
@@ -102,7 +104,7 @@ class LaporanController {
         $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
         $persen_wali = ($config['persen_honor_walikelas'] ?? 0) / 100;
 
-        // Hitung Margin
+        // Hitung Margin (Global, hanya untuk referensi jika dibutuhkan view)
         $total_margin_potensi = $this->db->query("SELECT SUM(total_pengepul - total_harga) FROM setoran WHERE status = 'valid'")->fetchColumn() ?? 0;
         $total_margin_realisasi = $this->db->query("SELECT SUM(total_pengepul - total_harga) FROM setoran WHERE status = 'valid' AND is_sold = 1")->fetchColumn() ?? 0;
 
@@ -141,6 +143,7 @@ class LaporanController {
             $stmtKelas->execute(['id' => $kelas_id]);
             $nama_kelas_aktif = $stmtKelas->fetchColumn();
 
+            // Total PCS tidak menghitung Pcs dari Kategori Reward (karena fiktif)
             $sql = "SELECT u.nama, 
                            IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, 
                            IFNULL(SUM(s.total_harga), 0) as total_rp
@@ -165,6 +168,7 @@ class LaporanController {
     // =================================================================
     public function nasabah() {
         $user_id = $_GET['user_id'] ?? null;
+        
         // Ambil daftar siswa untuk dropdown filter
         $siswa_list = $this->db->query("SELECT u.id, u.nama, k.nama_kelas 
                                         FROM users u 
@@ -185,9 +189,7 @@ class LaporanController {
             $stmtUser->execute([$user_id]);
             $detail_siswa = $stmtUser->fetch();
 
-            /** 
-             * QUERY MUTASI (UNION)
-             */
+            // UNION Query untuk menggabungkan Setoran (Uang Masuk) dan Penarikan (Uang Keluar)
             $sqlMutasi = "SELECT created_at as tanggal, 'setoran' as tipe, nama_sampah as ket, berat as qty, total_harga as jumlah
                           FROM setoran s 
                           JOIN kategori_sampah k ON s.kategori_id = k.id 
@@ -205,7 +207,7 @@ class LaporanController {
             ]);
             $mutasi = $stmtMutasi->fetchAll();
 
-            // Hitung Saldo Bersih (Kredit - Debit)
+            // Hitung Saldo Bersih (Total Setoran dikurangi Total Penarikan)
             $stmtSetoran = $this->db->prepare("SELECT SUM(total_harga) FROM setoran WHERE user_id = ? AND status = 'valid'");
             $stmtSetoran->execute([$user_id]);
             $total_setoran = $stmtSetoran->fetchColumn() ?? 0;
@@ -223,7 +225,7 @@ class LaporanController {
     }
 
     // =================================================================
-    // 5. BUKU KAS UMUM (ARUS KAS RIL / FISIK) - TERMASUK REWARD
+    // 5. BUKU KAS UMUM (ARUS KAS RIL / FISIK) - 6 IN 1 QUERY
     // =================================================================
     public function buku_kas() {
         // Filter Tutup Buku (Bulan & Tahun)
@@ -233,95 +235,77 @@ class LaporanController {
         $periode = $tahun . '-' . str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
         // =====================================================
-        // QUERY SAKTI 4-IN-1: Menarik semua arus kas!
-        // 1. Penjualan Pengepul (Kas Masuk)
-        // 2. Penarikan Tunai Nasabah (Kas Keluar)
-        // 3. Pencairan Honor (Kas Keluar)
-        // 4. Reward Prestasi Siswa (Kas Keluar) <-- BARU DITAMBAHKAN
+        // QUERY SAKTI 6-IN-1: Menarik SELURUH arus kas!
+        // 1. Penjualan Pengepul (Masuk)
+        // 2. Kas Manual (Masuk) 
+        // 3. Penarikan Nasabah (Keluar)
+        // 4. Pencairan Honor (Keluar)
+        // 5. Reward Prestasi (Keluar)
+        // 6. Kas Manual (Keluar) 
         // =====================================================
         $sql = "
-            SELECT 
-                tanggal_jual AS waktu, 
-                'Penjualan Pengepul' AS uraian, 
-                keterangan AS detail,
-                total_pendapatan AS debit, 
-                0 AS kredit,
-                'masuk' as jenis
-            FROM penjualan
-            WHERE DATE_FORMAT(tanggal_jual, '%Y-%m') = :periode1
-
-            UNION ALL
-
-            SELECT 
-                p.tanggal_tarik AS waktu, 
-                CONCAT('Penarikan Tunai: ', u.nama) AS uraian, 
-                p.keterangan AS detail,
-                0 AS debit, 
-                p.jumlah AS kredit,
-                'keluar_nasabah' as jenis
-            FROM penarikan p
-            JOIN users u ON p.user_id = u.id
-            WHERE DATE_FORMAT(p.tanggal_tarik, '%Y-%m') = :periode2
-
-            UNION ALL
-
-            SELECT 
-                h.tanggal_cair AS waktu, 
-                CONCAT('Pencairan Honor: ', u.nama) AS uraian, 
-                h.keterangan AS detail,
-                0 AS debit, 
-                h.jumlah AS kredit,
-                'keluar_honor' as jenis
-            FROM pencairan_honor h
-            JOIN users u ON h.user_id = u.id
-            WHERE DATE_FORMAT(h.tanggal_cair, '%Y-%m') = :periode3
+            SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, total_pendapatan AS debit, 0 AS kredit, 'masuk' as jenis
+            FROM penjualan WHERE DATE_FORMAT(tanggal_jual, '%Y-%m') = :p1
             
             UNION ALL
             
-            SELECT 
-                s.created_at AS waktu, 
-                CONCAT('Reward Prestasi: ', u.nama) AS uraian, 
-                'Beban Hadiah Kas Operasional' AS detail, 
-                0 AS debit, 
-                s.total_harga AS kredit, 
-                'keluar_reward' as jenis
-            FROM setoran s 
-            JOIN users u ON s.user_id = u.id 
-            JOIN kategori_sampah k ON s.kategori_id = k.id 
-            WHERE k.nama_sampah = '🌟 REWARD PRESTASI' 
-            AND DATE_FORMAT(s.created_at, '%Y-%m') = :periode4
+            SELECT tanggal AS waktu, 'Pemasukan Kas (Manual)' AS uraian, keterangan AS detail, nominal AS debit, 0 AS kredit, 'masuk_manual' as jenis
+            FROM kas_manual WHERE jenis = 'pemasukan' AND DATE_FORMAT(tanggal, '%Y-%m') = :p2
 
+            UNION ALL
+            
+            SELECT p.tanggal_tarik AS waktu, CONCAT('Penarikan Tunai: ', u.nama) AS uraian, p.keterangan AS detail, 0 AS debit, p.jumlah AS kredit, 'keluar_nasabah' as jenis
+            FROM penarikan p JOIN users u ON p.user_id = u.id WHERE DATE_FORMAT(p.tanggal_tarik, '%Y-%m') = :p3
+            
+            UNION ALL
+            
+            SELECT h.tanggal_cair AS waktu, CONCAT('Pencairan Honor: ', u.nama) AS uraian, h.keterangan AS detail, 0 AS debit, h.jumlah AS kredit, 'keluar_honor' as jenis
+            FROM pencairan_honor h JOIN users u ON h.user_id = u.id WHERE DATE_FORMAT(h.tanggal_cair, '%Y-%m') = :p4
+            
+            UNION ALL
+            
+            SELECT s.created_at AS waktu, CONCAT('Reward Prestasi: ', u.nama) AS uraian, 'Pemberian Hadiah Saldo' AS detail, 0 AS debit, s.total_harga AS kredit, 'keluar_reward' as jenis
+            FROM setoran s JOIN users u ON s.user_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id 
+            WHERE k.nama_sampah = '🌟 REWARD PRESTASI' AND DATE_FORMAT(s.created_at, '%Y-%m') = :p5
+
+            UNION ALL
+            
+            SELECT tanggal AS waktu, 'Pengeluaran Kas (Manual)' AS uraian, keterangan AS detail, 0 AS debit, nominal AS kredit, 'keluar_manual' as jenis
+            FROM kas_manual WHERE jenis = 'pengeluaran' AND DATE_FORMAT(tanggal, '%Y-%m') = :p6
+            
             ORDER BY waktu ASC
         ";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'periode1' => $periode,
-            'periode2' => $periode,
-            'periode3' => $periode,
-            'periode4' => $periode
+            'p1' => $periode, 
+            'p2' => $periode, 
+            'p3' => $periode, 
+            'p4' => $periode, 
+            'p5' => $periode, 
+            'p6' => $periode
         ]);
         $buku_kas = $stmt->fetchAll();
 
-        // Hitung Saldo Bulan Lalu (Untuk Saldo Awal Bulan Ini) dengan memotong Beban Reward
+        // RUMUS SALDO AWAL (Menambahkan pemasukan manual, mengurangkan pengeluaran manual & reward)
         $sqlSaldoAwal = "
             SELECT 
-                (SELECT IFNULL(SUM(total_pendapatan), 0) FROM penjualan WHERE DATE_FORMAT(tanggal_jual, '%Y-%m') < :p1) -
-                (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE DATE_FORMAT(tanggal_tarik, '%Y-%m') < :p2) -
-                (SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE DATE_FORMAT(tanggal_cair, '%Y-%m') < :p3) -
-                (SELECT IFNULL(SUM(s.total_harga), 0) 
-                 FROM setoran s 
-                 JOIN kategori_sampah k ON s.kategori_id = k.id 
-                 WHERE k.nama_sampah = '🌟 REWARD PRESTASI' 
-                 AND DATE_FORMAT(s.created_at, '%Y-%m') < :p4) 
+                (SELECT IFNULL(SUM(total_pendapatan), 0) FROM penjualan WHERE DATE_FORMAT(tanggal_jual, '%Y-%m') < :s1) 
+                + (SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pemasukan' AND DATE_FORMAT(tanggal, '%Y-%m') < :s2)
+                - (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE DATE_FORMAT(tanggal_tarik, '%Y-%m') < :s3) 
+                - (SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE DATE_FORMAT(tanggal_cair, '%Y-%m') < :s4) 
+                - (SELECT IFNULL(SUM(s.total_harga), 0) FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE k.nama_sampah = '🌟 REWARD PRESTASI' AND DATE_FORMAT(s.created_at, '%Y-%m') < :s5) 
+                - (SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pengeluaran' AND DATE_FORMAT(tanggal, '%Y-%m') < :s6)
             AS saldo_awal
         ";
         $stmtAwal = $this->db->prepare($sqlSaldoAwal);
         $stmtAwal->execute([
-            'p1' => $periode, 
-            'p2' => $periode, 
-            'p3' => $periode, 
-            'p4' => $periode
+            's1' => $periode, 
+            's2' => $periode, 
+            's3' => $periode, 
+            's4' => $periode, 
+            's5' => $periode, 
+            's6' => $periode
         ]);
         $saldo_awal = $stmtAwal->fetchColumn() ?? 0;
 

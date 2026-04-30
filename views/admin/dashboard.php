@@ -1,3 +1,4 @@
+<!-- views/admin/dashboard.php -->
 <div class="max-w-7xl mx-auto space-y-6 pb-10">
     <!-- HEADER -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -26,16 +27,17 @@
         <div class="relative z-20 flex flex-col lg:flex-row gap-8 items-center">
             <div class="lg:w-1/3">
                 <h3 class="font-black text-3xl uppercase tracking-tighter mb-1 drop-shadow-md">TOP NASABAH</h3>
-                <p class="text-xs font-bold uppercase tracking-widest opacity-90 mb-4">Penyetor Terbanyak • <?= date('F Y') ?></p>
+                <!-- PERUBAHAN TEKS: TRIWULAN -->
+                <p class="text-xs font-bold uppercase tracking-widest opacity-90 mb-4">Penyetor Terbanyak • 3 Bulan Terakhir</p>
                 <div class="inline-block px-4 py-2 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-[10px] font-bold uppercase tracking-widest shadow-sm">
-                    🎁 Hadiah menanti di akhir bulan!
+                    🎁 Hadiah menanti di akhir Triwulan!
                 </div>
             </div>
             
             <div class="lg:w-2/3 w-full grid grid-cols-1 md:grid-cols-3 gap-6 relative z-30">
                 <?php if(empty($data['leaderboard'])): ?>
                     <div class="col-span-3 text-center py-4 bg-white/10 rounded-2xl border border-white/20">
-                        <p class="text-sm italic font-bold">Belum ada setoran di bulan ini. Ayo mulai menabung!</p>
+                        <p class="text-sm italic font-bold">Belum ada setoran dalam 3 bulan terakhir. Ayo mulai menabung!</p>
                     </div>
                 <?php else: ?>
                     <?php foreach($data['leaderboard'] as $idx => $lb): if($idx > 2) break; ?>
