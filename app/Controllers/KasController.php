@@ -1,12 +1,11 @@
 <?php
-// app/Controllers/KasManualController.php
+// app/Controllers/KasController.php
 require_once __DIR__ . '/../Core/Database.php';
 
-class KasManualController {
+class KasController {
     private $db;
 
     public function __construct() {
-        // Hanya Admin / Staff yang boleh akses
         if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'staff')) {
             header('Location: ' . BASE_URL . '/dashboard');
             exit;
@@ -14,7 +13,6 @@ class KasManualController {
         $this->db = Database::getInstance()->getConnection();
     }
 
-    // Tampilkan Halaman
     public function index() {
         $sql = "SELECT k.*, u.nama as admin_nama 
                 FROM kas_manual k 
@@ -23,11 +21,11 @@ class KasManualController {
         $data_kas = $this->db->query($sql)->fetchAll();
 
         $title = "Pencatatan Kas Manual";
+        // Folder view tetap menggunakan nama asli, ini aman.
         $content = __DIR__ . '/../../views/admin/kas_manual/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // Simpan Data Baru
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tanggal = $_POST['tanggal'];
@@ -47,12 +45,12 @@ class KasManualController {
                     $_SESSION['error'] = "Gagal mencatat kas manual.";
                 }
             }
-            header('Location: ' . BASE_URL . '/kas_manual');
+            // URL disesuaikan
+            header('Location: ' . BASE_URL . '/kas');
             exit;
         }
     }
 
-    // Hapus Data (Membatalkan)
     public function delete() {
         if (isset($_GET['id'])) {
             $stmt = $this->db->prepare("DELETE FROM kas_manual WHERE id = ?");
@@ -62,7 +60,8 @@ class KasManualController {
                 $_SESSION['error'] = "Gagal menghapus data.";
             }
         }
-        header('Location: ' . BASE_URL . '/kas_manual');
+        // URL disesuaikan
+        header('Location: ' . BASE_URL . '/kas');
         exit;
     }
 }

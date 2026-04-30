@@ -1,6 +1,5 @@
 <!-- views/admin/kas_manual/index.php -->
 <div class="max-w-7xl mx-auto space-y-6 pb-12">
-    
     <div>
         <h2 class="text-3xl font-black text-slate-800 italic uppercase tracking-tight">KAS<span class="text-emerald-500">MANUAL</span></h2>
         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Input Pemasukan & Pengeluaran Lain-lain</p>
@@ -18,15 +17,15 @@
     <?php endif; ?>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
-        
-        <!-- BAGIAN KIRI: FORM INPUT -->
+        <!-- KIRI: FORM -->
         <div class="lg:col-span-1">
             <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm sticky top-6">
                 <div class="mb-6 border-b border-slate-100 pb-4">
                     <h3 class="font-black text-slate-800 uppercase italic">Catat Transaksi Baru</h3>
                 </div>
 
-                <form action="<?= BASE_URL ?>/kas_manual/store" method="POST" class="space-y-5">
+                <!-- URL DISESUAIKAN -->
+                <form action="<?= BASE_URL ?>/kas/store" method="POST" class="space-y-5">
                     <div>
                         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Tanggal Transaksi</label>
                         <input type="date" name="tanggal" value="<?= date('Y-m-d') ?>" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-400 outline-none">
@@ -69,7 +68,7 @@
             </div>
         </div>
 
-        <!-- BAGIAN KANAN: TABEL RIWAYAT -->
+        <!-- KANAN: TABEL -->
         <div class="lg:col-span-2">
             <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
                 <div class="mb-6 border-b border-slate-100 pb-4">
@@ -106,7 +105,8 @@
                                             <span class="block text-[8px] opacity-70 mt-1"><?= strtoupper($k['jenis']) ?></span>
                                         </td>
                                         <td class="px-4 py-4 text-center">
-                                            <a href="<?= BASE_URL ?>/kas_manual/delete?id=<?= $k['id'] ?>" onclick="return confirm('Yakin ingin menghapus catatan ini? Saldo Buku Kas akan menyesuaikan otomatis.')" class="opacity-0 group-hover:opacity-100 transition-opacity inline-block px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-200">
+                                            <!-- URL DISESUAIKAN -->
+                                            <a href="<?= BASE_URL ?>/kas/delete?id=<?= $k['id'] ?>" onclick="return confirm('Yakin ingin menghapus catatan ini? Saldo Buku Kas akan menyesuaikan otomatis.')" class="opacity-0 group-hover:opacity-100 transition-opacity inline-block px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-200">
                                                 Hapus
                                             </a>
                                         </td>
@@ -118,6 +118,5 @@
                 </div>
             </div>
         </div>
-
     </div>
 </div>

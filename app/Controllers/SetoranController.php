@@ -219,4 +219,68 @@ class SetoranController {
             exit;
         }
     }
+    // =================================================================
+    // FITUR KHUSUS: SETORAN DENDA / KESISWAAN
+    // =================================================================
+    public function create_kesiswaan() {
+        if ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'staff') {
+            header('Location: ' . BASE_URL . '/dashboard');
+            exit;
+        }
+
+        // Ambil Data Kategori Sampah
+        $kategori = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY nama_sampah ASC")->fetchAll();
+
+        // Cari User ID untuk Akun Virtual Kesiswaan (Mencari berdasarkan nama)
+        $stmtCek = $this->db->query("SELECT id FROM users WHERE nama LIKE '%KESISWAAN%' AND role = 'siswa' LIMIT 1");
+        $akun_kesiswaan = $stmtCek->fetch();
+
+        if (!$akun_kesiswaan) {
+            $_SESSION['error'] = "Akun penampung 'KAS KESISWAAN' belum dibuat di menu Data Pengguna!";
+            // Redirect jika akun belum ada
+            header('Location: ' . BASE_URL . '/user');
+            exit;
+        }
+
+        // Tampilkan halaman khusus input
+        $title = "Input Botol Denda Kesiswaan";
+        $content = __DIR__ . '/../../views/admin/setoran/kesiswaan_create.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
+
+    public function store_kesiswaan() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'staff')) {
+            $user_id = $_POST['user_id']; // Ini adalah ID akun virtual Kesiswaan
+            $kategori_id = $_POST['kategori_id'];
+            $berat = (float) $_POST['berat'];
+            $keterangan = $_POST['keterangan'] ?? 'Denda Kedisiplinan';
+
+            if ($berat <= 0) {
+                $_SESSION['error'] = "Jumlah Pcs tidak valid.";
+            } else {
+                // Ambil harga dari kategori
+                $stmtKat = $this->db->prepare("SELECT harga_dasar, harga_pengepul FROM kategori_sampah WHERE id = ?");
+                $stmtKat->execute([$kategori_id]);
+                $kat = $stmtKat->fetch();
+
+                $total_harga = $berat * $kat['harga_dasar'];
+                $total_pengepul = $berat * $kat['harga_pengepul'];
+
+                // Insert Setoran (Sengaja walikelas_id = NULL karena ini denda kesiswaan, bukan dari kelas)
+                $sql = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
+                        VALUES (?, NULL, ?, ?, ?, ?, 'valid', 0)";
+                $stmt = $this->db->prepare($sql);
+                
+                if ($stmt->execute([$user_id, $kategori_id, $berat, $total_harga, $total_pengepul])) {
+                    // Opsional: Kita bisa menyimpan $keterangan (nama anak yg dihukum) ke tabel log/catatan khusus jika Anda mau,
+                    // tapi secara default setoran akan masuk ke saldo "KAS KESISWAAN".
+                    $_SESSION['success'] = "Berhasil mencatat $berat Pcs botol denda untuk Kas Kesiswaan!";
+                } else {
+                    $_SESSION['error'] = "Sistem gagal menyimpan data.";
+                }
+            }
+            header('Location: ' . BASE_URL . '/setoran/create_kesiswaan');
+            exit;
+        }
+    }
 }
