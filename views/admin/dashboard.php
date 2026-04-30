@@ -1,4 +1,5 @@
 <div class="max-w-7xl mx-auto space-y-6 pb-10">
+    <!-- HEADER -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
             <h2 class="text-3xl font-black text-slate-800 tracking-tight italic uppercase">
@@ -19,101 +20,118 @@
         </div>
     </div>
 
+    <!-- WIDGET LEADERBOARD (GLOBAL UNTUK SEMUA ROLE) -->
     <div class="bg-gradient-to-br from-amber-400 to-orange-500 p-8 rounded-[3rem] text-white shadow-xl shadow-orange-200/50 relative overflow-hidden mt-6">
-        <div class="absolute -right-4 -top-8 opacity-20 text-[10rem]">🏆</div>
-        <div class="relative z-10 flex flex-col lg:flex-row gap-8 items-center">
+        <div class="absolute -right-4 -top-8 opacity-20 text-[10rem] pointer-events-none">🏆</div>
+        <div class="relative z-20 flex flex-col lg:flex-row gap-8 items-center">
             <div class="lg:w-1/3">
                 <h3 class="font-black text-3xl uppercase tracking-tighter mb-1 drop-shadow-md">TOP NASABAH</h3>
                 <p class="text-xs font-bold uppercase tracking-widest opacity-90 mb-4">Penyetor Terbanyak • <?= date('F Y') ?></p>
-                <div class="inline-block px-4 py-2 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-[10px] font-bold uppercase tracking-widest">
+                <div class="inline-block px-4 py-2 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-[10px] font-bold uppercase tracking-widest shadow-sm">
                     🎁 Hadiah menanti di akhir bulan!
                 </div>
             </div>
-            <div class="lg:w-2/3 w-full grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div class="lg:w-2/3 w-full grid grid-cols-1 md:grid-cols-3 gap-6 relative z-30">
                 <?php if(empty($data['leaderboard'])): ?>
                     <div class="col-span-3 text-center py-4 bg-white/10 rounded-2xl border border-white/20">
                         <p class="text-sm italic font-bold">Belum ada setoran di bulan ini. Ayo mulai menabung!</p>
                     </div>
                 <?php else: ?>
-                    <?php foreach($data['leaderboard'] as $idx => $lb): if($idx > 2) break; /* Hanya tampil Top 3 */ ?>
-                    <div class="bg-white/20 backdrop-blur-sm p-4 rounded-2xl border border-white/30 flex items-center justify-between gap-4 transform transition hover:scale-105 shadow-sm group">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 shrink-0 rounded-full bg-white text-orange-500 flex items-center justify-center font-black text-2xl shadow-inner">
-                                <?= $idx === 0 ? '🥇' : ($idx === 1 ? '🥈' : '🥉') ?>
+                    <?php foreach($data['leaderboard'] as $idx => $lb): if($idx > 2) break; ?>
+                        <!-- Card Pemenang -->
+                        <div class="relative group">
+                            <div class="bg-white/20 backdrop-blur-md p-5 rounded-2xl border border-white/30 flex items-center gap-4 transform transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-xl group-hover:bg-white/30 cursor-default">
+                                <div class="w-12 h-12 shrink-0 rounded-full bg-white flex items-center justify-center font-black text-2xl shadow-inner <?= $idx === 0 ? 'text-amber-500' : ($idx === 1 ? 'text-slate-400' : 'text-orange-700') ?>">
+                                    <?= $idx === 0 ? '🥇' : ($idx === 1 ? '🥈' : '🥉') ?>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-black uppercase truncate text-white" title="<?= htmlspecialchars($lb['nama']) ?>"><?= htmlspecialchars($lb['nama']) ?></p>
+                                    <p class="text-[9px] font-bold text-white/80 uppercase tracking-widest mb-1 truncate">KLS <?= htmlspecialchars($lb['nama_kelas'] ?? '-') ?></p>
+                                    <p class="text-sm font-black text-yellow-100 drop-shadow-md"><?= number_format($lb['total_pcs'], 0) ?> Pcs</p>
+                                </div>
                             </div>
-                            <div>
-                                <p class="text-xs font-black uppercase truncate w-24 md:w-32" title="<?= htmlspecialchars($lb['nama']) ?>"><?= htmlspecialchars($lb['nama']) ?></p>
-                                <p class="text-[9px] font-bold opacity-80 uppercase tracking-widest mb-1">KLS <?= htmlspecialchars($lb['nama_kelas'] ?? '-') ?></p>
-                                <p class="text-sm font-black text-yellow-100 drop-shadow-sm"><?= number_format($lb['total_pcs'], 0) ?> Pcs</p>
+                            
+                            <!-- Tombol Eksekusi Hadiah (Muncul di Bawah Card saat Hover) -->
+                            <?php if($_SESSION['role'] === 'admin'): ?>
+                            <div class="absolute -bottom-4 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 group-hover:translate-y-2 transition-all duration-300 z-[60]">
+                                <button onclick="bukaModalReward(<?= $lb['id'] ?>, '<?= htmlspecialchars($lb['nama']) ?>')" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black shadow-lg shadow-black/20 transform active:scale-95 whitespace-nowrap">
+                                    🎁 Beri Hadiah
+                                </button>
                             </div>
+                            <?php endif; ?>
                         </div>
-                        
-                        <!-- Tombol Hadiah Hanya Untuk Admin -->
-                        <?php if($_SESSION['role'] === 'admin'): ?>
-                        <button onclick="bukaModalReward(<?= $lb['id'] ?>, '<?= htmlspecialchars($lb['nama']) ?>')" class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-black whitespace-nowrap">
-                            🎁 Beri Hadiah
-                        </button>
-                        <?php endif; ?>
-                    </div>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
                 <?php endif; ?>
             </div>
         </div>
-        <?php if($_SESSION['role'] === 'admin'): ?>
-<!-- Modal Eksekusi Hadiah -->
-<div id="modalReward" class="fixed inset-0 z-50 hidden bg-slate-900/80 backdrop-blur-sm overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
-        <div class="relative bg-white rounded-[2.5rem] p-8 text-left overflow-hidden shadow-2xl sm:max-w-md w-full border border-slate-200 transform transition-all">
+    </div>
+
+    <!-- MODAL EKSEKUSI HADIAH (HANYA UNTUK ADMIN) -->
+    <?php if($_SESSION['role'] === 'admin'): ?>
+    <div id="modalReward" class="fixed inset-0 z-[100] hidden bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden transform transition-all relative">
             
-            <div class="text-center mb-8">
-                <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 border-4 border-amber-50">🎁</div>
+            <div class="p-8 text-center bg-slate-50 border-b border-slate-100">
+                <div class="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 border-4 border-white shadow-sm">🎁</div>
                 <h3 class="text-xl font-black text-slate-800 uppercase italic">Klaim Hadiah Prestasi</h3>
-                <p class="text-xs font-bold text-slate-400 mt-2">Suntikkan saldo otomatis ke rekening <br><span id="namaSiswaTarget" class="text-emerald-600 uppercase font-black"></span></p>
+                <p class="text-xs font-bold text-slate-500 mt-2">Suntikkan saldo otomatis ke rekening <br><span id="namaSiswaTarget" class="text-emerald-600 uppercase font-black text-sm"></span></p>
             </div>
 
-            <form action="<?= BASE_URL ?>/setoran/reward" method="POST">
-                <input type="hidden" name="user_id" id="userIdTarget">
-                <input type="hidden" name="nama_siswa" id="namaSiswaInput">
-                
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Pilih / Input Nominal Hadiah (Rp)</label>
-                        <select name="nominal" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-amber-400 outline-none">
-                            <option value="10000">Rp 10.000 (Standar Top 3)</option>
-                            <option value="25000">Rp 25.000 (Juara 2)</option>
-                            <option value="50000">Rp 50.000 (Juara 1 Spesial)</option>
-                            <option value="100000">Rp 100.000 (Reward Akhir Semester)</option>
-                        </select>
+            <div class="p-8">
+                <form action="<?= BASE_URL ?>/setoran/reward" method="POST">
+                    <input type="hidden" name="user_id" id="userIdTarget">
+                    <input type="hidden" name="nama_siswa" id="namaSiswaInput">
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Pilih Nominal Hadiah (Rp)</label>
+                            
+                            <!-- Perbaikan Select & Option Colors -->
+                            <select name="nominal" required class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:border-amber-400 focus:ring-0 outline-none cursor-pointer">
+                                <option value="10000" class="text-slate-900 bg-white font-bold">Rp 10.000 (Standar Top 3)</option>
+                                <option value="25000" class="text-slate-900 bg-white font-bold">Rp 25.000 (Juara 2)</option>
+                                <option value="50000" class="text-slate-900 bg-white font-bold">Rp 50.000 (Juara 1 Spesial)</option>
+                                <option value="100000" class="text-slate-900 bg-white font-bold">Rp 100.000 (Reward Akhir Semester)</option>
+                            </select>
+                            
+                            <p class="text-[9px] italic text-slate-400 mt-2">Nominal ini akan langsung masuk ke tabungan siswa.</p>
+                        </div>
                     </div>
-                </div>
 
-                <div class="mt-8 flex gap-3">
-                    <button type="button" onclick="tutupModalReward()" class="flex-1 px-6 py-4 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all">
-                        Batal
-                    </button>
-                    <button type="submit" class="flex-1 px-6 py-4 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-amber-200 hover:bg-amber-600 transition-all">
-                        🚀 Eksekusi Hadiah
-                    </button>
-                </div>
-            </form>
+                    <div class="mt-8 flex gap-3">
+                        <button type="button" onclick="tutupModalReward()" class="flex-1 px-4 py-4 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit" class="flex-1 px-4 py-4 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-amber-200 hover:bg-amber-600 transition-colors">
+                            🚀 Eksekusi
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
         </div>
     </div>
-</div>
 
-<script>
-    function bukaModalReward(id, nama) {
-        document.getElementById('userIdTarget').value = id;
-        document.getElementById('namaSiswaTarget').innerText = nama;
-        document.getElementById('namaSiswaInput').value = nama;
-        document.getElementById('modalReward').classList.remove('hidden');
-    }
+    <script>
+        function bukaModalReward(id, nama) {
+            document.getElementById('userIdTarget').value = id;
+            document.getElementById('namaSiswaTarget').innerText = nama;
+            document.getElementById('namaSiswaInput').value = nama;
+            
+            // Toggle classes for flex centering
+            const modal = document.getElementById('modalReward');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
 
-    function tutupModalReward() {
-        document.getElementById('modalReward').classList.add('hidden');
-    }
-</script>
-<?php endif; ?>
-    </div>
+        function tutupModalReward() {
+            const modal = document.getElementById('modalReward');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    </script>
+    <?php endif; ?>
 
     <?php 
     // =========================================================================
