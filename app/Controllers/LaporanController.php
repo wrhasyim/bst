@@ -14,7 +14,7 @@ class LaporanController {
     }
 
     // =================================================================
-    // 1. LAPORAN KEUANGAN GLOBAL (SINKRONISASI PRESISI)
+    // 1. LAPORAN KEUANGAN GLOBAL 
     // =================================================================
     public function keuangan() {
         // Ambil Konfigurasi Persentase
@@ -23,13 +23,18 @@ class LaporanController {
 
         $persen_wali = ($config['persen_honor_walikelas'] ?? 0) / 100;
         
-        // 1. Ambil Pendapatan Kotor RIL (Uang Asli dari Penjualan)
+        // 1. Ambil Pendapatan Kotor RIL dari tabel Penjualan (Uang Fisik Asli)
         $total_kotor = $this->db->query("SELECT SUM(total_pendapatan) FROM penjualan")->fetchColumn() ?? 0;
 
-        // 2. Ambil Beban Nasabah (Harga beli ke siswa)
-        $beban_nasabah = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE status = 'valid' AND is_sold = 1")->fetchColumn() ?? 0;
+        // 2. Ambil Beban Nasabah (Kewajiban bayar atas sampah yang sudah dijual)
+        // PENTING: Mengecualikan Kategori Reward agar tidak dihitung ganda
+        $sqlBebanNasabah = "SELECT SUM(s.total_harga) 
+                            FROM setoran s 
+                            JOIN kategori_sampah k ON s.kategori_id = k.id 
+                            WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
+        $beban_nasabah = $this->db->query($sqlBebanNasabah)->fetchColumn() ?? 0;
 
-        // 3. Margin Laba Ril (Keuntungan Asli Uang Fisik)
+        // 3. Laba Bersih Ril (Margin Total)
         $margin_total = $total_kotor - $beban_nasabah;
 
         // =========================================================
@@ -37,31 +42,41 @@ class LaporanController {
         // =========================================================
         
         // 4A. MENGAMBIL AKUMULASI HONOR WALI KELAS SECARA LANGSUNG
-        // (Sama persis dengan query di Menu Honor)
-        $sql_honor_wali = "
-            SELECT SUM((s.total_pengepul - s.total_harga) * :persen)
-            FROM setoran s
-            JOIN users u ON s.walikelas_id = u.id
-            WHERE s.status = 'valid' AND s.is_sold = 1
-        ";
+        $sql_honor_wali = "SELECT SUM((s.total_pengepul - s.total_harga) * :persen)
+                           FROM setoran s
+                           JOIN users u ON s.walikelas_id = u.id
+                           JOIN kategori_sampah k ON s.kategori_id = k.id
+                           WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
         $stmtWali = $this->db->prepare($sql_honor_wali);
         $stmtWali->execute(['persen' => $persen_wali]);
         $honor_walikelas = $stmtWali->fetchColumn() ?? 0;
 
         // 4B. Hitung Distribusi Lainnya dari Margin Estimasi Dasar
-        $margin_estimasi = $this->db->query("SELECT SUM(total_pengepul - total_harga) FROM setoran WHERE status = 'valid' AND is_sold = 1")->fetchColumn() ?? 0;
+        $sqlMarginEstimasi = "SELECT SUM(s.total_pengepul - s.total_harga) 
+                              FROM setoran s 
+                              JOIN kategori_sampah k ON s.kategori_id = k.id 
+                              WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
+        $margin_estimasi = $this->db->query($sqlMarginEstimasi)->fetchColumn() ?? 0;
 
         $honor_pengelola = $margin_estimasi * (($config['persen_honor_pengelola'] ?? 0) / 100);
         $kas_sekolah     = $margin_estimasi * (($config['persen_kas_sekolah'] ?? 0) / 100);
         
-        // 4C. KAS BST (BANK SAMPAH) SEBAGAI PENYEKAT NERACA
-        // Laba Ril dikurangi Uang Keluar (Honor + Sekolah) = Sisa Kas Masuk Brankas
-        $kas_bst = $margin_total - ($honor_walikelas + $honor_pengelola + $kas_sekolah);
+        // 4C. BEBAN REWARD PRESTASI (Uang kas yang dibagikan cuma-cuma ke siswa)
+        $sqlBebanReward = "SELECT SUM(s.total_harga) 
+                           FROM setoran s 
+                           JOIN kategori_sampah k ON s.kategori_id = k.id 
+                           WHERE k.nama_sampah = '🌟 REWARD PRESTASI'";
+        $beban_reward = $this->db->query($sqlBebanReward)->fetchColumn() ?? 0;
+
+        // 4D. KAS BST (BANK SAMPAH) SEBAGAI PENYEKAT NERACA
+        // Laba Ril dikurangi Uang Keluar (Honor + Sekolah + Reward) = Sisa Kas Masuk Brankas
+        $kas_bst = $margin_total - ($honor_walikelas + $honor_pengelola + $kas_sekolah) - $beban_reward;
 
         $laporan = [
             'total_kotor'     => $total_kotor,
             'beban_nasabah'   => $beban_nasabah,
             'margin_total'    => $margin_total,
+            'beban_reward'    => $beban_reward, 
             'kas_bst'         => $kas_bst,
             'kas_sekolah'     => $kas_sekolah,
             'honor_pengelola' => $honor_pengelola,
@@ -70,9 +85,9 @@ class LaporanController {
 
         // Histori Penjualan Terbaru
         $history = $this->db->query("SELECT p.*, k.nama_sampah 
-                                    FROM penjualan p 
-                                    JOIN kategori_sampah k ON p.kategori_id = k.id 
-                                    ORDER BY p.tanggal_jual DESC LIMIT 10")->fetchAll();
+                                     FROM penjualan p 
+                                     JOIN kategori_sampah k ON p.kategori_id = k.id 
+                                     ORDER BY p.tanggal_jual DESC LIMIT 10")->fetchAll();
 
         $title = "Laporan Keuangan Global";
         $content = __DIR__ . '/../../views/admin/laporan/keuangan.php';
@@ -87,9 +102,11 @@ class LaporanController {
         $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
         $persen_wali = ($config['persen_honor_walikelas'] ?? 0) / 100;
 
+        // Hitung Margin
         $total_margin_potensi = $this->db->query("SELECT SUM(total_pengepul - total_harga) FROM setoran WHERE status = 'valid'")->fetchColumn() ?? 0;
         $total_margin_realisasi = $this->db->query("SELECT SUM(total_pengepul - total_harga) FROM setoran WHERE status = 'valid' AND is_sold = 1")->fetchColumn() ?? 0;
 
+        // Rekap Honor Per Wali Kelas
         $qRekap = "SELECT 
                         u.nama AS nama_guru, k.nama_kelas, 
                         SUM(CASE WHEN s.is_sold = 0 THEN (s.total_pengepul - s.total_harga) * :p1 ELSE 0 END) as total_potensi,
@@ -97,7 +114,8 @@ class LaporanController {
                     FROM setoran s
                     JOIN users u ON s.walikelas_id = u.id
                     JOIN kelas k ON u.id = k.walikelas_id
-                    WHERE s.status = 'valid'
+                    JOIN kategori_sampah ks ON s.kategori_id = ks.id
+                    WHERE s.status = 'valid' AND ks.nama_sampah != '🌟 REWARD PRESTASI'
                     GROUP BY u.id";
         $stmt = $this->db->prepare($qRekap);
         $stmt->execute(['p1' => $persen_wali, 'p2' => $persen_wali]);
@@ -123,11 +141,15 @@ class LaporanController {
             $stmtKelas->execute(['id' => $kelas_id]);
             $nama_kelas_aktif = $stmtKelas->fetchColumn();
 
-            $sql = "SELECT u.nama, IFNULL(SUM(s.berat), 0) as total_pcs, IFNULL(SUM(s.total_harga), 0) as total_rp
+            $sql = "SELECT u.nama, 
+                           IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, 
+                           IFNULL(SUM(s.total_harga), 0) as total_rp
                     FROM users u
                     LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid'
+                    LEFT JOIN kategori_sampah ks ON s.kategori_id = ks.id
                     WHERE u.kelas_id = :kid AND u.role = 'siswa'
-                    GROUP BY u.id, u.nama ORDER BY u.nama ASC";
+                    GROUP BY u.id, u.nama 
+                    ORDER BY u.nama ASC";
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['kid' => $kelas_id]);
             $data_rekap = $stmt->fetchAll();
@@ -139,21 +161,33 @@ class LaporanController {
     }
 
     // =================================================================
-    // 4. BUKU TABUNGAN PER NASABAH
+    // 4. BUKU TABUNGAN PER NASABAH (INDIVIDUAL MUTATION)
     // =================================================================
     public function nasabah() {
         $user_id = $_GET['user_id'] ?? null;
-        $siswa_list = $this->db->query("SELECT u.id, u.nama, k.nama_kelas FROM users u LEFT JOIN kelas k ON u.kelas_id = k.id WHERE u.role = 'siswa' ORDER BY u.nama ASC")->fetchAll();
+        // Ambil daftar siswa untuk dropdown filter
+        $siswa_list = $this->db->query("SELECT u.id, u.nama, k.nama_kelas 
+                                        FROM users u 
+                                        LEFT JOIN kelas k ON u.kelas_id = k.id 
+                                        WHERE u.role = 'siswa' 
+                                        ORDER BY u.nama ASC")->fetchAll();
         
         $detail_siswa = null;
         $mutasi = [];
         $total_saldo = 0;
 
         if ($user_id) {
-            $stmtUser = $this->db->prepare("SELECT u.*, k.nama_kelas FROM users u LEFT JOIN kelas k ON u.kelas_id = k.id WHERE u.id = ?");
+            // Ambil Detail Profil Siswa
+            $stmtUser = $this->db->prepare("SELECT u.*, k.nama_kelas 
+                                            FROM users u 
+                                            LEFT JOIN kelas k ON u.kelas_id = k.id 
+                                            WHERE u.id = ?");
             $stmtUser->execute([$user_id]);
             $detail_siswa = $stmtUser->fetch();
 
+            /** 
+             * QUERY MUTASI (UNION)
+             */
             $sqlMutasi = "SELECT created_at as tanggal, 'setoran' as tipe, nama_sampah as ket, berat as qty, total_harga as jumlah
                           FROM setoran s 
                           JOIN kategori_sampah k ON s.kategori_id = k.id 
@@ -165,9 +199,13 @@ class LaporanController {
                           ORDER BY tanggal DESC";
             
             $stmtMutasi = $this->db->prepare($sqlMutasi);
-            $stmtMutasi->execute(['uid1' => $user_id, 'uid2' => $user_id]);
+            $stmtMutasi->execute([
+                'uid1' => $user_id, 
+                'uid2' => $user_id
+            ]);
             $mutasi = $stmtMutasi->fetchAll();
 
+            // Hitung Saldo Bersih (Kredit - Debit)
             $stmtSetoran = $this->db->prepare("SELECT SUM(total_harga) FROM setoran WHERE user_id = ? AND status = 'valid'");
             $stmtSetoran->execute([$user_id]);
             $total_setoran = $stmtSetoran->fetchColumn() ?? 0;
@@ -185,14 +223,22 @@ class LaporanController {
     }
 
     // =================================================================
-    // 5. BUKU KAS UMUM (ARUS KAS RIL / FISIK)
+    // 5. BUKU KAS UMUM (ARUS KAS RIL / FISIK) - TERMASUK REWARD
     // =================================================================
     public function buku_kas() {
+        // Filter Tutup Buku (Bulan & Tahun)
         $bulan = $_GET['bulan'] ?? date('m');
         $tahun = $_GET['tahun'] ?? date('Y');
         
         $periode = $tahun . '-' . str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
+        // =====================================================
+        // QUERY SAKTI 4-IN-1: Menarik semua arus kas!
+        // 1. Penjualan Pengepul (Kas Masuk)
+        // 2. Penarikan Tunai Nasabah (Kas Keluar)
+        // 3. Pencairan Honor (Kas Keluar)
+        // 4. Reward Prestasi Siswa (Kas Keluar) <-- BARU DITAMBAHKAN
+        // =====================================================
         $sql = "
             SELECT 
                 tanggal_jual AS waktu, 
@@ -229,6 +275,21 @@ class LaporanController {
             FROM pencairan_honor h
             JOIN users u ON h.user_id = u.id
             WHERE DATE_FORMAT(h.tanggal_cair, '%Y-%m') = :periode3
+            
+            UNION ALL
+            
+            SELECT 
+                s.created_at AS waktu, 
+                CONCAT('Reward Prestasi: ', u.nama) AS uraian, 
+                'Beban Hadiah Kas Operasional' AS detail, 
+                0 AS debit, 
+                s.total_harga AS kredit, 
+                'keluar_reward' as jenis
+            FROM setoran s 
+            JOIN users u ON s.user_id = u.id 
+            JOIN kategori_sampah k ON s.kategori_id = k.id 
+            WHERE k.nama_sampah = '🌟 REWARD PRESTASI' 
+            AND DATE_FORMAT(s.created_at, '%Y-%m') = :periode4
 
             ORDER BY waktu ASC
         ";
@@ -237,19 +298,31 @@ class LaporanController {
         $stmt->execute([
             'periode1' => $periode,
             'periode2' => $periode,
-            'periode3' => $periode
+            'periode3' => $periode,
+            'periode4' => $periode
         ]);
         $buku_kas = $stmt->fetchAll();
 
+        // Hitung Saldo Bulan Lalu (Untuk Saldo Awal Bulan Ini) dengan memotong Beban Reward
         $sqlSaldoAwal = "
             SELECT 
                 (SELECT IFNULL(SUM(total_pendapatan), 0) FROM penjualan WHERE DATE_FORMAT(tanggal_jual, '%Y-%m') < :p1) -
                 (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE DATE_FORMAT(tanggal_tarik, '%Y-%m') < :p2) -
-                (SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE DATE_FORMAT(tanggal_cair, '%Y-%m') < :p3) 
+                (SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE DATE_FORMAT(tanggal_cair, '%Y-%m') < :p3) -
+                (SELECT IFNULL(SUM(s.total_harga), 0) 
+                 FROM setoran s 
+                 JOIN kategori_sampah k ON s.kategori_id = k.id 
+                 WHERE k.nama_sampah = '🌟 REWARD PRESTASI' 
+                 AND DATE_FORMAT(s.created_at, '%Y-%m') < :p4) 
             AS saldo_awal
         ";
         $stmtAwal = $this->db->prepare($sqlSaldoAwal);
-        $stmtAwal->execute(['p1' => $periode, 'p2' => $periode, 'p3' => $periode]);
+        $stmtAwal->execute([
+            'p1' => $periode, 
+            'p2' => $periode, 
+            'p3' => $periode, 
+            'p4' => $periode
+        ]);
         $saldo_awal = $stmtAwal->fetchColumn() ?? 0;
 
         $title = "Buku Kas Umum (Kas Ril)";
