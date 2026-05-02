@@ -43,7 +43,6 @@ class LaporanController {
         // =========================================================
         
         // 4A. MENGAMBIL AKUMULASI HONOR WALI KELAS SECARA LANGSUNG
-        // Menghitung hak wali kelas dari selisih (Harga Jual - Harga Dasar)
         $sql_honor_wali = "SELECT SUM((s.total_pengepul - s.total_harga) * :persen)
                            FROM setoran s
                            JOIN users u ON s.walikelas_id = u.id
@@ -71,7 +70,6 @@ class LaporanController {
         $beban_reward = $this->db->query($sqlBebanReward)->fetchColumn() ?? 0;
 
         // 4D. KAS BST (BANK SAMPAH) SEBAGAI PENYEKAT NERACA
-        // Laba Ril dikurangi Uang Keluar (Honor + Sekolah + Reward) = Sisa Kas Masuk Brankas
         $kas_bst = $margin_total - ($honor_walikelas + $honor_pengelola + $kas_sekolah) - $beban_reward;
 
         $laporan = [
@@ -228,7 +226,6 @@ class LaporanController {
     // 5. BUKU KAS UMUM (ARUS KAS RIL / FISIK) - 6 IN 1 QUERY
     // =================================================================
     public function buku_kas() {
-        // Filter Tutup Buku (Bulan & Tahun)
         $bulan = $_GET['bulan'] ?? date('m');
         $tahun = $_GET['tahun'] ?? date('Y');
         
@@ -236,12 +233,6 @@ class LaporanController {
 
         // =====================================================
         // QUERY SAKTI 6-IN-1: Menarik SELURUH arus kas!
-        // 1. Penjualan Pengepul (Masuk)
-        // 2. Kas Manual (Masuk) 
-        // 3. Penarikan Nasabah (Keluar)
-        // 4. Pencairan Honor (Keluar)
-        // 5. Reward Prestasi (Keluar)
-        // 6. Kas Manual (Keluar) 
         // =====================================================
         $sql = "
             SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, total_pendapatan AS debit, 0 AS kredit, 'masuk' as jenis
@@ -311,6 +302,50 @@ class LaporanController {
 
         $title = "Buku Kas Umum (Kas Ril)";
         $content = __DIR__ . '/../../views/admin/laporan/buku_kas.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
+
+    // =================================================================
+    // 6. FITUR BARU: LAPORAN KHUSUS KAS KESISWAAN (DENDA)
+    // =================================================================
+    public function kas_kesiswaan() {
+        if ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'staff') {
+            header('Location: ' . BASE_URL . '/dashboard');
+            exit;
+        }
+
+        // Cari akun virtual kesiswaan di tabel users (mencari substring 'KESISWAAN')
+        $stmtCek = $this->db->query("SELECT id, nama, created_at FROM users WHERE nama LIKE '%KESISWAAN%' AND role = 'siswa' LIMIT 1");
+        $akun_kesiswaan = $stmtCek->fetch();
+
+        if (!$akun_kesiswaan) {
+            $_SESSION['error'] = "Akun virtual 'KAS KESISWAAN' belum terdeteksi di Master Data Pengguna. Silakan buat terlebih dahulu!";
+            header('Location: ' . BASE_URL . '/user');
+            exit;
+        }
+
+        $user_id = $akun_kesiswaan['id'];
+
+        // 1. Tarik History Setoran Denda & Penarikan OSIS
+        $sqlMutasi = "SELECT s.created_at as tanggal, 'setoran' as tipe, k.nama_sampah as jenis_botol, s.keterangan as ket, s.berat as qty, s.total_harga as jumlah
+                      FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id 
+                      WHERE s.user_id = :uid1 AND s.status = 'valid'
+                      UNION ALL
+                      SELECT tanggal_tarik as tanggal, 'penarikan' as tipe, '-' as jenis_botol, keterangan as ket, 0 as qty, jumlah
+                      FROM penarikan WHERE user_id = :uid2
+                      ORDER BY tanggal DESC";
+        $stmtMutasi = $this->db->prepare($sqlMutasi);
+        $stmtMutasi->execute(['uid1' => $user_id, 'uid2' => $user_id]);
+        $data['mutasi'] = $stmtMutasi->fetchAll();
+
+        // 2. Kalkulasi Metrik Kartu Atas
+        $data['total_uang_masuk'] = $this->db->query("SELECT IFNULL(SUM(total_harga),0) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn();
+        $data['total_uang_ditarik'] = $this->db->query("SELECT IFNULL(SUM(jumlah),0) FROM penarikan WHERE user_id = $user_id")->fetchColumn();
+        $data['saldo_aktif'] = $data['total_uang_masuk'] - $data['total_uang_ditarik'];
+        $data['total_botol_pcs'] = $this->db->query("SELECT IFNULL(SUM(berat),0) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn();
+
+        $title = "Dashboard Kas Kesiswaan (Denda)";
+        $content = __DIR__ . '/../../views/admin/laporan/kas_kesiswaan.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 }
