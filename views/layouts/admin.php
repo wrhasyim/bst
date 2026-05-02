@@ -102,6 +102,9 @@
                     <a href="<?= BASE_URL ?>/kas" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
     <span class="mr-3 text-lg">🧾</span> Kas Lain-lain
 </a>
+<a href="<?= BASE_URL ?>/laporan/kas_kesiswaan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+    <span class="mr-3 text-lg">🛡️</span> Kas Kesiswaan
+</a>
                     <!-- Akhir Fitur Baru -->
                     <a href="<?= BASE_URL ?>/laporan/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">🏅</span> Laporan Honor
