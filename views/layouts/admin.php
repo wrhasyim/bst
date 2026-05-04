@@ -63,8 +63,8 @@
                         <span class="mr-3">📝</span> Setoran Guru
                     </a>
                     <a href="<?= BASE_URL ?>/setoran/create_kesiswaan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
-    <span class="mr-3 text-lg">⚖️</span> Denda Kesiswaan
-</a>
+                        <span class="mr-3 text-lg">⚖️</span> Denda Kesiswaan
+                    </a>
                     <?php if($_SESSION['role'] === 'admin'): ?>
                     <a href="<?= BASE_URL ?>/setoran/siswa" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">📋</span> Riwayat Tabungan
@@ -98,14 +98,12 @@
                     <a href="<?= BASE_URL ?>/laporan/buku_kas" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">📓</span> Buku Kas Umum
                     </a>
-                    <!-- Fitur Baru: KAS MANUAL -->
                     <a href="<?= BASE_URL ?>/kas" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
-    <span class="mr-3 text-lg">🧾</span> Kas Lain-lain
-</a>
-<a href="<?= BASE_URL ?>/laporan/kas_kesiswaan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
-    <span class="mr-3 text-lg">🛡️</span> Kas Kesiswaan
-</a>
-                    <!-- Akhir Fitur Baru -->
+                        <span class="mr-3 text-lg">🧾</span> Kas Lain-lain
+                    </a>
+                    <a href="<?= BASE_URL ?>/laporan/kas_kesiswaan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3 text-lg">🛡️</span> Kas Kesiswaan
+                    </a>
                     <a href="<?= BASE_URL ?>/laporan/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">🏅</span> Laporan Honor
                     </a>
@@ -134,6 +132,14 @@
                     </a>
                     <a href="<?= BASE_URL ?>/user" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">👥</span> Data Pengguna
+                    </a>
+                </div>
+
+                <!-- FITUR BARU: MENU AUDIT TRAIL / SECURITY -->
+                <div class="py-3 border-t border-slate-800 mt-4 mb-8">
+                    <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Sistem Keamanan</p>
+                    <a href="<?= BASE_URL ?>/pengaturan/logs" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3 text-lg">🔍</span> Audit Trail (Log)
                     </a>
                 </div>
                 <?php endif; ?>
@@ -183,6 +189,7 @@
                         <?php endif; ?>
 
                         <hr class="border-gray-50 my-1">
+                        <!-- ACTION MENU LOGOUT -->
                         <a href="<?= BASE_URL ?>/auth/logout" class="flex items-center px-6 py-3.5 text-xs text-red-600 hover:bg-red-50 font-bold transition-all">
                             <span class="mr-3 text-lg">🚪</span> Keluar Aplikasi
                         </a>

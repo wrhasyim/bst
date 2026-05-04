@@ -148,7 +148,7 @@ class LaporanController {
             $stmtKelas->execute(['id' => $kelas_id]);
             $nama_kelas_aktif = $stmtKelas->fetchColumn();
 
-            // Tampilkan seluruh siswa (aktif maupun soft-delete) di rekap sejarah kelas
+            // Tampilkan seluruh siswa (aktif maupun alumni/soft-delete) di rekap sejarah kelas
             $sql = "SELECT u.nama, 
                            IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, 
                            IFNULL(SUM(s.total_harga), 0) as total_rp
@@ -190,7 +190,6 @@ class LaporanController {
         
         $detail_kelas = null; 
         $rekap_kelas = []; 
-        $total_kelas_saldo = 0;
 
         if ($user_id) {
             $stmtUser = $this->db->prepare("SELECT u.*, k.nama_kelas FROM users u LEFT JOIN kelas k ON u.kelas_id = k.id WHERE u.id = ?");
@@ -218,7 +217,7 @@ class LaporanController {
             $stmtKelas->execute([$kelas_id]);
             $detail_kelas = $stmtKelas->fetch();
 
-            // Tetap hitung saldo meskipun ada siswa alumni/soft-delete
+            // Tetap hitung saldo meskipun ada siswa alumni/soft-delete agar saldo kelas akurat
             $sqlRekap = "SELECT u.id, u.nama,
                              (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') AS total_masuk,
                              (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) AS total_keluar
@@ -257,7 +256,7 @@ class LaporanController {
 
             UNION ALL
             
-            -- Penarikan: JOIN u tanpa filter deleted_at agar nama tetap muncul di Buku Kas sejarah
+            -- Penarikan: JOIN u tanpa filter deleted_at agar nama nasabah yang sudah dihapus tetap tampil di sejarah Buku Kas
             SELECT MAX(p.tanggal_tarik) AS waktu, CONCAT('Penarikan Kolektif: Kelas ', k.nama_kelas) AS uraian, CONCAT(COUNT(p.id), ' Transaksi Siswa') AS detail, 0 AS debit, SUM(p.jumlah) AS kredit, 'keluar_nasabah' as jenis
             FROM penarikan p JOIN users u ON p.user_id = u.id JOIN kelas k ON u.kelas_id = k.id 
             WHERE DATE_FORMAT(p.tanggal_tarik, '%Y-%m') = :p3a AND u.role = 'siswa' AND u.nama NOT LIKE '%KESISWAAN%'
@@ -380,7 +379,6 @@ class LaporanController {
             if ($nominal > 0) {
                 try {
                     $ket = "Sumbangan Kas Sekolah (Berdasarkan Margin Pembagian)";
-                    // NOW() digunakan untuk ketelitian sorting riwayat buku kas
                     $sql = "INSERT INTO kas_manual (user_id, tanggal, jenis, nominal, keterangan, created_at) VALUES (?, NOW(), 'pengeluaran', ?, ?, NOW())";
                     $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket]);
                     $_SESSION['success'] = "Berhasil mencatat penyerahan dana ke Sekolah.";
@@ -427,7 +425,7 @@ class LaporanController {
                 if ($ket !== "") {
                     try {
                         $sql = "INSERT INTO kas_manual (user_id, tanggal, jenis, nominal, keterangan, created_at) VALUES (?, NOW(), 'pemasukan', ?, ?, NOW())";
-                        $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket,]);
+                        $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket]);
                         $_SESSION['success'] = "Berhasil menarik kembali kelebihan dana Rp " . number_format($nominal, 0, ',', '.') . " ke Kas Utama.";
                     } catch (PDOException $e) {
                         $_SESSION['error'] = "Gagal melakukan refund: " . $e->getMessage();
@@ -436,6 +434,81 @@ class LaporanController {
             }
         }
         header('Location: ' . BASE_URL . '/laporan/keuangan');
+        exit;
+    }
+
+    // =================================================================
+    // 8. FITUR EXPORT EXCEL (CSV) - TERBARU
+    // =================================================================
+    public function export_setoran() {
+        $kelas_id = $_GET['kelas_id'] ?? null;
+        if (!$kelas_id) exit("Pilih kelas terlebih dahulu.");
+
+        $stmtKelas = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
+        $stmtKelas->execute([$kelas_id]);
+        $nama_kelas = $stmtKelas->fetchColumn();
+
+        $filename = "Rekap_Tabungan_" . str_replace(" ", "_", $nama_kelas) . "_" . date('Ymd') . ".csv";
+        
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['No', 'Nama Nasabah', 'Total Sampah (Pcs/Kg)', 'Total Tabungan (Rp)']);
+
+        $sql = "SELECT u.nama, 
+                       IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, 
+                       IFNULL(SUM(s.total_harga), 0) as total_rp
+                FROM users u
+                LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid'
+                LEFT JOIN kategori_sampah ks ON s.kategori_id = ks.id
+                WHERE u.kelas_id = :kid AND u.role = 'siswa'
+                GROUP BY u.id, u.nama 
+                ORDER BY u.nama ASC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['kid' => $kelas_id]);
+        
+        $i = 1;
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            fputcsv($output, [$i++, $row['nama'], $row['total_pcs'], $row['total_rp']]);
+        }
+        fclose($output);
+        exit;
+    }
+
+    public function export_buku_kas() {
+        $bulan = $_GET['bulan'] ?? date('m');
+        $tahun = $_GET['tahun'] ?? date('Y');
+        $periode = $tahun . '-' . str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        $filename = "Buku_Kas_BST_" . $periode . ".csv";
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['Waktu', 'Uraian Transaksi', 'Detail/Keterangan', 'Debit (Masuk)', 'Kredit (Keluar)']);
+
+        $sql = "
+            SELECT waktu, uraian, detail, debit, kredit FROM (
+                SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, total_pendapatan AS debit, 0 AS kredit FROM penjualan WHERE DATE_FORMAT(tanggal_jual, '%Y-%m') = :p1
+                UNION ALL
+                SELECT tanggal AS waktu, 'Pemasukan Kas' AS uraian, keterangan AS detail, nominal AS debit, 0 AS kredit FROM kas_manual WHERE jenis = 'pemasukan' AND DATE_FORMAT(tanggal, '%Y-%m') = :p2
+                UNION ALL
+                SELECT MAX(p.tanggal_tarik) AS waktu, CONCAT('Penarikan Kolektif: ', k.nama_kelas) AS uraian, 'Mutasi Siswa' AS detail, 0 AS debit, SUM(p.jumlah) AS kredit FROM penarikan p JOIN users u ON p.user_id = u.id JOIN kelas k ON u.kelas_id = k.id WHERE DATE_FORMAT(p.tanggal_tarik, '%Y-%m') = :p3 AND u.role = 'siswa' GROUP BY DATE(p.tanggal_tarik), k.id
+                UNION ALL
+                SELECT h.tanggal_cair AS waktu, 'Pencairan Honor' AS uraian, h.keterangan AS detail, 0 AS debit, h.jumlah AS kredit FROM pencairan_honor h WHERE DATE_FORMAT(h.tanggal_cair, '%Y-%m') = :p4
+                UNION ALL
+                SELECT tanggal AS waktu, 'Pengeluaran Kas' AS uraian, keterangan AS detail, 0 AS debit, nominal AS kredit FROM kas_manual WHERE jenis = 'pengeluaran' AND DATE_FORMAT(tanggal, '%Y-%m') = :p5
+            ) as mutasi ORDER BY waktu ASC
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['p1' => $periode, 'p2' => $periode, 'p3' => $periode, 'p4' => $periode, 'p5' => $periode]);
+
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            fputcsv($output, $row);
+        }
+        fclose($output);
         exit;
     }
 }

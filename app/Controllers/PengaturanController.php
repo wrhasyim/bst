@@ -1,6 +1,8 @@
 <?php
 // app/Controllers/PengaturanController.php
 require_once __DIR__ . '/../Core/Database.php';
+require_once __DIR__ . '/../Core/Logger.php';    // 🛡️ Load Audit Trail
+require_once __DIR__ . '/../Core/Security.php';  // 🛡️ Load CSRF Protection
 
 class PengaturanController {
     private $db;
@@ -29,6 +31,8 @@ class PengaturanController {
 
     public function update_identitas() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Cegah serangan manipulasi form
+
             $total = $_POST['persen_kas_bst'] + $_POST['persen_kas_sekolah'] + 
                      $_POST['persen_honor_pengelola'] + $_POST['persen_honor_walikelas'];
 
@@ -39,19 +43,26 @@ class PengaturanController {
             }
 
             foreach ($_POST as $kunci => $nilai) {
-                $stmt = $this->db->prepare("UPDATE pengaturan SET nilai = :v WHERE kunci = :k");
-                $stmt->execute(['v' => $nilai, 'k' => $kunci]);
+                if ($kunci !== 'csrf_token') { // Abaikan token CSRF saat update ke DB
+                    $stmt = $this->db->prepare("UPDATE pengaturan SET nilai = :v WHERE kunci = :k");
+                    $stmt->execute(['v' => $nilai, 'k' => $kunci]);
+                }
             }
+            
+            Logger::log("Update Pengaturan", "Admin mengubah persentase bagi hasil / identitas sistem.");
             $_SESSION['success'] = "Pengaturan & Kebijakan Honor berhasil diperbarui!";
         }
         header('Location: ' . BASE_URL . '/pengaturan');
+        exit;
     }
 
     // =================================================================
-    // 3. FITUR BACKUP DATABASE (PHP NATIVE PURE SQL DUMP)
+    // 3. FITUR BACKUP DATABASE
     // =================================================================
     public function backup() {
         if ($_SESSION['role'] !== 'admin') { header('Location: ' . BASE_URL . '/dashboard'); exit; }
+
+        Logger::log("Backup Database", "Admin mengunduh file backup SQL sistem.");
 
         $tables = [];
         $query = $this->db->query("SHOW TABLES");
@@ -95,19 +106,20 @@ class PengaturanController {
     }
 
     // =================================================================
-    // 4. FITUR RESTORE DATABASE (IMPORT DARI FILE SQL)
+    // 4. FITUR RESTORE DATABASE
     // =================================================================
     public function restore() {
-        if ($_SESSION['role'] !== 'admin') { header('Location: ' . BASE_URL . '/dashboard'); exit; }
-
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['backup_file'])) {
+            Security::validate_csrf(); // 🛡️ Cegah Hacker menunggah DB palsu
+
             $file = $_FILES['backup_file'];
             if ($file['error'] == UPLOAD_ERR_OK && is_uploaded_file($file['tmp_name'])) {
                 $sql = file_get_contents($file['tmp_name']);
                 try {
-                    // Eksekusi seluruh script SQL dari file
                     $this->db->setAttribute(PDO::ATTR_EMULATE_PREPARES, 0);
                     $this->db->exec($sql);
+                    
+                    Logger::log("Restore Database", "Admin memulihkan database dari file SQL.");
                     $_SESSION['success'] = "Database berhasil di-restore dengan sempurna! Sistem kembali ke titik backup.";
                 } catch (PDOException $e) {
                     $_SESSION['error'] = "Gagal restore database: Format SQL tidak valid. " . $e->getMessage();
@@ -124,69 +136,75 @@ class PengaturanController {
     // 1. RESET DATA TRANSAKSI SAJA
     // =================================================================
     public function reset_transaksi() {
-        if ($_SESSION['role'] !== 'admin') {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
+        // 🛡️ WAJIB POST untuk fungsi destruktif
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); 
+
+            try {
+                $this->db->exec("SET FOREIGN_KEY_CHECKS = 0;");
+                
+                $this->db->exec("TRUNCATE TABLE setoran;");
+                $this->db->exec("TRUNCATE TABLE penarikan;");
+                $this->db->exec("TRUNCATE TABLE penjualan;");
+                $this->db->exec("TRUNCATE TABLE pencairan_honor;");
+                $this->db->exec("TRUNCATE TABLE kas_manual;");
+                
+                $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
+
+                Logger::log("Reset Transaksi", "DANGER: Admin mengosongkan seluruh riwayat transaksi!");
+                $_SESSION['success'] = "Berhasil! Seluruh riwayat transaksi telah dihapus. Data Master Pengguna & Sampah tetap aman.";
+            } catch (PDOException $e) {
+                $_SESSION['error'] = "Gagal mereset transaksi: " . $e->getMessage();
+            }
         }
-
-        try {
-            $this->db->exec("SET FOREIGN_KEY_CHECKS = 0;");
-            
-            $this->db->exec("TRUNCATE TABLE setoran;");
-            $this->db->exec("TRUNCATE TABLE penarikan;");
-            $this->db->exec("TRUNCATE TABLE penjualan;");
-            $this->db->exec("TRUNCATE TABLE pencairan_honor;");
-            $this->db->exec("TRUNCATE TABLE kas_manual;");
-            
-            $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
-
-            $_SESSION['success'] = "Berhasil! Seluruh riwayat transaksi telah dihapus. Data Master Pengguna & Sampah tetap aman.";
-        } catch (PDOException $e) {
-            $_SESSION['error'] = "Gagal mereset transaksi: " . $e->getMessage();
-        }
-
-        // FIX TYPO ROUTING: Kembali ke 'maintenance' yang benar
         header('Location: ' . BASE_URL . '/pengaturan/maintenance'); 
         exit;
     }
 
     // =================================================================
-    // 2. RESET TOTAL SISTEM (SAFEGUARD LENGKAP)
+    // 2. RESET TOTAL SISTEM
     // =================================================================
     public function reset_total() {
-        if ($_SESSION['role'] !== 'admin') {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
+        // 🛡️ WAJIB POST untuk fungsi destruktif
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf();
+
+            try {
+                $this->db->exec("SET FOREIGN_KEY_CHECKS = 0;");
+                
+                $this->db->exec("TRUNCATE TABLE setoran;");
+                $this->db->exec("TRUNCATE TABLE penarikan;");
+                $this->db->exec("TRUNCATE TABLE penjualan;");
+                $this->db->exec("TRUNCATE TABLE pencairan_honor;");
+                $this->db->exec("TRUNCATE TABLE kas_manual;");
+
+                $this->db->exec("DELETE FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI';");
+                $this->db->exec("DELETE FROM users WHERE role != 'admin' AND nama NOT LIKE '%KESISWAAN%';");
+                $this->db->exec("DELETE FROM kelas WHERE id NOT IN (SELECT IFNULL(kelas_id, 0) FROM users) AND nama_kelas NOT LIKE '%KESISWAAN%';");
+
+                $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
+
+                Logger::log("Reset Total Sistem", "CRITICAL DANGER: Admin melakukan Reset Total Sistem (Wipe Out)!");
+                $_SESSION['success'] = "Sistem berhasil di-reset total! Admin, Kas Kesiswaan, dan Kategori Reward dipastikan aman.";
+            } catch (PDOException $e) {
+                $_SESSION['error'] = "Gagal melakukan reset total: " . $e->getMessage();
+            }
         }
-
-        try {
-            $this->db->exec("SET FOREIGN_KEY_CHECKS = 0;");
-            
-            // 1. Kosongkan Transaksi
-            $this->db->exec("TRUNCATE TABLE setoran;");
-            $this->db->exec("TRUNCATE TABLE penarikan;");
-            $this->db->exec("TRUNCATE TABLE penjualan;");
-            $this->db->exec("TRUNCATE TABLE pencairan_honor;");
-            $this->db->exec("TRUNCATE TABLE kas_manual;");
-
-            // 2. Bersihkan Kategori (Lindungi Reward Prestasi)
-            $this->db->exec("DELETE FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI';");
-
-            // 3. Bersihkan User (Lindungi Admin & Akun Kesiswaan)
-            $this->db->exec("DELETE FROM users WHERE role != 'admin' AND nama NOT LIKE '%KESISWAAN%';");
-
-            // 4. Bersihkan Kelas (Lindungi Kelas Kesiswaan & Kelas yang masih dipakai)
-            $this->db->exec("DELETE FROM kelas WHERE id NOT IN (SELECT IFNULL(kelas_id, 0) FROM users) AND nama_kelas NOT LIKE '%KESISWAAN%';");
-
-            $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
-
-            $_SESSION['success'] = "Sistem berhasil di-reset total! Admin, Kas Kesiswaan, dan Kategori Reward dipastikan aman.";
-        } catch (PDOException $e) {
-            $_SESSION['error'] = "Gagal melakukan reset total: " . $e->getMessage();
-        }
-
-        // FIX TYPO ROUTING: Kembali ke 'maintenance' yang benar
         header('Location: ' . BASE_URL . '/pengaturan/maintenance'); 
         exit;
+    }
+
+    public function logs() {
+        if ($_SESSION['role'] !== 'admin') { header('Location: ' . BASE_URL . '/dashboard'); exit; }
+
+        $sql = "SELECT l.*, u.nama 
+                FROM activity_logs l 
+                JOIN users u ON l.user_id = u.id 
+                ORDER BY l.created_at DESC LIMIT 100";
+        $logs = $this->db->query($sql)->fetchAll();
+
+        $title = "Audit Trail / Log Aktivitas";
+        $content = __DIR__ . '/../../views/admin/pengaturan/logs.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 }

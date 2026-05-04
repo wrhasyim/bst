@@ -19,7 +19,18 @@
             </div>
         <?php endif; ?>
 
-        <form action="<?= BASE_URL ?>/auth/authenticate" method="POST" class="space-y-6">
+        <?php if (isset($_SESSION['success'])): ?>
+            <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 mb-6 text-sm text-emerald-700 font-medium">
+                <?= $_SESSION['success']; unset($_SESSION['success']); ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- ACTION DIUBAH KE /auth/login -->
+        <form action="<?= BASE_URL ?>/auth/login" method="POST" class="space-y-6">
+            
+            <!-- 🛡️ INJEKSI CSRF TOKEN -->
+            <?= Security::csrf_field(); ?>
+
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
                 <input type="text" name="username" required class="w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500">
@@ -28,7 +39,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
                 <input type="password" name="password" required class="w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500">
             </div>
-            <button type="submit" class="w-full py-2.5 px-4 text-white bg-emerald-600 rounded-md hover:bg-emerald-700 font-medium">
+            <button type="submit" class="w-full py-2.5 px-4 text-white bg-emerald-600 rounded-md hover:bg-emerald-700 font-medium shadow-md shadow-emerald-500/30 transition-all">
                 Masuk Sistem
             </button>
         </form>
