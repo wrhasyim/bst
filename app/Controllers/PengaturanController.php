@@ -47,46 +47,77 @@ class PengaturanController {
         header('Location: ' . BASE_URL . '/pengaturan');
     }
 
+    // =================================================================
+    // 3. FITUR BACKUP DATABASE (PHP NATIVE PURE SQL DUMP)
+    // =================================================================
     public function backup() {
-        $tables = array();
-        $result = $this->db->query("SHOW TABLES");
-        while ($row = $result->fetch(PDO::FETCH_NUM)) { $tables[] = $row[0]; }
-        $return = "-- Backup BST SYSTEM \n-- Date: " . date('Y-m-d H:i:s') . "\n\n";
+        if ($_SESSION['role'] !== 'admin') { header('Location: ' . BASE_URL . '/dashboard'); exit; }
+
+        $tables = [];
+        $query = $this->db->query("SHOW TABLES");
+        while ($row = $query->fetch(PDO::FETCH_NUM)) { $tables[] = $row[0]; }
+
+        $sqlScript = "-- BST SYSTEM DATABASE BACKUP\n";
+        $sqlScript .= "-- Tanggal: " . date('Y-m-d H:i:s') . "\n\n";
+        $sqlScript .= "SET FOREIGN_KEY_CHECKS = 0;\n\n";
+
         foreach ($tables as $table) {
-            $result = $this->db->query("SELECT * FROM $table");
-            $num_fields = $result->columnCount();
-            $return .= "DROP TABLE IF EXISTS $table;";
-            $row2 = $this->db->query("SHOW CREATE TABLE $table")->fetch(PDO::FETCH_NUM);
-            $return .= "\n\n" . $row2[1] . ";\n\n";
-            while ($row = $result->fetch(PDO::FETCH_NUM)) {
-                $return .= "INSERT INTO $table VALUES(";
-                for ($j = 0; $j < $num_fields; $j++) {
-                    $row[$j] = addslashes($row[$j]);
-                    $return .= isset($row[$j]) ? '"'.$row[$j].'"' : '""';
-                    if ($j < ($num_fields - 1)) $return .= ',';
+            $query = $this->db->query("SHOW CREATE TABLE `$table`");
+            $row = $query->fetch(PDO::FETCH_NUM);
+            $sqlScript .= "\n\nDROP TABLE IF EXISTS `$table`;\n";
+            $sqlScript .= $row[1] . ";\n\n";
+
+            $query = $this->db->query("SELECT * FROM `$table`");
+            $columnCount = $query->columnCount();
+
+            while ($row = $query->fetch(PDO::FETCH_NUM)) {
+                $sqlScript .= "INSERT INTO `$table` VALUES(";
+                for ($j = 0; $j < $columnCount; $j++) {
+                    if (isset($row[$j])) {
+                        $row[$j] = addslashes($row[$j]);
+                        $row[$j] = str_replace("\n", "\\n", $row[$j]);
+                        $sqlScript .= '"' . $row[$j] . '"';
+                    } else {
+                        $sqlScript .= 'NULL';
+                    }
+                    if ($j < ($columnCount - 1)) { $sqlScript .= ','; }
                 }
-                $return .= ");\n";
+                $sqlScript .= ");\n";
             }
-            $return .= "\n\n\n";
         }
-        header('Content-Type: application/octet-stream');
-        header("Content-disposition: attachment; filename=\"backup-bst-".date('Y-m-d').".sql\"");
-        echo $return; exit;
+        $sqlScript .= "\nSET FOREIGN_KEY_CHECKS = 1;\n";
+
+        $backup_file_name = 'Backup_BST_System_' . date('Y-m-d_H-i-s') . '.sql';
+        header('Content-Type: application/x-sql');
+        header('Content-Disposition: attachment; filename=' . $backup_file_name);
+        echo $sqlScript;
+        exit;
     }
 
+    // =================================================================
+    // 4. FITUR RESTORE DATABASE (IMPORT DARI FILE SQL)
+    // =================================================================
     public function restore() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['sql_file'])) {
-            $sql = file_get_contents($_FILES['sql_file']['tmp_name']);
-            try { 
-                $this->db->exec("SET FOREIGN_KEY_CHECKS = 0;");
-                $this->db->exec($sql); 
-                $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
-                $_SESSION['success'] = "Sistem Berhasil Dipulihkan!"; 
-            } catch (Exception $e) { 
-                $_SESSION['error'] = "Gagal Restore Database: " . $e->getMessage(); 
+        if ($_SESSION['role'] !== 'admin') { header('Location: ' . BASE_URL . '/dashboard'); exit; }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['backup_file'])) {
+            $file = $_FILES['backup_file'];
+            if ($file['error'] == UPLOAD_ERR_OK && is_uploaded_file($file['tmp_name'])) {
+                $sql = file_get_contents($file['tmp_name']);
+                try {
+                    // Eksekusi seluruh script SQL dari file
+                    $this->db->setAttribute(PDO::ATTR_EMULATE_PREPARES, 0);
+                    $this->db->exec($sql);
+                    $_SESSION['success'] = "Database berhasil di-restore dengan sempurna! Sistem kembali ke titik backup.";
+                } catch (PDOException $e) {
+                    $_SESSION['error'] = "Gagal restore database: Format SQL tidak valid. " . $e->getMessage();
+                }
+            } else {
+                $_SESSION['error'] = "Gagal mengunggah file backup.";
             }
         }
         header('Location: ' . BASE_URL . '/pengaturan/maintenance');
+        exit;
     }
 
     // =================================================================

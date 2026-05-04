@@ -39,7 +39,8 @@
                 <!-- Backup Button -->
                 <div>
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 text-center">Simpan Salinan Data:</p>
-                    <a href="<?= BASE_URL ?>/pengaturan/backup" onclick="return alert('Fitur Backup SQL sedang disiapkan. Pastikan pengaturan server sudah sesuai.')" class="w-full block text-center py-4 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-black transition-all shadow-lg">Download SQL Backup</a>
+                   <!-- Backup Button Sebelumnya (Hapus bagian onclick alert) -->
+<a href="<?= BASE_URL ?>/pengaturan/backup" class="w-full block text-center py-4 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-black transition-all shadow-lg">Download SQL Backup</a>
                 </div>
                 
                 <!-- Restore Form -->
