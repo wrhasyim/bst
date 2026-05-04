@@ -29,8 +29,8 @@ class DashboardController {
             WHERE s.created_at >= DATE_FORMAT(DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH), '%Y-%m-01')
             AND s.status = 'valid' 
             AND u.role = 'siswa'
-            AND u.is_active = 1 -- FIX: Pastikan siswa masih aktif (bukan alumni)
-            AND u.kelas_id IS NOT NULL -- FIX: Pastikan siswa memiliki kelas
+            AND u.is_active = 1 
+            AND u.kelas_id IS NOT NULL 
             AND u.nama NOT LIKE '%KESISWAAN%'
             GROUP BY u.id 
             ORDER BY total_pcs DESC LIMIT 5
@@ -51,7 +51,8 @@ class DashboardController {
                 IFNULL((SELECT SUM(total_harga) FROM setoran WHERE is_sold = 1 AND status = 'valid' AND kategori_id NOT IN (SELECT id FROM kategori_sampah WHERE nama_sampah = '🌟 REWARD PRESTASI')), 0)
             ")->fetchColumn() ?? 0;
             
-            $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1")->fetchColumn() ?? 0;
+            // FIX: Mengecualikan Akun Kesiswaan dari hitungan Total Siswa
+            $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1 AND nama NOT LIKE '%KESISWAAN%'")->fetchColumn() ?? 0;
             $data['jml_guru'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'guru' AND is_active = 1")->fetchColumn() ?? 0;
 
             // FITUR CHART.JS DATA
@@ -110,11 +111,12 @@ class DashboardController {
             $data['ranking_siswa'] = [];
             if($data['is_walikelas_aktif']) {
                 $kid = $data['kelas_dikelola']['id'];
+                // FIX: Mengecualikan Akun Kesiswaan dari ranking kelas
                 $data['ranking_siswa'] = $this->db->query("
                     SELECT u.nama, SUM(s.berat) as total_pcs 
                     FROM users u 
                     LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid'
-                    WHERE u.kelas_id = $kid AND u.role = 'siswa' AND u.is_active = 1
+                    WHERE u.kelas_id = $kid AND u.role = 'siswa' AND u.is_active = 1 AND u.nama NOT LIKE '%KESISWAAN%'
                     GROUP BY u.id ORDER BY total_pcs DESC LIMIT 5
                 ")->fetchAll();
             }

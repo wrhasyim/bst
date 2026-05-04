@@ -89,38 +89,73 @@ class PengaturanController {
         header('Location: ' . BASE_URL . '/pengaturan/maintenance');
     }
 
+    // =================================================================
+    // 1. RESET DATA TRANSAKSI SAJA
+    // =================================================================
     public function reset_transaksi() {
+        if ($_SESSION['role'] !== 'admin') {
+            header('Location: ' . BASE_URL . '/dashboard');
+            exit;
+        }
+
         try {
             $this->db->exec("SET FOREIGN_KEY_CHECKS = 0;");
-            $this->db->exec("TRUNCATE pencairan_honor;");
-            $this->db->exec("TRUNCATE penjualan;");
-            $this->db->exec("TRUNCATE setoran;");
-            $this->db->exec("TRUNCATE penarikan;"); // TAMBAHKAN INI
+            
+            $this->db->exec("TRUNCATE TABLE setoran;");
+            $this->db->exec("TRUNCATE TABLE penarikan;");
+            $this->db->exec("TRUNCATE TABLE penjualan;");
+            $this->db->exec("TRUNCATE TABLE pencairan_honor;");
+            $this->db->exec("TRUNCATE TABLE kas_manual;");
+            
             $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
-            $_SESSION['success'] = "Seluruh data transaksi (Tabungan & Penjualan) berhasil dikosongkan.";
-        } catch (Exception $e) {
-            $_SESSION['error'] = "Gagal reset transaksi: " . $e->getMessage();
+
+            $_SESSION['success'] = "Berhasil! Seluruh riwayat transaksi telah dihapus. Data Master Pengguna & Sampah tetap aman.";
+        } catch (PDOException $e) {
+            $_SESSION['error'] = "Gagal mereset transaksi: " . $e->getMessage();
         }
-        header('Location: ' . BASE_URL . '/pengaturan/maintenance');
+
+        // FIX TYPO ROUTING: Kembali ke 'maintenance' yang benar
+        header('Location: ' . BASE_URL . '/pengaturan/maintenance'); 
+        exit;
     }
 
+    // =================================================================
+    // 2. RESET TOTAL SISTEM (SAFEGUARD LENGKAP)
+    // =================================================================
     public function reset_total() {
+        if ($_SESSION['role'] !== 'admin') {
+            header('Location: ' . BASE_URL . '/dashboard');
+            exit;
+        }
+
         try {
             $this->db->exec("SET FOREIGN_KEY_CHECKS = 0;");
-            $this->db->exec("TRUNCATE pencairan_honor");
-            $this->db->exec("TRUNCATE penjualan");
-            $this->db->exec("TRUNCATE setoran");
-            $this->db->exec("TRUNCATE penarikan"); // TAMBAHKAN INI
-            $this->db->exec("TRUNCATE kelas");
-            $this->db->exec("TRUNCATE kategori_sampah");
-            $this->db->exec("DELETE FROM users WHERE role != 'admin'");
+            
+            // 1. Kosongkan Transaksi
+            $this->db->exec("TRUNCATE TABLE setoran;");
+            $this->db->exec("TRUNCATE TABLE penarikan;");
+            $this->db->exec("TRUNCATE TABLE penjualan;");
+            $this->db->exec("TRUNCATE TABLE pencairan_honor;");
+            $this->db->exec("TRUNCATE TABLE kas_manual;");
+
+            // 2. Bersihkan Kategori (Lindungi Reward Prestasi)
+            $this->db->exec("DELETE FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI';");
+
+            // 3. Bersihkan User (Lindungi Admin & Akun Kesiswaan)
+            $this->db->exec("DELETE FROM users WHERE role != 'admin' AND nama NOT LIKE '%KESISWAAN%';");
+
+            // 4. Bersihkan Kelas (Lindungi Kelas Kesiswaan & Kelas yang masih dipakai)
+            $this->db->exec("DELETE FROM kelas WHERE id NOT IN (SELECT IFNULL(kelas_id, 0) FROM users) AND nama_kelas NOT LIKE '%KESISWAAN%';");
+
             $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
-            $_SESSION['success'] = "Reset Total Berhasil! Seluruh data dihapus kecuali akun Administrator.";
-        } catch (Exception $e) {
-            $this->db->exec("SET FOREIGN_KEY_CHECKS = 1;");
+
+            $_SESSION['success'] = "Sistem berhasil di-reset total! Admin, Kas Kesiswaan, dan Kategori Reward dipastikan aman.";
+        } catch (PDOException $e) {
             $_SESSION['error'] = "Gagal melakukan reset total: " . $e->getMessage();
         }
-        header('Location: ' . BASE_URL . '/pengaturan/maintenance');
+
+        // FIX TYPO ROUTING: Kembali ke 'maintenance' yang benar
+        header('Location: ' . BASE_URL . '/pengaturan/maintenance'); 
         exit;
     }
 }
