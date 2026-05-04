@@ -13,49 +13,46 @@ class AkademikController {
         $this->db = Database::getInstance()->getConnection();
     }
 
-    // ==========================================================
+    // =================================================================
     // 1. HALAMAN KENAIKAN KELAS
-    // ==========================================================
+    // =================================================================
     public function kenaikan() {
-        // Ambil daftar kelas untuk dropdown asal dan tujuan
-        $kelas = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
+        $kelas_list = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
         
-        $title = "Proses Kenaikan Kelas";
+        $title = "Kenaikan Kelas Massal";
         $content = __DIR__ . '/../../views/admin/akademik/kenaikan.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
     public function proses_kenaikan() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $kelas_asal = $_POST['kelas_asal'];
-            $kelas_tujuan = $_POST['kelas_tujuan'];
+            $dari_kelas = $_POST['dari_kelas'];
+            $ke_kelas = $_POST['ke_kelas'];
 
-            if ($kelas_asal == $kelas_tujuan) {
-                $_SESSION['error'] = "Gagal! Kelas asal dan tujuan tidak boleh sama.";
+            if ($dari_kelas === $ke_kelas) {
+                $_SESSION['error'] = "Kelas asal dan tujuan tidak boleh sama!";
             } else {
-                try {
-                    $sql = "UPDATE users SET kelas_id = ? WHERE kelas_id = ? AND role = 'siswa'";
-                    $stmt = $this->db->prepare($sql);
-                    $stmt->execute([$kelas_tujuan, $kelas_asal]);
-                    
-                    $jumlah = $stmt->rowCount();
-                    $_SESSION['success'] = "Berhasil! $jumlah siswa telah dipindahkan ke kelas tujuan.";
-                } catch (Exception $e) {
-                    $_SESSION['error'] = "Terjadi kesalahan sistem.";
+                // Update seluruh siswa di kelas asal ke kelas tujuan
+                $stmt = $this->db->prepare("UPDATE users SET kelas_id = ? WHERE kelas_id = ? AND role = 'siswa'");
+                if ($stmt->execute([$ke_kelas, $dari_kelas])) {
+                    $count = $stmt->rowCount();
+                    $_SESSION['success'] = "Berhasil menaikkan $count siswa ke kelas baru.";
+                } else {
+                    $_SESSION['error'] = "Gagal memproses kenaikan kelas.";
                 }
             }
+            header('Location: ' . BASE_URL . '/akademik/kenaikan');
+            exit;
         }
-        header('Location: ' . BASE_URL . '/akademik/kenaikan');
-        exit;
     }
 
-    // ==========================================================
-    // 2. HALAMAN KELULUSAN
-    // ==========================================================
+    // =================================================================
+    // 2. HALAMAN KELULUSAN (ALUMNI)
+    // =================================================================
     public function kelulusan() {
-        $kelas = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
+        $kelas_list = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
         
-        $title = "Proses Kelulusan Alumni";
+        $title = "Kelulusan Alumni";
         $content = __DIR__ . '/../../views/admin/akademik/kelulusan.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
@@ -64,20 +61,19 @@ class AkademikController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $kelas_id = $_POST['kelas_id'];
 
-            try {
-                // Proses Kelulusan: Role jadi 'alumni', status non-aktif, kelas_id dikosongkan
-                $sql = "UPDATE users SET role = 'alumni', is_active = 0, kelas_id = NULL 
-                        WHERE kelas_id = ? AND role = 'siswa'";
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute([$kelas_id]);
-
-                $jumlah = $stmt->rowCount();
-                $_SESSION['success'] = "Selamat! $jumlah siswa di kelas tersebut telah dinyatakan Lulus (Alumni) dan dinonaktifkan.";
-            } catch (Exception $e) {
+            // Proses Kelulusan: 
+            // 1. Set kelas_id menjadi NULL (Alumni tidak punya kelas)
+            // 2. Set is_active menjadi 0 (Akun dinonaktifkan agar tidak muncul di dashboard/leaderboard)
+            $stmt = $this->db->prepare("UPDATE users SET kelas_id = NULL, is_active = 0 WHERE kelas_id = ? AND role = 'siswa'");
+            
+            if ($stmt->execute([$kelas_id])) {
+                $count = $stmt->rowCount();
+                $_SESSION['success'] = "Berhasil meluluskan $count siswa. Status mereka kini menjadi Alumni (Non-aktif).";
+            } else {
                 $_SESSION['error'] = "Gagal memproses kelulusan.";
             }
+            header('Location: ' . BASE_URL . '/akademik/kelulusan');
+            exit;
         }
-        header('Location: ' . BASE_URL . '/akademik/kelulusan');
-        exit;
     }
 }
