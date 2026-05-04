@@ -1,6 +1,8 @@
 <?php
 // app/Controllers/PenarikanController.php
 require_once __DIR__ . '/../Core/Database.php';
+require_once __DIR__ . '/../Core/Logger.php';   // 🛡️ Load Audit Trail
+require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security Global
 
 class PenarikanController {
     private $db;
@@ -18,18 +20,20 @@ class PenarikanController {
     // =================================================================
     public function index() {
         $kelas_id = $_GET['kelas_id'] ?? null;
-        $all_kelas = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
+        
+        // 🛡️ FIX: Sembunyikan kelas Kesiswaan dari Dropdown
+        $all_kelas = $this->db->query("SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%KESISWAAN%' ORDER BY nama_kelas ASC")->fetchAll();
         
         $siswa_list = [];
         $total_saldo_kelas = 0; // Untuk summary kasir
 
         if ($kelas_id) {
-            // Hitung Saldo Bersih per Siswa (Total Setoran Valid - Total Penarikan)
+            // 🛡️ FIX: Isolasi ganda, pastikan nama user kesiswaan juga tidak ikut terhitung
             $sql = "SELECT u.id, u.nama, u.username,
                     (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
                     (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_tersedia
                     FROM users u 
-                    WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 
+                    WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 AND u.nama NOT LIKE '%KESISWAAN%'
                     ORDER BY u.nama ASC";
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['kid' => $kelas_id]);
@@ -47,7 +51,7 @@ class PenarikanController {
         $riwayat = $this->db->query("SELECT p.*, u.nama, k.nama_kelas 
                                     FROM penarikan p 
                                     JOIN users u ON p.user_id = u.id 
-                                    JOIN kelas k ON u.kelas_id = k.id 
+                                    LEFT JOIN kelas k ON u.kelas_id = k.id 
                                     ORDER BY p.tanggal_tarik DESC LIMIT 20")->fetchAll();
 
         $title = "Kasir Pencairan Kelas";
@@ -60,6 +64,9 @@ class PenarikanController {
     // =================================================================
     public function batch_store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            
+            Security::validate_csrf(); // 🛡️ Validasi Token Keamanan Form
+
             $kelas_id = $_POST['kelas_id'] ?? null;
             $keterangan_global = $_POST['keterangan'] ?? 'Pencairan Tabungan Kolektif';
 
@@ -72,11 +79,11 @@ class PenarikanController {
             try {
                 $this->db->beginTransaction();
 
-                // 1. Ambil seluruh siswa di kelas ini beserta saldonya
+                // 1. Ambil seluruh siswa di kelas ini beserta saldonya (Kecuali Kesiswaan)
                 $sqlSaldo = "SELECT u.id,
                              (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
                              (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_aktif
-                             FROM users u WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1";
+                             FROM users u WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 AND u.nama NOT LIKE '%KESISWAAN%'";
                 
                 $stmtS = $this->db->prepare($sqlSaldo);
                 $stmtS->execute(['kid' => $kelas_id]);
@@ -98,9 +105,18 @@ class PenarikanController {
                     }
                 }
 
-                // 3. Konfirmasi
+                // 3. Konfirmasi & Pencatatan Log
                 if ($count > 0) {
                     $this->db->commit();
+
+                    // Ambil nama kelas untuk kebutuhan pencatatan log
+                    $stmtK = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
+                    $stmtK->execute([$kelas_id]);
+                    $nama_kelas = $stmtK->fetchColumn();
+
+                    // 🛡️ Catat aktivitas pengeluaran uang ke Audit Trail
+                    Logger::log("Penarikan Saldo", "Kasir mencairkan total dana kelas $nama_kelas sebesar Rp" . number_format($total_keluar, 0, ',', '.') . " untuk $count siswa.");
+
                     $_SESSION['success'] = "Selesai! Berhasil mencairkan seluruh saldo untuk $count siswa. Uang yang harus diserahkan ke Wali Kelas: Rp" . number_format($total_keluar, 0, ',', '.');
                 } else {
                     $this->db->rollBack();

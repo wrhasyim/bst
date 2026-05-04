@@ -44,6 +44,9 @@
             </div>
         <?php else: ?>
             <form action="<?= BASE_URL ?>/penarikan/batch_store" method="POST" class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden border-t-4 border-t-red-500">
+                
+                <?= Security::csrf_field(); ?> <!-- 🛡️ CSRF Protection Injected -->
+                
                 <input type="hidden" name="kelas_id" value="<?= $_GET['kelas_id'] ?>">
                 
                 <div class="p-8 border-b border-slate-50 bg-slate-50/50 flex flex-col md:flex-row justify-between items-center gap-6">
