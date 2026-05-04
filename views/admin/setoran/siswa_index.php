@@ -6,7 +6,7 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden">
+    <div class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
         <div class="overflow-x-auto">
             <table class="w-full text-left">
                 <thead>
@@ -27,7 +27,7 @@
                         <tr class="hover:bg-slate-50 transition-all">
                             <td class="px-8 py-5 text-[10px] font-bold text-slate-500 uppercase"><?= date('d M Y | H:i', strtotime($s['created_at'])) ?></td>
                             <td class="px-8 py-5">
-                                <div class="font-black text-slate-800 text-sm uppercase italic tracking-tighter"><?= htmlspecialchars($s['nama_siswa']) ?></div>
+                                <div class="font-black text-slate-800 text-sm uppercase italic tracking-tighter"><?= htmlspecialchars($s['nama_siswa'] ?? $s['nama']) ?></div>
                                 <div class="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Kelas <?= htmlspecialchars($s['nama_kelas'] ?? '-') ?></div>
                             </td>
                             <td class="px-8 py-5 font-bold text-slate-600 text-xs uppercase tracking-tight"><?= htmlspecialchars($s['nama_sampah']) ?></td>
@@ -46,5 +46,20 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- 🧭 Navigasi Pagination -->
+        <?php if(!empty($pagination) && $pagination['total_pages'] > 1): ?>
+        <div class="p-8 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total: <?= $pagination['total_data'] ?> Transaksi</p>
+            <div class="flex gap-2">
+                <?php for($i=1; $i<=$pagination['total_pages']; $i++): ?>
+                    <a href="?page=<?= $i ?>" class="w-8 h-8 flex items-center justify-center text-xs font-black rounded-lg transition-all <?= ($i == $pagination['current_page']) ? 'bg-emerald-500 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100' ?>">
+                        <?= $i ?>
+                    </a>
+                <?php endfor; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
     </div>
 </div>

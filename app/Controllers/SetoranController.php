@@ -130,14 +130,16 @@ class SetoranController {
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $offset = ($page > 1) ? ($page * $limit) - $limit : 0;
 
-        $total_data = $this->db->query("SELECT COUNT(*) FROM setoran s JOIN users u ON s.user_id = u.id WHERE u.role != 'siswa' AND s.status = 'valid'")->fetchColumn();
+        // 🛠️ SELECTIVE UPDATE: Menghapus filter status='valid' agar data pending ikut terhitung
+        $total_data = $this->db->query("SELECT COUNT(*) FROM setoran s JOIN users u ON s.user_id = u.id WHERE u.role != 'siswa'")->fetchColumn();
         $total_pages = ceil($total_data / $limit);
 
+        // 🛠️ SELECTIVE UPDATE: Menghapus filter status='valid' agar data pending ikut tampil
         $sql = "SELECT s.*, u.nama, k.nama_sampah, k.satuan
                 FROM setoran s
                 JOIN users u ON s.user_id = u.id
                 JOIN kategori_sampah k ON s.kategori_id = k.id
-                WHERE u.role != 'siswa' AND s.status = 'valid'
+                WHERE u.role != 'siswa'
                 ORDER BY s.created_at DESC
                 LIMIT :limit OFFSET :offset";
         

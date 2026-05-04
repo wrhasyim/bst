@@ -12,6 +12,8 @@
 
     <form action="<?= BASE_URL ?>/setoran/update_pending/<?= $setoran['id'] ?>" method="POST" class="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-sm space-y-6">
         
+        <?= Security::csrf_field(); ?> <!-- 🛡️ CSRF Protection -->
+
         <div class="p-4 bg-slate-50 border border-slate-100 rounded-2xl mb-6 flex items-center">
             <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-xl mr-4">
                 👤

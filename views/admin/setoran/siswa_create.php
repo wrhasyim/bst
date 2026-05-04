@@ -26,6 +26,8 @@
          
         <form action="<?= BASE_URL ?>/setoran/siswa_store" method="POST" class="p-6 sm:p-8 space-y-6">
             
+            <?= Security::csrf_field(); ?> <!-- 🛡️ CSRF Protection -->
+
             <div class="grid grid-cols-1 gap-6">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2">Pilih Penyetor (Siswa) <span class="text-red-500">*</span></label>

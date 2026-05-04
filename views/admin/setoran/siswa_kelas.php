@@ -30,6 +30,8 @@
     <?php if($kelas_id && !empty($siswa_list)): ?>
     <form action="<?= BASE_URL ?>/setoran/siswa_batch_store" method="POST" class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden">
         
+        <?= Security::csrf_field(); ?> <!-- 🛡️ CSRF Protection -->
+
         <div class="p-8 border-b border-slate-50 bg-slate-50/30">
             <div class="flex flex-col md:flex-row justify-between items-center gap-6">
                 <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest italic underline">Daftar Siswa & Input (Pcs)</h3>

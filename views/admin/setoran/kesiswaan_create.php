@@ -26,6 +26,9 @@
         </div>
 
         <form action="<?= BASE_URL ?>/setoran/store_kesiswaan" method="POST" class="space-y-6 relative z-10">
+            
+            <?= Security::csrf_field(); ?> <!-- 🛡️ CSRF Protection -->
+
             <!-- Hidden Input ID Kesiswaan -->
             <input type="hidden" name="user_id" value="<?= $akun_kesiswaan['id'] ?>">
 
