@@ -23,12 +23,20 @@ class LaporanController {
         
         $total_kotor = $this->db->query("SELECT SUM(total_pendapatan) FROM penjualan")->fetchColumn() ?? 0;
 
-        $sqlBebanNasabah = "SELECT SUM(s.total_harga) FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
+        $sqlBebanNasabah = "SELECT SUM(s.total_harga) 
+                            FROM setoran s 
+                            JOIN kategori_sampah k ON s.kategori_id = k.id 
+                            WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
         $beban_nasabah = $this->db->query($sqlBebanNasabah)->fetchColumn() ?? 0;
 
         $margin_total = $total_kotor - $beban_nasabah;
 
-        $sql_honor_wali = "SELECT SUM((s.total_pengepul - s.total_harga) * :persen) FROM setoran s JOIN users u ON s.walikelas_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
+        // JOIN users tetap dilakukan tanpa filter deleted_at agar histori honor walas lama tidak hilang
+        $sql_honor_wali = "SELECT SUM((s.total_pengepul - s.total_harga) * :persen) 
+                           FROM setoran s 
+                           JOIN users u ON s.walikelas_id = u.id 
+                           JOIN kategori_sampah k ON s.kategori_id = k.id 
+                           WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
         $stmtWali = $this->db->prepare($sql_honor_wali);
         $stmtWali->execute(['persen' => $persen_wali]);
         $honor_walikelas = $stmtWali->fetchColumn() ?? 0;
@@ -98,6 +106,7 @@ class LaporanController {
         $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
         $persen_wali = ($config['persen_honor_walikelas'] ?? 0) / 100;
 
+        // Tampilkan rekap honor walikelas meskipun gurunya sudah soft-delete agar histori tetap sinkron
         $qRekap = "SELECT 
                         u.nama AS nama_guru, k.nama_kelas, 
                         SUM(CASE WHEN s.is_sold = 0 THEN (s.total_pengepul - s.total_harga) * :p1 ELSE 0 END) as total_potensi,
@@ -139,6 +148,7 @@ class LaporanController {
             $stmtKelas->execute(['id' => $kelas_id]);
             $nama_kelas_aktif = $stmtKelas->fetchColumn();
 
+            // Tampilkan seluruh siswa (aktif maupun soft-delete) di rekap sejarah kelas
             $sql = "SELECT u.nama, 
                            IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, 
                            IFNULL(SUM(s.total_harga), 0) as total_rp
@@ -165,10 +175,11 @@ class LaporanController {
         $user_id = $_GET['user_id'] ?? null;
         $kelas_id = $_GET['kelas_id'] ?? null;
         
+        // Filter: Hanya tampilkan siswa yang MASIH AKTIF di dropdown pemilihan nasabah
         $siswa_list = $this->db->query("SELECT u.id, u.nama, k.nama_kelas 
                                         FROM users u 
                                         LEFT JOIN kelas k ON u.kelas_id = k.id 
-                                        WHERE u.role = 'siswa' 
+                                        WHERE u.role = 'siswa' AND u.deleted_at IS NULL 
                                         ORDER BY u.nama ASC")->fetchAll();
                                         
         $kelas_list = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
@@ -207,6 +218,7 @@ class LaporanController {
             $stmtKelas->execute([$kelas_id]);
             $detail_kelas = $stmtKelas->fetch();
 
+            // Tetap hitung saldo meskipun ada siswa alumni/soft-delete
             $sqlRekap = "SELECT u.id, u.nama,
                              (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') AS total_masuk,
                              (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) AS total_keluar
@@ -245,6 +257,7 @@ class LaporanController {
 
             UNION ALL
             
+            -- Penarikan: JOIN u tanpa filter deleted_at agar nama tetap muncul di Buku Kas sejarah
             SELECT MAX(p.tanggal_tarik) AS waktu, CONCAT('Penarikan Kolektif: Kelas ', k.nama_kelas) AS uraian, CONCAT(COUNT(p.id), ' Transaksi Siswa') AS detail, 0 AS debit, SUM(p.jumlah) AS kredit, 'keluar_nasabah' as jenis
             FROM penarikan p JOIN users u ON p.user_id = u.id JOIN kelas k ON u.kelas_id = k.id 
             WHERE DATE_FORMAT(p.tanggal_tarik, '%Y-%m') = :p3a AND u.role = 'siswa' AND u.nama NOT LIKE '%KESISWAAN%'
@@ -367,9 +380,9 @@ class LaporanController {
             if ($nominal > 0) {
                 try {
                     $ket = "Sumbangan Kas Sekolah (Berdasarkan Margin Pembagian)";
-                    // FIX: Gunakan NOW() agar jam ikut tersimpan (mencegah bug sorting)
-                    $sql = "INSERT INTO kas_manual (jenis, nominal, keterangan, tanggal) VALUES ('pengeluaran', ?, ?, NOW())";
-                    $this->db->prepare($sql)->execute([$nominal, $ket]);
+                    // NOW() digunakan untuk ketelitian sorting riwayat buku kas
+                    $sql = "INSERT INTO kas_manual (user_id, tanggal, jenis, nominal, keterangan, created_at) VALUES (?, NOW(), 'pengeluaran', ?, ?, NOW())";
+                    $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket]);
                     $_SESSION['success'] = "Berhasil mencatat penyerahan dana ke Sekolah.";
                 } catch (PDOException $e) {
                     $_SESSION['error'] = "Gagal memproses data: " . $e->getMessage();
@@ -388,8 +401,7 @@ class LaporanController {
             if ($nominal > 0) {
                 try {
                     $ket = "Pencairan Honor Pengelola (Berdasarkan Margin Pembagian)";
-                    // FIX: Gunakan NOW()
-                    $sql = "INSERT INTO pencairan_honor (user_id, jumlah, keterangan, tanggal_cair) VALUES (?, ?, ?, NOW())";
+                    $sql = "INSERT INTO pencairan_honor (user_id, jumlah, jenis, keterangan, tanggal_cair) VALUES (?, ?, 'pengelola', ?, NOW())";
                     $this->db->prepare($sql)->execute([$user_id, $nominal, $ket]);
                     $_SESSION['success'] = "Berhasil mencairkan Honor Pengelola.";
                 } catch (PDOException $e) {
@@ -408,16 +420,14 @@ class LaporanController {
 
             if ($nominal > 0) {
                 $ket = "";
-                // FIX: Memendekkan string agar tidak ditolak oleh batas limit VARCHAR di database
                 if ($jenis === 'sekolah') $ket = "Refund Kas Sekolah (Koreksi)";
                 if ($jenis === 'pengelola') $ket = "Refund Honor Pengelola (Koreksi)";
                 if ($jenis === 'wali') $ket = "Refund Honor Walas (Koreksi)";
 
                 if ($ket !== "") {
                     try {
-                        // FIX: Gunakan NOW()
-                        $sql = "INSERT INTO kas_manual (jenis, nominal, keterangan, tanggal) VALUES ('pemasukan', ?, ?, NOW())";
-                        $this->db->prepare($sql)->execute([$nominal, $ket]);
+                        $sql = "INSERT INTO kas_manual (user_id, tanggal, jenis, nominal, keterangan, created_at) VALUES (?, NOW(), 'pemasukan', ?, ?, NOW())";
+                        $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket,]);
                         $_SESSION['success'] = "Berhasil menarik kembali kelebihan dana Rp " . number_format($nominal, 0, ',', '.') . " ke Kas Utama.";
                     } catch (PDOException $e) {
                         $_SESSION['error'] = "Gagal melakukan refund: " . $e->getMessage();
