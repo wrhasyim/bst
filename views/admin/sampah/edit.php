@@ -11,14 +11,18 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <form action="<?= BASE_URL ?>/sampah/update/<?= $sampah['id'] ?>" method="POST" class="p-6 sm:p-8"
+        <!-- FIX: Action URL disesuaikan dengan Controller dan ditambah POST ID -->
+        <form action="<?= BASE_URL ?>/sampah/update" method="POST" class="p-6 sm:p-8"
               x-data="{ 
-                  hargaSiswa: <?= htmlspecialchars($sampah['harga_siswa']) ?>, 
-                  hargaGuru: <?= htmlspecialchars($sampah['harga_guru']) ?>, 
-                  hargaPengepul: <?= htmlspecialchars($sampah['harga_pengepul']) ?>,
+                  hargaSiswa: <?= htmlspecialchars($sampah['harga_dasar'] ?? 0) ?>, 
+                  hargaGuru: <?= htmlspecialchars($sampah['harga_guru'] ?? $sampah['harga_dasar'] ?? 0) ?>, 
+                  hargaPengepul: <?= htmlspecialchars($sampah['harga_pengepul'] ?? 0) ?>,
                   get marginSiswa() { return this.hargaPengepul - this.hargaSiswa; },
                   get marginGuru() { return this.hargaPengepul - this.hargaGuru; }
               }">
+            
+            <!-- Input Hidden ID Wajib untuk Controller Update -->
+            <input type="hidden" name="id" value="<?= htmlspecialchars($sampah['id']) ?>">
             
             <div class="space-y-6">
                 <div>
@@ -28,20 +32,23 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100">
                     <div class="relative group">
-                        <label class="block text-sm font-bold text-gray-700 mb-2 text-emerald-700">Harga Pengepul (Dasar)</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-2 text-emerald-700">Harga Jual (Pengepul)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
                             <input type="number" name="harga_pengepul" x-model.number="hargaPengepul" required min="0" class="w-full pl-10 pr-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-gray-800">
                         </div>
+                        <p class="text-[11px] text-gray-500 mt-1">Harga yang dibayarkan pengepul ke BST.</p>
                     </div>
 
                     <div class="relative group">
                         <label class="block text-sm font-bold text-gray-700 mb-2">Harga Beli dari Siswa</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
-                            <input type="number" name="harga_siswa" x-model.number="hargaSiswa" required min="0" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-gray-800">
+                            <!-- FIX: name disesuaikan menjadi harga_dasar -->
+                            <input type="number" name="harga_dasar" x-model.number="hargaSiswa" required min="0" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-gray-800">
                         </div>
-                        <p class="text-[11px] mt-1 font-semibold" :class="marginSiswa > 0 ? 'text-emerald-600' : 'text-red-500'" x-text="marginSiswa > 0 ? 'Margin: +Rp' + marginSiswa + '/kg' : 'Rugi! Cek Harga'"></p>
+                        <!-- FIX: Margin minimal 0 (break-even) dianggap aman (hijau), ubah /kg jadi /Pcs -->
+                        <p class="text-[11px] mt-1 font-semibold" :class="marginSiswa >= 0 ? 'text-emerald-600' : 'text-red-500'" x-text="marginSiswa >= 0 ? 'Margin: +Rp' + marginSiswa + '/Pcs' : 'Rugi! Cek Harga'"></p>
                     </div>
 
                     <div class="relative group">
@@ -50,7 +57,7 @@
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
                             <input type="number" name="harga_guru" x-model.number="hargaGuru" required min="0" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-gray-800">
                         </div>
-                        <p class="text-[11px] mt-1 font-semibold" :class="marginGuru > 0 ? 'text-emerald-600' : 'text-red-500'" x-text="marginGuru > 0 ? 'Margin: +Rp' + marginGuru + '/kg' : 'Rugi! Cek Harga'"></p>
+                        <p class="text-[11px] mt-1 font-semibold" :class="marginGuru >= 0 ? 'text-emerald-600' : 'text-red-500'" x-text="marginGuru >= 0 ? 'Margin: +Rp' + marginGuru + '/Pcs' : 'Rugi! Cek Harga'"></p>
                     </div>
                 </div>
             </div>

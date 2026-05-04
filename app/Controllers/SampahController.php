@@ -26,15 +26,23 @@ class SampahController {
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nama = $_POST['nama_sampah'];
-            $harga_dasar = $_POST['harga_dasar']; // Disinkronkan dengan DB
+            $harga_dasar = $_POST['harga_dasar']; 
+            
+            // FIX: Ambil nilai harga_guru, jika kosong maka otomatis samakan dengan harga dasar
+            $harga_guru = !empty($_POST['harga_guru']) ? $_POST['harga_guru'] : $harga_dasar; 
+            
             $harga_pengepul = $_POST['harga_pengepul'];
 
-            if ($harga_pengepul < $harga_dasar) {
-                $_SESSION['error'] = "Gagal: Harga Jual (Pengepul) tidak boleh lebih kecil dari Harga Dasar (Nasabah).";
+            // Validasi: Harga pengepul tidak boleh lebih kecil dari harga terdiversifikasi yang tertinggi
+            $max_harga_beli = max($harga_dasar, $harga_guru);
+
+            if ($harga_pengepul < $max_harga_beli) {
+                $_SESSION['error'] = "Gagal: Harga Jual (Pengepul) harus lebih besar/sama dengan Harga Beli (Siswa & Guru).";
             } else {
-                $sql = "INSERT INTO kategori_sampah (nama_sampah, harga_dasar, harga_pengepul, satuan) VALUES (?, ?, ?, 'Pcs')";
+                // FIX: Masukkan parameter harga_guru ke query INSERT
+                $sql = "INSERT INTO kategori_sampah (nama_sampah, harga_dasar, harga_guru, harga_pengepul, satuan) VALUES (?, ?, ?, ?, 'Pcs')";
                 $stmt = $this->db->prepare($sql);
-                if ($stmt->execute([$nama, $harga_dasar, $harga_pengepul])) {
+                if ($stmt->execute([$nama, $harga_dasar, $harga_guru, $harga_pengepul])) {
                     $_SESSION['success'] = "Kategori sampah baru berhasil ditambahkan.";
                 }
             }
@@ -47,15 +55,22 @@ class SampahController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = $_POST['id'];
             $nama = $_POST['nama_sampah'];
-            $harga_dasar = $_POST['harga_dasar']; // Disinkronkan dengan DB
+            $harga_dasar = $_POST['harga_dasar']; 
+            
+            // FIX: Ambil nilai harga_guru
+            $harga_guru = !empty($_POST['harga_guru']) ? $_POST['harga_guru'] : $harga_dasar;
+            
             $harga_pengepul = $_POST['harga_pengepul'];
 
-            if ($harga_pengepul < $harga_dasar) {
-                $_SESSION['error'] = "Update Gagal: Harga Pengepul harus lebih besar/sama dengan Harga Dasar.";
+            $max_harga_beli = max($harga_dasar, $harga_guru);
+
+            if ($harga_pengepul < $max_harga_beli) {
+                $_SESSION['error'] = "Update Gagal: Harga Jual (Pengepul) harus lebih besar/sama dengan Harga Beli tertinggi.";
             } else {
-                $sql = "UPDATE kategori_sampah SET nama_sampah=?, harga_dasar=?, harga_pengepul=? WHERE id=?";
+                // FIX: Masukkan parameter harga_guru ke query UPDATE
+                $sql = "UPDATE kategori_sampah SET nama_sampah=?, harga_dasar=?, harga_guru=?, harga_pengepul=? WHERE id=?";
                 $stmt = $this->db->prepare($sql);
-                if ($stmt->execute([$nama, $harga_dasar, $harga_pengepul, $id])) {
+                if ($stmt->execute([$nama, $harga_dasar, $harga_guru, $harga_pengepul, $id])) {
                     $_SESSION['success'] = "Data harga sampah berhasil diperbarui.";
                 }
             }
@@ -68,11 +83,11 @@ class SampahController {
         $id = $_GET['id'];
         
         try {
-            // 1. Cek apakah sampah ini sudah ada di tabungan siswa
+            // 1. Cek apakah sampah ini sudah ada di tabungan siswa/guru
             $cekSetoran = $this->db->prepare("SELECT COUNT(*) FROM setoran WHERE kategori_id = ?");
             $cekSetoran->execute([$id]);
             if ($cekSetoran->fetchColumn() > 0) {
-                $_SESSION['error'] = "Gagal! Kategori sampah ini tidak bisa dihapus karena sudah digunakan dalam Tabungan Nasabah.";
+                $_SESSION['error'] = "Gagal! Kategori sampah ini tidak bisa dihapus karena sudah digunakan dalam Transaksi Setoran.";
                 header('Location: ' . BASE_URL . '/sampah');
                 exit;
             }

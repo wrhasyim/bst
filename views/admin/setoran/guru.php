@@ -23,8 +23,11 @@
                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Jenis Sampah</label>
                     <select name="kategori_id" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="">-- Pilih Kategori --</option>
-                        <?php foreach($all_sampah as $kat): ?>
-                            <option value="<?= $kat['id'] ?>"><?= htmlspecialchars($kat['nama_sampah']) ?> (Rp<?= number_format($kat['harga_dasar'], 0) ?>/Pcs)</option>
+                        <?php foreach($all_sampah as $kat): 
+                            // FIX: Gunakan harga_guru jika ada, fallback ke harga_dasar
+                            $harga_tampil = (!empty($kat['harga_guru']) && $kat['harga_guru'] > 0) ? $kat['harga_guru'] : $kat['harga_dasar'];
+                        ?>
+                            <option value="<?= $kat['id'] ?>"><?= htmlspecialchars($kat['nama_sampah']) ?> (Rp<?= number_format($harga_tampil, 0, ',', '.') ?>/Pcs)</option>
                         <?php endforeach; ?>
                     </select>
                 </div>
