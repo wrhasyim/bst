@@ -53,43 +53,123 @@
         </div>
 
         <div class="mt-12">
-            <div class="border-b-2 border-slate-900 pb-3 mb-6">
-                <h3 class="font-black text-slate-800 text-sm uppercase tracking-widest">Alokasi Distribusi Margin</h3>
-            </div>
+            <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-4 mb-6 mt-10">Alokasi Distribusi Margin</h3>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="p-5 border border-slate-200 rounded-2xl bg-slate-50 flex justify-between items-center">
-                    <div>
-                        <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Kas Bank Sampah (<?= $config['persen_kas_bst'] ?? 0 ?>%)</p>
-                        <p class="text-xs font-bold text-slate-400 italic">Untuk operasional & pemeliharaan</p>
-                    </div>
-                    <p class="text-lg font-black text-slate-800">Rp <?= number_format($laporan['kas_bst'], 0, ',', '.') ?></p>
-                </div>
                 
-                <div class="p-5 border border-slate-200 rounded-2xl bg-slate-50 flex justify-between items-center">
-                    <div>
-                        <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Sumbangan Kas Sekolah (<?= $config['persen_kas_sekolah'] ?? 0 ?>%)</p>
-                        <p class="text-xs font-bold text-slate-400 italic">Pendapatan untuk institusi sekolah</p>
+                <!-- 1. KAS BANK SAMPAH -->
+                <div class="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-center">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Kas Bank Sampah (<?= $laporan['persen_bst'] ?>%)</h4>
+                            <p class="text-xs text-slate-400 font-medium italic mt-1">Untuk operasional & pemeliharaan</p>
+                        </div>
+                        <div class="text-xl font-black text-slate-800">Rp <?= number_format($laporan['kas_bst'], 0, ',', '.') ?></div>
                     </div>
-                    <p class="text-lg font-black text-slate-800">Rp <?= number_format($laporan['kas_sekolah'], 0, ',', '.') ?></p>
                 </div>
 
-                <div class="p-5 border border-slate-200 rounded-2xl bg-blue-50 flex justify-between items-center">
-                    <div>
-                        <p class="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Honor Pengelola (<?= $config['persen_honor_pengelola'] ?? 0 ?>%)</p>
-                        <p class="text-xs font-bold text-blue-400 italic">Jatah untuk staf dan pengurus</p>
+                <!-- 2. KAS SEKOLAH -->
+                <div class="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between group transition-all">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sumbangan Kas Sekolah (<?= $laporan['persen_sekolah'] ?>%)</h4>
+                            <p class="text-xs text-slate-400 font-medium italic mt-1">Pendapatan institusi sekolah</p>
+                        </div>
+                        <div class="text-xl font-black text-slate-800">Rp <?= number_format($laporan['kas_sekolah'], 0, ',', '.') ?></div>
                     </div>
-                    <p class="text-lg font-black text-blue-800">Rp <?= number_format($laporan['honor_pengelola'], 0, ',', '.') ?></p>
+                    <?php $cek_sisa_sekolah = round($laporan['sisa_sekolah']); ?>
+                    <div class="pt-3 border-t border-slate-100 flex justify-between items-center">
+                        <div class="text-[10px] font-bold text-emerald-500">Telah Disetor: Rp <?= number_format($laporan['cair_sekolah'], 0, ',', '.') ?></div>
+                        
+                        <?php if($cek_sisa_sekolah < 0): ?>
+                            <div class="text-[10px] font-black text-orange-500">Lebih Bayar: Rp <?= number_format(abs($cek_sisa_sekolah), 0, ',', '.') ?></div>
+                        <?php elseif($cek_sisa_sekolah == 0): ?>
+                            <div class="text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md">LUNAS</div>
+                        <?php else: ?>
+                            <div class="text-[10px] font-black text-red-500">Sisa: Rp <?= number_format($cek_sisa_sekolah, 0, ',', '.') ?></div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <!-- TOMBOL HANYA MUNCUL SESUAI KONDISI -->
+                    <?php if($cek_sisa_sekolah > 0): ?>
+                    <form action="<?= BASE_URL ?>/laporan/cairkan_kas_sekolah" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <input type="hidden" name="nominal" value="<?= $cek_sisa_sekolah ?>">
+                        <button type="submit" onclick="return confirm('Tandai lunas sisa Rp <?= number_format($cek_sisa_sekolah,0,',','.') ?> ke Sekolah?')" class="w-full py-2 bg-slate-900 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-black transition-all">Tandai Telah Disetor (Lunas)</button>
+                    </form>
+                    <?php elseif($cek_sisa_sekolah < 0): ?>
+                    <form action="<?= BASE_URL ?>/laporan/refund_lebih_bayar" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <input type="hidden" name="nominal" value="<?= abs($cek_sisa_sekolah) ?>">
+                        <input type="hidden" name="jenis_refund" value="sekolah">
+                        <button type="submit" onclick="return confirm('Tarik kembali kelebihan Rp <?= number_format(abs($cek_sisa_sekolah),0,',','.') ?> ke Kas Utama?')" class="w-full py-2 bg-orange-500 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-orange-600 transition-all">Kembalikan Ke Kas Utama</button>
+                    </form>
+                    <?php endif; ?>
                 </div>
 
-                <div class="p-5 border border-slate-200 rounded-2xl bg-blue-50 flex justify-between items-center">
-                    <div>
-                        <p class="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Honor Wali Kelas (<?= $config['persen_honor_walikelas'] ?? 0 ?>%)</p>
-                        <p class="text-xs font-bold text-blue-400 italic">Insentif wali kelas per volume setoran</p>
+                <!-- 3. HONOR PENGELOLA -->
+                <div class="p-6 bg-blue-50/50 border border-blue-100 rounded-2xl shadow-sm flex flex-col justify-between group transition-all">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="text-[10px] font-black text-blue-500 uppercase tracking-widest">Honor Pengelola (<?= $laporan['persen_pengelola'] ?>%)</h4>
+                            <p class="text-xs text-blue-400 font-medium italic mt-1">Jatah untuk staf dan pengurus</p>
+                        </div>
+                        <div class="text-xl font-black text-blue-800">Rp <?= number_format($laporan['honor_pengelola'], 0, ',', '.') ?></div>
                     </div>
-                    <p class="text-lg font-black text-blue-800">Rp <?= number_format($laporan['honor_walikelas'], 0, ',', '.') ?></p>
+                    <?php $cek_sisa_pengelola = round($laporan['sisa_pengelola']); ?>
+                    <div class="pt-3 border-t border-blue-200/50 flex justify-between items-center">
+                        <div class="text-[10px] font-bold text-emerald-600">Telah Cair: Rp <?= number_format($laporan['cair_pengelola'], 0, ',', '.') ?></div>
+                        
+                        <?php if($cek_sisa_pengelola < 0): ?>
+                            <div class="text-[10px] font-black text-orange-500">Lebih Bayar: Rp <?= number_format(abs($cek_sisa_pengelola), 0, ',', '.') ?></div>
+                        <?php elseif($cek_sisa_pengelola == 0): ?>
+                            <div class="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md">LUNAS</div>
+                        <?php else: ?>
+                            <div class="text-[10px] font-black text-red-500">Sisa: Rp <?= number_format($cek_sisa_pengelola, 0, ',', '.') ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- TOMBOL HANYA MUNCUL SESUAI KONDISI -->
+                    <?php if($cek_sisa_pengelola > 0): ?>
+                    <form action="<?= BASE_URL ?>/laporan/cairkan_honor_pengelola" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <input type="hidden" name="nominal" value="<?= $cek_sisa_pengelola ?>">
+                        <button type="submit" onclick="return confirm('Cairkan Honor Pengelola sebesar Rp <?= number_format($cek_sisa_pengelola,0,',','.') ?>? Uang akan tercatat atas nama Anda.')" class="w-full py-2 bg-blue-600 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-blue-700 transition-all">Cairkan Honor Pengelola</button>
+                    </form>
+                    <?php elseif($cek_sisa_pengelola < 0): ?>
+                    <form action="<?= BASE_URL ?>/laporan/refund_lebih_bayar" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <input type="hidden" name="nominal" value="<?= abs($cek_sisa_pengelola) ?>">
+                        <input type="hidden" name="jenis_refund" value="pengelola">
+                        <button type="submit" onclick="return confirm('Tarik kembali kelebihan Rp <?= number_format(abs($cek_sisa_pengelola),0,',','.') ?> ke Kas Utama?')" class="w-full py-2 bg-orange-500 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-orange-600 transition-all">Kembalikan Ke Kas Utama</button>
+                    </form>
+                    <?php endif; ?>
+                </div>
+
+                <!-- 4. HONOR WALI KELAS -->
+                <div class="p-6 bg-blue-50/50 border border-blue-100 rounded-2xl shadow-sm flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="text-[10px] font-black text-blue-500 uppercase tracking-widest">Honor Wali Kelas (<?= $laporan['persen_wali'] ?>%)</h4>
+                            <p class="text-xs text-blue-400 font-medium italic mt-1">Insentif per volume setoran</p>
+                        </div>
+                        <div class="text-xl font-black text-blue-800">Rp <?= number_format($laporan['honor_walikelas'], 0, ',', '.') ?></div>
+                    </div>
+                    <?php $cek_sisa_wali = round($laporan['sisa_wali']); ?>
+                    <div class="pt-3 border-t border-blue-200/50 flex justify-between items-center">
+                        <div class="text-[10px] font-bold text-emerald-600">Telah Cair: Rp <?= number_format($laporan['cair_wali'], 0, ',', '.') ?></div>
+                        
+                        <?php if($cek_sisa_wali < 0): ?>
+                            <div class="text-[10px] font-black text-orange-500">Lebih Bayar: Rp <?= number_format(abs($cek_sisa_wali), 0, ',', '.') ?></div>
+                        <?php elseif($cek_sisa_wali == 0): ?>
+                            <div class="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md">LUNAS</div>
+                        <?php else: ?>
+                            <div class="text-[10px] font-black text-red-500">Sisa: Rp <?= number_format($cek_sisa_wali, 0, ',', '.') ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <!-- INFO: Tombol bayar/refund dihapus sesuai permintaan, diurus di menu Pencairan Honor khusus Walas -->
                 </div>
             </div>
+            
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-4 flex items-center no-print">
+                <span class="text-lg mr-2">💡</span> Info: Pencairan & Refund uang untuk Wali Kelas dikelola melalui menu "Pencairan Honor" di sidebar.
+            </p>
         </div>
 
         <div class="mt-12 break-inside-avoid">
