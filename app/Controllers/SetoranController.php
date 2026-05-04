@@ -4,6 +4,8 @@ require_once __DIR__ . '/../Models/Setoran.php';
 require_once __DIR__ . '/../Models/User.php';
 require_once __DIR__ . '/../Models/KategoriSampah.php';
 require_once __DIR__ . '/../Models/Kelas.php';
+require_once __DIR__ . '/../Core/Logger.php';   // 🛡️ Load Audit Trail
+require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security Global
 
 class SetoranController {
     private $setoranModel;
@@ -28,16 +30,13 @@ class SetoranController {
     // 1. RIWAYAT TABUNGAN SISWA (OPTIMIZED WITH PAGINATION)
     // =======================================================
     public function siswa() {
-        // --- LOGIKA PAGINATION ---
         $limit = 10; 
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $offset = ($page > 1) ? ($page * $limit) - $limit : 0;
 
-        // Hitung Total Data (Cek status valid saja)
         $total_data = $this->db->query("SELECT COUNT(*) FROM setoran s JOIN users u ON s.user_id = u.id WHERE u.role = 'siswa' AND s.status = 'valid'")->fetchColumn();
         $total_pages = ceil($total_data / $limit);
 
-        // Query Ambil Data Terbatas (Limit & Offset)
         $sql = "SELECT s.*, u.nama, k.nama_sampah, k.satuan, kl.nama_kelas
                 FROM setoran s
                 JOIN users u ON s.user_id = u.id
@@ -81,10 +80,14 @@ class SetoranController {
 
     public function siswa_batch_store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+
             try {
-                $this->db->beginTransaction(); // 🔐 PROTEKSI: Pastikan semua masuk atau tidak sama sekali
+                $this->db->beginTransaction(); 
 
                 $kat = $this->sampahModel->getById($_POST['kategori_id']);
+                $total_pcs_masuk = 0;
+
                 foreach ($_POST['berat'] as $uid => $jml) {
                     if ((float)$jml > 0) {
                         $u = $this->userModel->getById($uid);
@@ -99,13 +102,18 @@ class SetoranController {
                             'walikelas_id' => $kls['walikelas_id'] ?? null, 
                             'status' => 'pending'
                         ]);
+                        $total_pcs_masuk += $jml;
                     }
                 }
 
-                $this->db->commit(); // ✅ SIMPAN PERMANEN
+                $this->db->commit(); 
+                
+                // 🛡️ Catat aktivitas ke log
+                Logger::log("Input Setoran Kelas", "Petugas menginput setoran batch sebanyak $total_pcs_masuk Pcs (Status: Pending)");
+                
                 $_SESSION['success'] = "Setoran batch berhasil disimpan. Menunggu validasi.";
             } catch (Exception $e) {
-                $this->db->rollBack(); // ❌ BATALKAN JIKA ADA ERROR
+                $this->db->rollBack(); 
                 $_SESSION['error'] = "Gagal simpan setoran: " . $e->getMessage();
             }
 
@@ -115,7 +123,7 @@ class SetoranController {
     }
 
     // =======================================================
-    // 3. BAGIAN GURU (WITH PAGINATION)
+    // 3. BAGIAN GURU
     // =======================================================
     public function guru() {
         $limit = 10; 
@@ -154,6 +162,8 @@ class SetoranController {
 
     public function guru_store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
             $harga_satuan = isset($kat['harga_guru']) ? $kat['harga_guru'] : ($kat['harga_dasar'] ?? 0);
@@ -167,6 +177,8 @@ class SetoranController {
                 'walikelas_id' => null, 
                 'status' => 'pending'
             ]);
+
+            Logger::log("Input Setoran Guru", "Petugas menginput setoran guru sebesar $jml Pcs (Status: Pending)");
             $_SESSION['success'] = "Setoran guru ($jml Pcs) disimpan.";
             header('Location: ' . BASE_URL . '/setoran/guru');
             exit;
@@ -198,6 +210,8 @@ class SetoranController {
 
     public function update_pending($id) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
             
@@ -208,31 +222,43 @@ class SetoranController {
                 'total_pengepul' => $jml * $kat['harga_pengepul']
             ]);
             
+            Logger::log("Edit Pending", "Petugas mengoreksi data setoran pending ID #$id menjadi $jml Pcs");
             $_SESSION['success'] = "Data diperbarui.";
             header('Location: ' . BASE_URL . '/setoran/validasi');
             exit;
         }
     }
 
+    // HANYA ADA SATU FUNGSI PROSES VALIDASI
     public function proses_validasi($id) {
+        $data = $this->setoranModel->getById($id); 
         $this->setoranModel->updateStatus($id, 'valid');
+        
+        Logger::log("Validasi Setoran", "Petugas memvalidasi setoran ID #$id sebesar Rp " . number_format($data['total_harga']));
+
         $_SESSION['success'] = "Data divalidasi.";
         header('Location: ' . BASE_URL . '/setoran/validasi');
         exit;
     }
 
+    // HANYA ADA SATU FUNGSI HAPUS PENDING
     public function hapus_pending($id) {
         $this->setoranModel->delete($id);
+
+        Logger::log("Hapus Antrean", "Petugas menghapus setoran pending ID #$id");
+
         $_SESSION['success'] = "Data dihapus.";
         header('Location: ' . BASE_URL . '/setoran/validasi');
         exit;
     }
 
     // =================================================================
-    // FITUR GAMIFIKASI: REWARD PRESTASI
+    // 5. FITUR GAMIFIKASI: REWARD PRESTASI
     // =================================================================
     public function reward() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+
             if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
                 $_SESSION['error'] = "Akses ditolak!";
                 header('Location: ' . BASE_URL . '/dashboard');
@@ -271,6 +297,8 @@ class SetoranController {
                 $this->db->prepare($sql)->execute([$user_id, $wali_id, $kategori_id, $nominal]);
 
                 $this->db->commit();
+                
+                Logger::log("Reward Prestasi", "Admin memberikan reward Rp " . number_format($nominal) . " kepada $nama_siswa");
                 $_SESSION['success'] = "Reward Rp " . number_format($nominal, 0, ',', '.') . " berhasil dikirim ke " . htmlspecialchars($nama_siswa);
             } catch (Exception $e) {
                 $this->db->rollBack();
@@ -283,7 +311,7 @@ class SetoranController {
     }
 
     // =================================================================
-    // FITUR KHUSUS: KAS KESISWAAN (VIRTUAL ACCOUNT)
+    // 6. FITUR KHUSUS: KAS KESISWAAN (VIRTUAL ACCOUNT)
     // =================================================================
     public function create_kesiswaan() {
         if ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'staff') {
@@ -308,6 +336,8 @@ class SetoranController {
 
     public function store_kesiswaan() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'staff')) {
+            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+
             $user_id = $_POST['user_id'];
             $kategori_id = $_POST['kategori_id'];
             $berat = (float) $_POST['berat'];
@@ -322,33 +352,12 @@ class SetoranController {
                 $sql = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
                         VALUES (?, NULL, ?, ?, ?, ?, 'valid', 0)";
                 $this->db->prepare($sql)->execute([$user_id, $kategori_id, $berat, $berat * $kat['harga_dasar'], $berat * $kat['harga_pengepul']]);
+                
+                Logger::log("Denda Kesiswaan", "Petugas mencatat denda pelanggaran sebesar $berat Pcs ke Kas Kesiswaan");
                 $_SESSION['success'] = "Berhasil catat denda $berat Pcs ke Kas Kesiswaan.";
             }
             header('Location: ' . BASE_URL . '/setoran/create_kesiswaan');
             exit;
         }
-    }
-    public function proses_validasi($id) {
-        $data = $this->setoranModel->getById($id); // Ambil info sebelum validasi
-        $this->setoranModel->updateStatus($id, 'valid');
-        
-        // CATAT LOG
-        Logger::log("Validasi Setoran", "Petugas memvalidasi setoran ID #$id sebesar Rp " . number_format($data['total_harga']));
-
-        $_SESSION['success'] = "Data divalidasi.";
-        header('Location: ' . BASE_URL . '/setoran/validasi');
-        exit;
-    }
-
-    public function hapus_pending($id) {
-        $data = $this->setoranModel->getById($id);
-        $this->setoranModel->delete($id);
-
-        // CATAT LOG
-        Logger::log("Hapus Antrean", "Petugas menghapus setoran pending ID #$id");
-
-        $_SESSION['success'] = "Data dihapus.";
-        header('Location: ' . BASE_URL . '/setoran/validasi');
-        exit;
     }
 }
