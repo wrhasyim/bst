@@ -29,7 +29,9 @@ class DashboardController {
             WHERE s.created_at >= DATE_FORMAT(DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH), '%Y-%m-01')
             AND s.status = 'valid' 
             AND u.role = 'siswa'
-            AND u.nama NOT LIKE '%KESISWAAN%' -- FIX: Kecualikan Kesiswaan dari Top Nasabah
+            AND u.is_active = 1 -- FIX: Pastikan siswa masih aktif (bukan alumni)
+            AND u.kelas_id IS NOT NULL -- FIX: Pastikan siswa memiliki kelas
+            AND u.nama NOT LIKE '%KESISWAAN%'
             GROUP BY u.id 
             ORDER BY total_pcs DESC LIMIT 5
         ");

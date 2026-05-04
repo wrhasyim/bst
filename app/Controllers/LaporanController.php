@@ -100,6 +100,14 @@ class LaporanController {
         $stmt->execute(['p1' => $persen_wali, 'p2' => $persen_wali]);
         $rekap_honor = $stmt->fetchAll();
 
+        // FIX BUG: Kalkulasi total margin untuk Header Cards di View
+        $total_margin_potensi = 0;
+        $total_margin_realisasi = 0;
+        foreach ($rekap_honor as $rh) {
+            $total_margin_potensi += $rh['total_potensi'];
+            $total_margin_realisasi += $rh['total_realisasi'];
+        }
+
         $title = "Laporan Honor & Insentif";
         $content = __DIR__ . '/../../views/admin/laporan/honor.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';

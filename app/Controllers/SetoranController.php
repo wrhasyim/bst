@@ -38,10 +38,15 @@ class SetoranController {
     // 2. INPUT MASSAL PER KELAS (BATCH STORE)
     // =======================================================
     public function siswa_kelas() {
-        $all_kelas = $this->kelasModel->getAll();
-        $all_sampah = $this->sampahModel->getAll();
+        // Sembunyikan 'KESISWAAN' dari dropdown Kelas
+        $all_kelas = $this->db->query("SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%KESISWAAN%' ORDER BY nama_kelas ASC")->fetchAll();
+        
+        // FIX BUG: Sembunyikan '🌟 REWARD PRESTASI' dari dropdown jenis sampah manual
+        $all_sampah = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY nama_sampah ASC")->fetchAll();
+        
         $kelas_id = $_GET['kelas_id'] ?? null;
         $siswa_list = $kelas_id ? $this->db->query("SELECT id, nama FROM users WHERE kelas_id = $kelas_id AND role = 'siswa' AND is_active = 1 ORDER BY nama ASC")->fetchAll() : [];
+        
         $title = "Setoran Per Kelas (Pcs)";
         $content = __DIR__ . '/../../views/admin/setoran/siswa_kelas.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -78,6 +83,18 @@ class SetoranController {
     // =======================================================
     public function guru() {
         $setoran = $this->setoranModel->getSetoranGuru();
+        
+        // Menarik data Guru & Staf (kecuali siswa dan admin)
+        $users = $this->db->query("SELECT * FROM users WHERE role NOT IN ('siswa', 'admin') AND is_active = 1 ORDER BY nama ASC")->fetchAll();
+        
+        // FIX BUG: Sembunyikan '🌟 REWARD PRESTASI' dari dropdown jenis sampah guru
+        $all_sampah = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY nama_sampah ASC")->fetchAll();
+        
+        // Alias variabel jaga-jaga agar sesuai dengan apapun nama variabel di View Anda
+        $guru_list = $users;
+        $kategori = $all_sampah;
+        $kategori_list = $all_sampah;
+
         $title = "Setoran Guru (Pcs)";
         $content = __DIR__ . '/../../views/admin/setoran/guru.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -88,17 +105,20 @@ class SetoranController {
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
             
-            // PERBAIKAN: Menggunakan harga_dasar, bukan harga_guru
+            // ARCHITECT SOLUTION: Cek apakah ada harga khusus guru, jika tidak pakai harga_dasar/harga_nasabah
+            // Ini mencegah error jika kolom harga_guru belum dibuat di database.
+            $harga_satuan = isset($kat['harga_guru']) ? $kat['harga_guru'] : (isset($kat['harga_dasar']) ? $kat['harga_dasar'] : 0);
+            
             $this->setoranModel->create([
                 'user_id' => $_POST['user_id'], 
                 'kategori_id' => $_POST['kategori_id'], 
                 'berat' => $jml,
-                'total_harga' => $jml * $kat['harga_dasar'], 
+                'total_harga' => $jml * $harga_satuan, 
                 'total_pengepul' => $jml * $kat['harga_pengepul'],
                 'walikelas_id' => null, 
                 'status' => 'pending'
             ]);
-            $_SESSION['success'] = "Setoran guru ($jml Pcs) disimpan.";
+            $_SESSION['success'] = "Setoran guru ($jml Pcs) disimpan dengan penyesuaian harga khusus.";
             header('Location: ' . BASE_URL . '/setoran/guru');
             exit;
         }
@@ -120,7 +140,9 @@ class SetoranController {
             header('Location: ' . BASE_URL . '/setoran/validasi');
             exit;
         }
-        $sampah = $this->sampahModel->getAll();
+        // FIX BUG: Sembunyikan dari form edit
+        $sampah = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY nama_sampah ASC")->fetchAll();
+        
         $title = "Koreksi Data (Pcs)";
         $content = __DIR__ . '/../../views/admin/setoran/edit_pending.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
