@@ -15,8 +15,12 @@ class SampahController {
 
     // Tampilkan Data
     public function index() {
-        $kategori = $this->db->query("SELECT * FROM kategori_sampah ORDER BY nama_sampah ASC")->fetchAll();
-        
+        //$kategori = $this->db->query("SELECT * FROM kategori_sampah ORDER BY nama_sampah ASC")->fetchAll();
+        $kategori = $this->db->query("
+            SELECT * FROM kategori_sampah 
+            WHERE nama_sampah != '🌟 REWARD PRESTASI' 
+            ORDER BY nama_sampah ASC
+        ")->fetchAll();
         $title = "Kategori & Harga Sampah";
         $content = __DIR__ . '/../../views/admin/sampah/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';

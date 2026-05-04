@@ -21,16 +21,20 @@ class LaporanController {
         $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
         $persen_wali = ($config['persen_honor_walikelas'] ?? 0) / 100;
         
+        // 1. Pendapatan Kotor (Gross Revenue)
         $total_kotor = $this->db->query("SELECT SUM(total_pendapatan) FROM penjualan")->fetchColumn() ?? 0;
 
+        // 2. Beban Tabungan Nasabah (HPP)
         $sqlBebanNasabah = "SELECT SUM(s.total_harga) 
                             FROM setoran s 
                             JOIN kategori_sampah k ON s.kategori_id = k.id 
                             WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
         $beban_nasabah = $this->db->query($sqlBebanNasabah)->fetchColumn() ?? 0;
 
+        // 3. Laba / Margin Bersih Operasional
         $margin_total = $total_kotor - $beban_nasabah;
 
+        // 4. Honor Wali Kelas (Hanya dihitung dari transaksi yang ada walikelasnya)
         $sql_honor_wali = "SELECT SUM((s.total_pengepul - s.total_harga) * :persen)
                            FROM setoran s
                            JOIN users u ON s.walikelas_id = u.id
@@ -40,14 +44,11 @@ class LaporanController {
         $stmtWali->execute(['persen' => $persen_wali]);
         $honor_walikelas = $stmtWali->fetchColumn() ?? 0;
 
-        $sqlMarginEstimasi = "SELECT SUM(s.total_pengepul - s.total_harga) 
-                              FROM setoran s 
-                              JOIN kategori_sampah k ON s.kategori_id = k.id 
-                              WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
-        $margin_estimasi = $this->db->query($sqlMarginEstimasi)->fetchColumn() ?? 0;
-
-        $honor_pengelola = $margin_estimasi * (($config['persen_honor_pengelola'] ?? 0) / 100);
-        $kas_sekolah     = $margin_estimasi * (($config['persen_kas_sekolah'] ?? 0) / 100);
+        // =================================================================
+        // FIX BUG: Perhitungan Honor & Kas Sekolah harus berbasis $margin_total
+        // =================================================================
+        $honor_pengelola = $margin_total * (($config['persen_honor_pengelola'] ?? 0) / 100);
+        $kas_sekolah     = $margin_total * (($config['persen_kas_sekolah'] ?? 0) / 100);
         
         $sqlBebanReward = "SELECT SUM(s.total_harga) 
                            FROM setoran s 
@@ -55,6 +56,7 @@ class LaporanController {
                            WHERE k.nama_sampah = '🌟 REWARD PRESTASI'";
         $beban_reward = $this->db->query($sqlBebanReward)->fetchColumn() ?? 0;
 
+        // 5. Kas Bank Sampah sebagai penampung sisa (Remainder Logic agar Balance)
         $kas_bst = $margin_total - ($honor_walikelas + $honor_pengelola + $kas_sekolah) - $beban_reward;
 
         $laporan = [
@@ -212,8 +214,8 @@ class LaporanController {
             $detail_kelas = $stmtKelas->fetch();
 
             $sqlRekap = "SELECT u.id, u.nama,
-                            (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') AS total_masuk,
-                            (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) AS total_keluar
+                             (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') AS total_masuk,
+                             (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) AS total_keluar
                          FROM users u
                          WHERE u.kelas_id = ? AND u.role = 'siswa' AND u.nama NOT LIKE '%KESISWAAN%'
                          ORDER BY u.nama ASC";
