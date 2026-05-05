@@ -10,6 +10,18 @@
         </button>
     </div>
 
+    <!-- FLASH MESSAGES (Ditambahkan untuk feedback aksi Cairkan/Refund) -->
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="no-print p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs font-bold shadow-sm flex items-center animate-in fade-in duration-300">
+            <span class="mr-3">✅</span> <?= $_SESSION['success']; unset($_SESSION['success']); ?>
+        </div>
+    <?php endif; ?>
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="no-print p-4 bg-red-50 border-l-4 border-red-500 text-red-800 text-xs font-bold shadow-sm flex items-center animate-in fade-in duration-300">
+            <span class="mr-3">⚠️</span> <?= $_SESSION['error']; unset($_SESSION['error']); ?>
+        </div>
+    <?php endif; ?>
+
     <div id="print-area" class="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm print:shadow-none print:border-none print:p-0">
         
         <div class="text-center border-b-4 border-double border-slate-900 pb-6 mb-10">
@@ -55,7 +67,8 @@
         <div class="mt-12">
             <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-4 mb-6 mt-10">Alokasi Distribusi Margin</h3>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- ✨ GRID DIUBAH MENJADI 3 KOLOM DI LAYAR BESAR AGAR MUAT 5 CARD ✨ -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
                 <!-- 1. KAS BANK SAMPAH -->
                 <div class="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-center">
@@ -93,11 +106,13 @@
                     <!-- TOMBOL HANYA MUNCUL SESUAI KONDISI -->
                     <?php if($cek_sisa_sekolah > 0): ?>
                     <form action="<?= BASE_URL ?>/laporan/cairkan_kas_sekolah" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <?= Security::csrf_field(); ?>
                         <input type="hidden" name="nominal" value="<?= $cek_sisa_sekolah ?>">
                         <button type="submit" onclick="return confirm('Tandai lunas sisa Rp <?= number_format($cek_sisa_sekolah,0,',','.') ?> ke Sekolah?')" class="w-full py-2 bg-slate-900 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-black transition-all">Tandai Telah Disetor (Lunas)</button>
                     </form>
                     <?php elseif($cek_sisa_sekolah < 0): ?>
                     <form action="<?= BASE_URL ?>/laporan/refund_lebih_bayar" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <?= Security::csrf_field(); ?>
                         <input type="hidden" name="nominal" value="<?= abs($cek_sisa_sekolah) ?>">
                         <input type="hidden" name="jenis_refund" value="sekolah">
                         <button type="submit" onclick="return confirm('Tarik kembali kelebihan Rp <?= number_format(abs($cek_sisa_sekolah),0,',','.') ?> ke Kas Utama?')" class="w-full py-2 bg-orange-500 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-orange-600 transition-all">Kembalikan Ke Kas Utama</button>
@@ -130,11 +145,13 @@
                     <!-- TOMBOL HANYA MUNCUL SESUAI KONDISI -->
                     <?php if($cek_sisa_pengelola > 0): ?>
                     <form action="<?= BASE_URL ?>/laporan/cairkan_honor_pengelola" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <?= Security::csrf_field(); ?>
                         <input type="hidden" name="nominal" value="<?= $cek_sisa_pengelola ?>">
                         <button type="submit" onclick="return confirm('Cairkan Honor Pengelola sebesar Rp <?= number_format($cek_sisa_pengelola,0,',','.') ?>? Uang akan tercatat atas nama Anda.')" class="w-full py-2 bg-blue-600 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-blue-700 transition-all">Cairkan Honor Pengelola</button>
                     </form>
                     <?php elseif($cek_sisa_pengelola < 0): ?>
                     <form action="<?= BASE_URL ?>/laporan/refund_lebih_bayar" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <?= Security::csrf_field(); ?>
                         <input type="hidden" name="nominal" value="<?= abs($cek_sisa_pengelola) ?>">
                         <input type="hidden" name="jenis_refund" value="pengelola">
                         <button type="submit" onclick="return confirm('Tarik kembali kelebihan Rp <?= number_format(abs($cek_sisa_pengelola),0,',','.') ?> ke Kas Utama?')" class="w-full py-2 bg-orange-500 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-orange-600 transition-all">Kembalikan Ke Kas Utama</button>
@@ -165,6 +182,46 @@
                     </div>
                     <!-- INFO: Tombol bayar/refund dihapus sesuai permintaan, diurus di menu Pencairan Honor khusus Walas -->
                 </div>
+
+                <!-- ✨ 5. HONOR SISWA PIKET (FITUR BARU) ✨ -->
+                <div class="p-6 bg-amber-50/50 border border-amber-200 rounded-2xl shadow-sm flex flex-col justify-between group transition-all">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="text-[10px] font-black text-amber-600 uppercase tracking-widest">Honor Siswa Piket (<?= $laporan['persen_piket'] ?>%)</h4>
+                            <p class="text-xs text-amber-500 font-medium italic mt-1">Insentif tenaga operasional siswa</p>
+                        </div>
+                        <div class="text-xl font-black text-amber-800">Rp <?= number_format($laporan['honor_piket'], 0, ',', '.') ?></div>
+                    </div>
+                    <?php $cek_sisa_piket = round($laporan['sisa_piket']); ?>
+                    <div class="pt-3 border-t border-amber-200 flex justify-between items-center">
+                        <div class="text-[10px] font-bold text-emerald-600">Telah Cair: Rp <?= number_format($laporan['cair_piket'], 0, ',', '.') ?></div>
+                        
+                        <?php if($cek_sisa_piket < 0): ?>
+                            <div class="text-[10px] font-black text-orange-500">Lebih Bayar: Rp <?= number_format(abs($cek_sisa_piket), 0, ',', '.') ?></div>
+                        <?php elseif($cek_sisa_piket == 0): ?>
+                            <div class="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md">LUNAS</div>
+                        <?php else: ?>
+                            <div class="text-[10px] font-black text-red-500">Sisa: Rp <?= number_format($cek_sisa_piket, 0, ',', '.') ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- TOMBOL HANYA MUNCUL SESUAI KONDISI -->
+                    <?php if($cek_sisa_piket > 0): ?>
+                    <form action="<?= BASE_URL ?>/laporan/cairkan_honor_piket" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <?= Security::csrf_field(); ?>
+                        <input type="hidden" name="nominal" value="<?= $cek_sisa_piket ?>">
+                        <button type="submit" onclick="return confirm('Cairkan Honor Piket sebesar Rp <?= number_format($cek_sisa_piket,0,',','.') ?>?')" class="w-full py-2 bg-amber-500 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-amber-600 transition-all">Cairkan Honor Piket</button>
+                    </form>
+                    <?php elseif($cek_sisa_piket < 0): ?>
+                    <form action="<?= BASE_URL ?>/laporan/refund_lebih_bayar" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
+                        <?= Security::csrf_field(); ?>
+                        <input type="hidden" name="nominal" value="<?= abs($cek_sisa_piket) ?>">
+                        <input type="hidden" name="jenis_refund" value="piket">
+                        <button type="submit" onclick="return confirm('Tarik kembali kelebihan Rp <?= number_format(abs($cek_sisa_piket),0,',','.') ?> ke Kas Utama?')" class="w-full py-2 bg-orange-500 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-orange-600 transition-all">Kembalikan Ke Kas Utama</button>
+                    </form>
+                    <?php endif; ?>
+                </div>
+
             </div>
             
             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-4 flex items-center no-print">
@@ -220,7 +277,7 @@
                     <p class="font-black uppercase italic mt-1">Bendahara Utama</p>
                 </div>
                 <div>
-                    <p class="font-black underline">( <?= htmlspecialchars($_SESSION['nama']) ?> )</p>
+                    <p class="font-black underline">( <?= htmlspecialchars($_SESSION['nama'] ?? 'Admin') ?> )</p>
                 </div>
             </div>
         </div>

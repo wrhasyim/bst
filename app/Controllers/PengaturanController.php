@@ -33,24 +33,33 @@ class PengaturanController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf(); // 🛡️ Cegah serangan manipulasi form
 
-            $total = $_POST['persen_kas_bst'] + $_POST['persen_kas_sekolah'] + 
-                     $_POST['persen_honor_pengelola'] + $_POST['persen_honor_walikelas'];
+            // 🛠️ FIX & UPDATE: Ambil data dan pastikan formatnya angka (float)
+            $kas_bst = (float)($_POST['persen_kas_bst'] ?? 0);
+            $kas_sekolah = (float)($_POST['persen_kas_sekolah'] ?? 0);
+            $pengelola = (float)($_POST['persen_honor_pengelola'] ?? 0);
+            $walikelas = (float)($_POST['persen_honor_walikelas'] ?? 0);
+            $piket = (float)($_POST['persen_honor_piket'] ?? 0); // ✨ FITUR BARU: Porsi Siswa Piket
 
+            // Kalkulasi 5 Variabel
+            $total = $kas_bst + $kas_sekolah + $pengelola + $walikelas + $piket;
+
+            // Validasi Ketat 100%
             if ($total != 100) {
-                $_SESSION['error'] = "Gagal! Total alokasi honor harus tepat 100% (Input Anda: $total%)";
+                $_SESSION['error'] = "Gagal! Total alokasi honor harus tepat 100% (Input Anda saat ini: $total%)";
                 header('Location: ' . BASE_URL . '/pengaturan');
                 exit;
             }
 
+            // Simpan perulangan ke database
             foreach ($_POST as $kunci => $nilai) {
-                if ($kunci !== 'csrf_token') { // Abaikan token CSRF saat update ke DB
+                if ($kunci !== 'csrf_token') { 
                     $stmt = $this->db->prepare("UPDATE pengaturan SET nilai = :v WHERE kunci = :k");
                     $stmt->execute(['v' => $nilai, 'k' => $kunci]);
                 }
             }
             
-            Logger::log("Update Pengaturan", "Admin mengubah persentase bagi hasil / identitas sistem.");
-            $_SESSION['success'] = "Pengaturan & Kebijakan Honor berhasil diperbarui!";
+            Logger::log("Update Pengaturan", "Admin mengubah persentase bagi hasil (Menambahkan porsi Siswa Piket).");
+            $_SESSION['success'] = "Pengaturan & Kebijakan Honor (5 Kategori) berhasil diperbarui!";
         }
         header('Location: ' . BASE_URL . '/pengaturan');
         exit;

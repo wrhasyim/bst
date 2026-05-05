@@ -1,9 +1,16 @@
-<div class="max-w-6xl mx-auto space-y-8 pb-10" x-data="{ bst: <?= $data['persen_kas_bst'] ?? 0 ?>, sekolah: <?= $data['persen_kas_sekolah'] ?? 0 ?>, pengelola: <?= $data['persen_honor_pengelola'] ?? 0 ?>, wali: <?= $data['persen_honor_walikelas'] ?? 0 ?>, get total() { return parseFloat(this.bst) + parseFloat(this.sekolah) + parseFloat(this.pengelola) + parseFloat(this.wali) } }">
+<div class="max-w-6xl mx-auto space-y-8 pb-10" x-data="{ 
+    bst: <?= $data['persen_kas_bst'] ?? 0 ?>, 
+    sekolah: <?= $data['persen_kas_sekolah'] ?? 0 ?>, 
+    pengelola: <?= $data['persen_honor_pengelola'] ?? 0 ?>, 
+    wali: <?= $data['persen_honor_walikelas'] ?? 0 ?>, 
+    piket: <?= $data['persen_honor_piket'] ?? 0 ?>, 
+    get total() { return parseFloat(this.bst) + parseFloat(this.sekolah) + parseFloat(this.pengelola) + parseFloat(this.wali) + parseFloat(this.piket) } 
+}">
     
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-3xl font-black text-slate-800 italic uppercase tracking-tight">PUSAT<span class="text-emerald-500">PENGATURAN</span></h2>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Identitas & Kebijakan Distribusi Honor</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Identitas & Kebijakan Distribusi Honor (5 Entitas)</p>
         </div>
     </div>
 
@@ -13,7 +20,17 @@
         </div>
     <?php endif; ?>
 
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-800 text-xs font-bold animate-pulse flex items-center shadow-sm">
+            🚨 <?= $_SESSION['error']; unset($_SESSION['error']); ?>
+        </div>
+    <?php endif; ?>
+
     <form action="<?= BASE_URL ?>/pengaturan/update_identitas" method="POST" class="space-y-8">
+        
+        <!-- 🛡️ BUG FIX: Token CSRF Wajib Ada Agar Data Tersimpan -->
+        <?= Security::csrf_field(); ?>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-1 bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
                 <h3 class="font-black text-slate-800 text-[11px] uppercase tracking-wider border-b pb-4">🏢 Identitas Aplikasi</h3>
@@ -32,22 +49,27 @@
             <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between">
                 <h3 class="font-black text-slate-800 text-[11px] uppercase tracking-wider border-b pb-4 mb-6">💰 Distribusi Margin (Wajib 100%)</h3>
                 
-                <div class="grid grid-cols-2 gap-6">
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 italic underline">Kas Bank Sampah (%)</label>
-                        <input type="number" name="persen_kas_bst" x-model="bst" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-2xl font-black outline-none">
+                        <input type="number" step="0.1" name="persen_kas_bst" x-model="bst" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 italic underline">Kas Sekolah (%)</label>
-                        <input type="number" name="persen_kas_sekolah" x-model="sekolah" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-2xl font-black outline-none">
+                        <input type="number" step="0.1" name="persen_kas_sekolah" x-model="sekolah" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 italic underline">Honor Pengelola (%)</label>
-                        <input type="number" name="persen_honor_pengelola" x-model="pengelola" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-2xl font-black outline-none">
+                        <input type="number" step="0.1" name="persen_honor_pengelola" x-model="pengelola" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 italic underline">Honor Wali Kelas (%)</label>
-                        <input type="number" name="persen_honor_walikelas" x-model="wali" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-2xl font-black outline-none">
+                        <input type="number" step="0.1" name="persen_honor_walikelas" x-model="wali" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none">
+                    </div>
+                    <!-- ✨ FITUR BARU: HONOR PIKET -->
+                    <div class="col-span-2 md:col-span-1 border-l-4 border-amber-500 pl-4">
+                        <label class="block text-[10px] font-bold text-amber-500 uppercase mb-2 ml-1 italic underline">Honor Siswa Piket (%)</label>
+                        <input type="number" step="0.1" name="persen_honor_piket" x-model="piket" class="w-full px-4 py-4 bg-amber-50 text-amber-600 border-2 border-amber-200 rounded-3xl text-xl font-black outline-none focus:ring-2 focus:ring-amber-500">
                     </div>
                 </div>
 
