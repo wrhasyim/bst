@@ -32,15 +32,13 @@ class LaporanController {
 
         $margin_total = $total_kotor - $beban_nasabah;
 
-        // JOIN users tetap dilakukan tanpa filter deleted_at agar histori honor walas lama tidak hilang
-        $sql_honor_wali = "SELECT SUM((s.total_pengepul - s.total_harga) * :persen) 
+        // 🚀 CRITICAL FIX: Baca nominal baku dari snapshot honor_walas_rp
+        $sql_honor_wali = "SELECT SUM(s.honor_walas_rp) 
                            FROM setoran s 
                            JOIN users u ON s.walikelas_id = u.id 
                            JOIN kategori_sampah k ON s.kategori_id = k.id 
                            WHERE s.status = 'valid' AND s.is_sold = 1 AND k.nama_sampah != '🌟 REWARD PRESTASI'";
-        $stmtWali = $this->db->prepare($sql_honor_wali);
-        $stmtWali->execute(['persen' => $persen_wali]);
-        $honor_walikelas = $stmtWali->fetchColumn() ?? 0;
+        $honor_walikelas = $this->db->query($sql_honor_wali)->fetchColumn() ?? 0;
 
         $honor_pengelola = $margin_total * (($config['persen_honor_pengelola'] ?? 0) / 100);
         $kas_sekolah     = $margin_total * (($config['persen_kas_sekolah'] ?? 0) / 100);
@@ -124,22 +122,19 @@ class LaporanController {
     // 2. LAPORAN HONOR & INSENTIF
     // =================================================================
     public function honor() {
-        $stmtConfig = $this->db->query("SELECT kunci, nilai FROM pengaturan WHERE kunci LIKE 'persen_%'");
-        $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
-        $persen_wali = ($config['persen_honor_walikelas'] ?? 0) / 100;
-
+        // 🚀 CRITICAL FIX: Override query murni membaca kolom honor_walas_rp
         $qRekap = "SELECT 
                         u.nama AS nama_guru, k.nama_kelas, 
-                        SUM(CASE WHEN s.is_sold = 0 THEN (s.total_pengepul - s.total_harga) * :p1 ELSE 0 END) as total_potensi,
-                        SUM(CASE WHEN s.is_sold = 1 THEN (s.total_pengepul - s.total_harga) * :p2 ELSE 0 END) as total_realisasi
+                        SUM(CASE WHEN s.is_sold = 0 THEN s.honor_walas_rp ELSE 0 END) as total_potensi,
+                        SUM(CASE WHEN s.is_sold = 1 THEN s.honor_walas_rp ELSE 0 END) as total_realisasi
                     FROM setoran s
                     JOIN users u ON s.walikelas_id = u.id
                     JOIN kelas k ON u.id = k.walikelas_id
                     JOIN kategori_sampah ks ON s.kategori_id = ks.id
                     WHERE s.status = 'valid' AND ks.nama_sampah != '🌟 REWARD PRESTASI'
                     GROUP BY u.id";
-        $stmt = $this->db->prepare($qRekap);
-        $stmt->execute(['p1' => $persen_wali, 'p2' => $persen_wali]);
+                    
+        $stmt = $this->db->query($qRekap);
         $rekap_honor = $stmt->fetchAll();
 
         $total_margin_potensi = 0;
@@ -503,7 +498,8 @@ class LaporanController {
         header('Content-Disposition: attachment; filename="' . $filename . '"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['No', 'Nama Nasabah', 'Total Sampah (Pcs/Kg)', 'Total Tabungan (Rp)']);
+        // 🛠️ CRITICAL FIX: Pembersihan kata Kg sesuai standardisasi PCS sistem
+        fputcsv($output, ['No', 'Nama Nasabah', 'Total Sampah (Pcs)', 'Total Tabungan (Rp)']);
 
         $sql = "SELECT u.nama, 
                        IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, 

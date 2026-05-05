@@ -189,10 +189,10 @@ class SetoranController {
     }
 
     // =======================================================
-    // 4. VALIDASI SETORAN (DENGAN AUTO-HEALING & DOUBLE CHECK)
+    // 4. VALIDASI SETORAN (DENGAN ARCHITECT SNAPSHOT PATTERN)
     // =======================================================
     public function validasi() {
-        // 🛠️ AUTO-HEALING SYSTEM: Perbaiki data Rp 0 secara diam-diam sebelum ditampilkan!
+        // 🛠️ AUTO-HEALING SYSTEM
         $sql_heal = "UPDATE setoran s 
                      JOIN kategori_sampah k ON s.kategori_id = k.id 
                      SET s.total_harga = (s.berat * k.harga_dasar), 
@@ -243,16 +243,26 @@ class SetoranController {
     }
 
     public function proses_validasi($id) {
-        // 🛠️ DOUBLE SECURITY CHECK: Pastikan harga yang masuk adalah harga terbaru
         $data = $this->setoranModel->getById($id); 
         if ($data) {
+            // 🛠️ CRITICAL FIX: Ambil persentase honor walas SAAT INI (Detik validasi dilakukan)
+            $stmtPersen = $this->db->query("SELECT nilai FROM pengaturan WHERE kunci = 'persen_honor_walikelas'");
+            $persen_walas = ($stmtPersen->fetchColumn() ?? 0) / 100;
+
             $kat = $this->sampahModel->getById($data['kategori_id']);
             $total_harga = $data['berat'] * (float)$kat['harga_dasar'];
             $total_pengepul = $data['berat'] * (float)$kat['harga_pengepul'];
 
-            // Update harga riil beserta status valid
-            $sql = "UPDATE setoran SET total_harga = ?, total_pengepul = ?, status = 'valid' WHERE id = ?";
-            $this->db->prepare($sql)->execute([$total_harga, $total_pengepul, $id]);
+            // 🛠️ CRITICAL FIX: Hitung dan kunci honor Walas (Hanya jika nasabah punya Walas)
+            $honor_walas_rp = 0;
+            if (!empty($data['walikelas_id'])) {
+                // Laba Pengepul - Tabungan Nasabah = Margin. Kalikan persentase Walas.
+                $honor_walas_rp = ($total_pengepul - $total_harga) * $persen_walas;
+            }
+
+            // Update harga riil, status valid, DAN KUNCI PERMANEN HONOR WALAS (Snapshot)
+            $sql = "UPDATE setoran SET total_harga = ?, total_pengepul = ?, honor_walas_rp = ?, status = 'valid' WHERE id = ?";
+            $this->db->prepare($sql)->execute([$total_harga, $total_pengepul, $honor_walas_rp, $id]);
             
             Logger::log("Validasi Setoran", "Petugas memvalidasi setoran ID #$id sebesar Rp " . number_format($total_harga, 0, ',', '.'));
             $_SESSION['success'] = "Data divalidasi dan saldo otomatis bertambah.";
@@ -312,6 +322,7 @@ class SetoranController {
                 $stmtWali->execute([$user_id]);
                 $wali_id = $stmtWali->fetchColumn() ?? 0;
 
+                // Karena ini reward (bukan sampah riil), honor_walas_rp otomatis menggunakan nilai default 0 di database.
                 $sql = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
                         VALUES (?, ?, ?, 1, ?, 0, 'valid', 1)";
                 $this->db->prepare($sql)->execute([$user_id, $wali_id, $kategori_id, $nominal]);
@@ -369,6 +380,7 @@ class SetoranController {
                 $stmtKat->execute([$kategori_id]);
                 $kat = $stmtKat->fetch();
 
+                // walikelas_id NULL memastikan kas kesiswaan tidak dihitung sebagai honor walas siapapun
                 $sql = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
                         VALUES (?, NULL, ?, ?, ?, ?, 'valid', 0)";
                 $this->db->prepare($sql)->execute([$user_id, $kategori_id, $berat, $berat * (float)$kat['harga_dasar'], $berat * (float)$kat['harga_pengepul']]);

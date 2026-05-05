@@ -55,6 +55,8 @@
                                 <td class="px-6 py-4 text-center">
                                     <?php if($row['sisa_honor'] > 0): ?>
                                     <form action="<?= BASE_URL ?>/honor/cairkan" method="POST">
+                                        <!-- 🛡️ FIX: Token CSRF Disuntikkan Di Sini -->
+                                        <?= Security::csrf_field(); ?>
                                         <input type="hidden" name="user_id" value="<?= $row['user_id'] ?>">
                                         <input type="hidden" name="nama_kelas" value="<?= $row['nama_kelas'] ?>">
                                         <input type="hidden" name="jumlah" value="<?= $row['sisa_honor'] ?>">

@@ -67,7 +67,6 @@
         <div class="mt-12">
             <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-4 mb-6 mt-10">Alokasi Distribusi Margin</h3>
             
-            <!-- ✨ GRID DIUBAH MENJADI 3 KOLOM DI LAYAR BESAR AGAR MUAT 5 CARD ✨ -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
                 <!-- 1. KAS BANK SAMPAH -->
@@ -103,7 +102,6 @@
                         <?php endif; ?>
                     </div>
                     
-                    <!-- TOMBOL HANYA MUNCUL SESUAI KONDISI -->
                     <?php if($cek_sisa_sekolah > 0): ?>
                     <form action="<?= BASE_URL ?>/laporan/cairkan_kas_sekolah" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
                         <?= Security::csrf_field(); ?>
@@ -142,7 +140,6 @@
                         <?php endif; ?>
                     </div>
 
-                    <!-- TOMBOL HANYA MUNCUL SESUAI KONDISI -->
                     <?php if($cek_sisa_pengelola > 0): ?>
                     <form action="<?= BASE_URL ?>/laporan/cairkan_honor_pengelola" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
                         <?= Security::csrf_field(); ?>
@@ -180,10 +177,9 @@
                             <div class="text-[10px] font-black text-red-500">Sisa: Rp <?= number_format($cek_sisa_wali, 0, ',', '.') ?></div>
                         <?php endif; ?>
                     </div>
-                    <!-- INFO: Tombol bayar/refund dihapus sesuai permintaan, diurus di menu Pencairan Honor khusus Walas -->
                 </div>
 
-                <!-- ✨ 5. HONOR SISWA PIKET (FITUR BARU) ✨ -->
+                <!-- 5. HONOR SISWA PIKET -->
                 <div class="p-6 bg-amber-50/50 border border-amber-200 rounded-2xl shadow-sm flex flex-col justify-between group transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div>
@@ -205,7 +201,6 @@
                         <?php endif; ?>
                     </div>
 
-                    <!-- TOMBOL HANYA MUNCUL SESUAI KONDISI -->
                     <?php if($cek_sisa_piket > 0): ?>
                     <form action="<?= BASE_URL ?>/laporan/cairkan_honor_piket" method="POST" class="mt-4 hidden group-hover:block transition-all no-print">
                         <?= Security::csrf_field(); ?>
@@ -252,7 +247,8 @@
                             <td class="border border-slate-900 px-4 py-3 text-center font-bold text-slate-700"><?= $i+1 ?></td>
                             <td class="border border-slate-900 px-4 py-3 text-center font-bold text-slate-600"><?= date('d/m/Y', strtotime($h['tanggal_jual'])) ?></td>
                             <td class="border border-slate-900 px-4 py-3 font-semibold uppercase"><?= htmlspecialchars($h['nama_sampah']) ?></td>
-                            <td class="border border-slate-900 px-4 py-3 text-center font-bold"><?= number_format($h['total_berat'], 0) ?> Pcs</td>
+                            <!-- 🛠️ FIX: Eksekusi variabel total_pcs -->
+                            <td class="border border-slate-900 px-4 py-3 text-center font-bold"><?= number_format($h['total_pcs'], 0) ?> Pcs</td>
                             <td class="border border-slate-900 px-4 py-3 text-right font-black text-emerald-700">Rp <?= number_format($h['total_pendapatan'], 0, ',', '.') ?></td>
                         </tr>
                         <?php endforeach; ?>
@@ -287,12 +283,9 @@
 
 <style>
     @media print {
-        /* Sembunyikan elemen web yang tidak perlu */
         aside, header, nav, footer, .no-print, [x-data] button { 
             display: none !important; 
         }
-
-        /* Paksa body untuk mereset scroll dan tinggi */
         body, html {
             background-color: white !important;
             height: auto !important;
@@ -301,8 +294,6 @@
             padding: 0 !important;
             color: black !important;
         }
-
-        /* Hancurkan container flex-h-screen dari layout admin */
         main, .flex-1, .flex.h-screen {
             padding: 0 !important;
             margin: 0 !important;
@@ -311,24 +302,17 @@
             display: block !important;
             overflow: visible !important;
         }
-
-        /* Pengaturan Kertas */
         @page {
             size: A4 portrait;
             margin: 1.5cm;
         }
-
-        /* Paksa border hitam pada tabel */
         table, th, td {
             border: 1pt solid black !important;
             border-collapse: collapse !important;
         }
-
-        /* Mencegah elemen terpotong aneh di antara halaman */
         .break-inside-avoid {
             break-inside: avoid;
         }
-        
         #print-area {
             border: none !important;
             padding: 0 !important;

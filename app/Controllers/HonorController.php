@@ -21,20 +21,27 @@ class HonorController {
     // 1. TAMPILKAN HALAMAN HONOR WALI KELAS
     // =================================================================
     public function index() {
-        // Ambil data alokasi jatah honor
-        $data_honor = $this->honorModel->getHonorWaliKelas();
+        // 🚀 CRITICAL RULE APPLIED: ARCHITECT SNAPSHOT PATTERN
+        $sql = "SELECT s.walikelas_id as user_id, u.nama as nama_guru, k.nama_kelas, SUM(s.honor_walas_rp) as total_jatah
+                FROM setoran s
+                JOIN users u ON s.walikelas_id = u.id
+                JOIN kelas k ON u.id = k.walikelas_id
+                WHERE s.status = 'valid' AND s.is_sold = 1
+                GROUP BY s.walikelas_id";
+                
+        $data_honor = $this->db->query($sql)->fetchAll();
         
         if (is_array($data_honor) && count($data_honor) > 0) {
             foreach ($data_honor as &$h) {
                 $user_id = $h['user_id'] ?? 0;
                 $total_jatah = $h['total_jatah'] ?? 0;
                 
-                // 🛠️ BUG FIX: Override Query Model agar HANYA menghitung pencairan Walas
-                // Mencegah uang Pengelola/Piket ikut terhitung jika Admin merangkap sbg Wali Kelas
+                // 🛠️ Mencegah uang Pengelola/Piket ikut terhitung jika Admin merangkap sbg Wali Kelas
                 $stmtCair = $this->db->prepare("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE user_id = ? AND jenis = 'walikelas'");
                 $stmtCair->execute([$user_id]);
                 $h['sudah_cair'] = $stmtCair->fetchColumn() ?? 0;
                 
+                // Sisa honor murni kalkulasi (Jatah Permanen - Pencairan Historis)
                 $h['sisa_honor'] = $total_jatah - $h['sudah_cair'];
             }
         } else {
@@ -42,7 +49,6 @@ class HonorController {
         }
 
         // 🛠️ BUG FIX: Override Query untuk Sidebar Riwayat
-        // Memaksa tabel hanya menampilkan histori dengan tag 'walikelas'
         $sqlRiwayat = "SELECT ph.*, u.nama 
                        FROM pencairan_honor ph 
                        JOIN users u ON ph.user_id = u.id 
@@ -88,21 +94,48 @@ class HonorController {
     }
 
     // =================================================================
-    // 3. FITUR CETAK NOTA MASSAL HONOR (MANIFEST)
+    // 3. FITUR CETAK NOTA MASSAL HONOR (MANIFEST DAFTAR TUNGGU)
     // =================================================================
     public function cetak_batch() {
-        $tanggal = $_GET['tanggal'] ?? date('Y-m-d');
-
-        // Ini sudah benar karena memiliki filter jenis = 'walikelas'
-        $sql = "SELECT ph.*, u.nama 
-                FROM pencairan_honor ph 
-                JOIN users u ON ph.user_id = u.id 
-                WHERE DATE(ph.tanggal_cair) = :tgl AND ph.jenis = 'walikelas'
-                ORDER BY u.nama ASC";
+        // 🛠️ REFACTORING ULTIMATE: Mengubah Laporan Histori menjadi Manifest Daftar Tunggu!
         
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(['tgl' => $tanggal]);
-        $data_honor = $stmt->fetchAll();
+        $sql = "SELECT s.walikelas_id as user_id, u.nama as nama_guru, SUM(s.honor_walas_rp) as total_jatah
+                FROM setoran s
+                JOIN users u ON s.walikelas_id = u.id
+                WHERE s.status = 'valid' AND s.is_sold = 1
+                GROUP BY s.walikelas_id
+                ORDER BY u.nama ASC";
+                
+        $potensi_honor = $this->db->query($sql)->fetchAll();
+        $data_honor = [];
+
+        if (is_array($potensi_honor) && count($potensi_honor) > 0) {
+            foreach ($potensi_honor as $h) {
+                $user_id = $h['user_id'] ?? 0;
+                $total_jatah = $h['total_jatah'] ?? 0;
+                
+                // Cari total yang sudah pernah dicairkan
+                $stmtCair = $this->db->prepare("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE user_id = ? AND jenis = 'walikelas'");
+                $stmtCair->execute([$user_id]);
+                $sudah_cair = $stmtCair->fetchColumn() ?? 0;
+                
+                $sisa_honor = $total_jatah - $sudah_cair;
+
+                // 🎯 KUNCI UTAMA: Hanya daftarkan ke array cetak JIKA SISA SALDO > 0
+                if ($sisa_honor > 0) {
+                    $data_honor[] = [
+                        'nama'   => $h['nama_guru'],
+                        'jumlah' => $sisa_honor // Variabel 'jumlah' disesuaikan agar cocok dengan cetak_nota.php
+                    ];
+                }
+            }
+        }
+
+        // Jika tidak ada data yang bisa dicairkan
+        if (empty($data_honor)) {
+            echo "<script>alert('Semua honor wali kelas sudah lunas! Tidak ada manifest tagihan untuk dicetak.'); window.close();</script>";
+            exit;
+        }
 
         require_once __DIR__ . '/../../views/admin/honor/cetak_nota.php';
     }
