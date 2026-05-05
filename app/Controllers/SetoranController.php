@@ -27,7 +27,7 @@ class SetoranController {
     }
 
     // =======================================================
-    // 1. RIWAYAT TABUNGAN SISWA (OPTIMIZED WITH PAGINATION)
+    // 1. RIWAYAT TABUNGAN SISWA
     // =======================================================
     public function siswa() {
         $limit = 10; 
@@ -86,6 +86,9 @@ class SetoranController {
                 $this->db->beginTransaction(); 
 
                 $kat = $this->sampahModel->getById($_POST['kategori_id']);
+                $harga_dasar = (float)($kat['harga_dasar'] ?? 0);
+                $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
+                
                 $total_pcs_masuk = 0;
 
                 foreach ($_POST['berat'] as $uid => $jml) {
@@ -97,8 +100,8 @@ class SetoranController {
                             'user_id' => $uid, 
                             'kategori_id' => $_POST['kategori_id'], 
                             'berat' => $jml,
-                            'total_harga' => $jml * $kat['harga_dasar'], 
-                            'total_pengepul' => $jml * $kat['harga_pengepul'],
+                            'total_harga' => $jml * $harga_dasar, 
+                            'total_pengepul' => $jml * $harga_pengepul,
                             'walikelas_id' => $kls['walikelas_id'] ?? null, 
                             'status' => 'pending'
                         ]);
@@ -107,10 +110,7 @@ class SetoranController {
                 }
 
                 $this->db->commit(); 
-                
-                // 🛡️ Catat aktivitas ke log
                 Logger::log("Input Setoran Kelas", "Petugas menginput setoran batch sebanyak $total_pcs_masuk Pcs (Status: Pending)");
-                
                 $_SESSION['success'] = "Setoran batch berhasil disimpan. Menunggu validasi.";
             } catch (Exception $e) {
                 $this->db->rollBack(); 
@@ -130,11 +130,9 @@ class SetoranController {
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $offset = ($page > 1) ? ($page * $limit) - $limit : 0;
 
-        // 🛠️ SELECTIVE UPDATE: Menghapus filter status='valid' agar data pending ikut terhitung
         $total_data = $this->db->query("SELECT COUNT(*) FROM setoran s JOIN users u ON s.user_id = u.id WHERE u.role != 'siswa'")->fetchColumn();
         $total_pages = ceil($total_data / $limit);
 
-        // 🛠️ SELECTIVE UPDATE: Menghapus filter status='valid' agar data pending ikut tampil
         $sql = "SELECT s.*, u.nama, k.nama_sampah, k.satuan
                 FROM setoran s
                 JOIN users u ON s.user_id = u.id
@@ -168,14 +166,17 @@ class SetoranController {
 
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
-            $harga_satuan = isset($kat['harga_guru']) ? $kat['harga_guru'] : ($kat['harga_dasar'] ?? 0);
+            
+            // Pengamanan perhitungan
+            $harga_satuan = (float)($kat['harga_dasar'] ?? 0);
+            $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
             
             $this->setoranModel->create([
                 'user_id' => $_POST['user_id'], 
                 'kategori_id' => $_POST['kategori_id'], 
                 'berat' => $jml,
                 'total_harga' => $jml * $harga_satuan, 
-                'total_pengepul' => $jml * $kat['harga_pengepul'],
+                'total_pengepul' => $jml * $harga_pengepul,
                 'walikelas_id' => null, 
                 'status' => 'pending'
             ]);
@@ -188,9 +189,17 @@ class SetoranController {
     }
 
     // =======================================================
-    // 4. VALIDASI SETORAN
+    // 4. VALIDASI SETORAN (DENGAN AUTO-HEALING & DOUBLE CHECK)
     // =======================================================
     public function validasi() {
+        // 🛠️ AUTO-HEALING SYSTEM: Perbaiki data Rp 0 secara diam-diam sebelum ditampilkan!
+        $sql_heal = "UPDATE setoran s 
+                     JOIN kategori_sampah k ON s.kategori_id = k.id 
+                     SET s.total_harga = (s.berat * k.harga_dasar), 
+                         s.total_pengepul = (s.berat * k.harga_pengepul) 
+                     WHERE s.status = 'pending' AND (s.total_harga = 0 OR s.total_pengepul = 0)";
+        $this->db->query($sql_heal);
+
         $pending = $this->setoranModel->getPending();
         $title = "Validasi Setoran";
         $content = __DIR__ . '/../../views/admin/setoran/validasi.php';
@@ -216,12 +225,14 @@ class SetoranController {
 
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
+            $harga_dasar = (float)($kat['harga_dasar'] ?? 0);
+            $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
             
             $this->setoranModel->update($id, [
                 'kategori_id' => $_POST['kategori_id'], 
                 'berat' => $jml,
-                'total_harga' => $jml * $kat['harga_dasar'], 
-                'total_pengepul' => $jml * $kat['harga_pengepul']
+                'total_harga' => $jml * $harga_dasar, 
+                'total_pengepul' => $jml * $harga_pengepul
             ]);
             
             Logger::log("Edit Pending", "Petugas mengoreksi data setoran pending ID #$id menjadi $jml Pcs");
@@ -231,25 +242,32 @@ class SetoranController {
         }
     }
 
-    // HANYA ADA SATU FUNGSI PROSES VALIDASI
     public function proses_validasi($id) {
+        // 🛠️ DOUBLE SECURITY CHECK: Pastikan harga yang masuk adalah harga terbaru
         $data = $this->setoranModel->getById($id); 
-        $this->setoranModel->updateStatus($id, 'valid');
-        
-        Logger::log("Validasi Setoran", "Petugas memvalidasi setoran ID #$id sebesar Rp " . number_format($data['total_harga']));
+        if ($data) {
+            $kat = $this->sampahModel->getById($data['kategori_id']);
+            $total_harga = $data['berat'] * (float)$kat['harga_dasar'];
+            $total_pengepul = $data['berat'] * (float)$kat['harga_pengepul'];
 
-        $_SESSION['success'] = "Data divalidasi.";
+            // Update harga riil beserta status valid
+            $sql = "UPDATE setoran SET total_harga = ?, total_pengepul = ?, status = 'valid' WHERE id = ?";
+            $this->db->prepare($sql)->execute([$total_harga, $total_pengepul, $id]);
+            
+            Logger::log("Validasi Setoran", "Petugas memvalidasi setoran ID #$id sebesar Rp " . number_format($total_harga, 0, ',', '.'));
+            $_SESSION['success'] = "Data divalidasi dan saldo otomatis bertambah.";
+        } else {
+            $_SESSION['error'] = "Data tidak ditemukan.";
+        }
+        
         header('Location: ' . BASE_URL . '/setoran/validasi');
         exit;
     }
 
-    // HANYA ADA SATU FUNGSI HAPUS PENDING
     public function hapus_pending($id) {
         $this->setoranModel->delete($id);
-
         Logger::log("Hapus Antrean", "Petugas menghapus setoran pending ID #$id");
-
-        $_SESSION['success'] = "Data dihapus.";
+        $_SESSION['success'] = "Data antrean dihapus.";
         header('Location: ' . BASE_URL . '/setoran/validasi');
         exit;
     }
@@ -353,7 +371,7 @@ class SetoranController {
 
                 $sql = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
                         VALUES (?, NULL, ?, ?, ?, ?, 'valid', 0)";
-                $this->db->prepare($sql)->execute([$user_id, $kategori_id, $berat, $berat * $kat['harga_dasar'], $berat * $kat['harga_pengepul']]);
+                $this->db->prepare($sql)->execute([$user_id, $kategori_id, $berat, $berat * (float)$kat['harga_dasar'], $berat * (float)$kat['harga_pengepul']]);
                 
                 Logger::log("Denda Kesiswaan", "Petugas mencatat denda pelanggaran sebesar $berat Pcs ke Kas Kesiswaan");
                 $_SESSION['success'] = "Berhasil catat denda $berat Pcs ke Kas Kesiswaan.";

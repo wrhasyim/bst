@@ -33,13 +33,20 @@ class PenjualanController {
     // 2. FORM INPUT PENJUALAN (Filter Kategori Bersaldo Saja)
     // =================================================================
     public function create() {
-        // Query pintar: Hanya memunculkan kategori sampah yang memiliki stok 'is_sold = 0'
-        $sql = "SELECT k.id, k.nama_sampah, k.harga_pengepul, k.satuan, IFNULL(SUM(s.berat), 0) as stok_tersedia
+        // 🛠️ BUG FIX ULTIMATE: Menggunakan Sub-Query (SELECT di dalam SELECT)
+        // Solusi ampuh menembus blokir 'ONLY_FULL_GROUP_BY' Strict Mode MySQL.
+        // Memastikan barang valid bernilai '0' atau 'NULL' terbaca dengan sempurna.
+        $sql = "SELECT k.id, k.nama_sampah, k.harga_pengepul, k.satuan,
+                       (SELECT IFNULL(SUM(berat), 0) 
+                        FROM setoran s 
+                        WHERE s.kategori_id = k.id 
+                          AND s.status = 'valid' 
+                          AND (s.is_sold = 0 OR s.is_sold IS NULL)
+                       ) as stok_tersedia
                 FROM kategori_sampah k
-                LEFT JOIN setoran s ON k.id = s.kategori_id AND s.status = 'valid' AND s.is_sold = 0
                 WHERE k.nama_sampah != '🌟 REWARD PRESTASI'
-                GROUP BY k.id
                 HAVING stok_tersedia > 0";
+                
         $kategori_ready = $this->db->query($sql)->fetchAll();
 
         $title = "Input Penjualan Pengepul";
@@ -52,38 +59,44 @@ class PenjualanController {
     // =================================================================
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'staff')) {
-            $kategori_id  = (int)$_POST['kategori_id'];
-            $harga_per_kg = (float)$_POST['harga_per_kg'];
-            $keterangan   = htmlspecialchars($_POST['keterangan'] ?? 'Penjualan ke Pengepul (Rutin)');
+            $kategori_id   = (int)$_POST['kategori_id'];
+            
+            // 🛠️ CRITICAL RULE APPLIED: Ganti dari harga_per_kg menjadi harga_per_pcs
+            $harga_per_pcs = (float)$_POST['harga_per_pcs'];
+            $keterangan    = htmlspecialchars($_POST['keterangan'] ?? 'Penjualan ke Pengepul (Rutin)');
 
             try {
                 // 🔐 START TRANSACTION: Kunci database untuk operasi relasional ini
                 $this->db->beginTransaction();
 
                 // 1. Lock & Hitung Stok Tersedia (FOR UPDATE mencegah Race Condition dari klik ganda)
-                $stmtStok = $this->db->prepare("SELECT IFNULL(SUM(berat), 0) as total_berat FROM setoran WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0 FOR UPDATE");
+                // 🛠️ CRITICAL RULE APPLIED: Alias SUM(berat) menjadi total_pcs
+                $stmtStok = $this->db->prepare("SELECT IFNULL(SUM(berat), 0) as total_pcs FROM setoran WHERE kategori_id = ? AND status = 'valid' AND (is_sold = 0 OR is_sold IS NULL) FOR UPDATE");
                 $stmtStok->execute([$kategori_id]);
                 $stok = $stmtStok->fetch();
-                $total_berat = $stok['total_berat'];
+                $total_pcs = $stok['total_pcs'];
 
-                if ($total_berat <= 0) {
+                if ($total_pcs <= 0) {
                     throw new Exception("Stok untuk kategori sampah ini kosong atau baru saja terjual oleh admin lain.");
                 }
 
-                $total_pendapatan = $total_berat * $harga_per_kg;
+                // 🛠️ CRITICAL RULE APPLIED: Kalkulasi menggunakan pcs
+                $total_pendapatan = $total_pcs * $harga_per_pcs;
 
                 // 2. Eksekusi Pertama: Catat di tabel Penjualan
-                $stmtInsert = $this->db->prepare("INSERT INTO penjualan (kategori_id, total_berat, harga_per_kg, total_pendapatan, tanggal_jual, keterangan) VALUES (?, ?, ?, ?, NOW(), ?)");
-                $stmtInsert->execute([$kategori_id, $total_berat, $harga_per_kg, $total_pendapatan, $keterangan]);
+                // 🛠️ CRITICAL RULE APPLIED: Insert menggunakan kolom tabel yang baru (total_pcs, harga_per_pcs)
+                $stmtInsert = $this->db->prepare("INSERT INTO penjualan (kategori_id, total_pcs, harga_per_pcs, total_pendapatan, tanggal_jual, keterangan) VALUES (?, ?, ?, ?, NOW(), ?)");
+                $stmtInsert->execute([$kategori_id, $total_pcs, $harga_per_pcs, $total_pendapatan, $keterangan]);
 
                 // 3. Eksekusi Kedua: Update status barang di tabel Setoran (Tandai Terjual)
-                $stmtUpdate = $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0");
+                $stmtUpdate = $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE kategori_id = ? AND status = 'valid' AND (is_sold = 0 OR is_sold IS NULL)");
                 $stmtUpdate->execute([$kategori_id]);
 
                 // ✅ COMMIT TRANSACTION: Jika kedua eksekusi di atas sukses, simpan data permanen ke database
                 $this->db->commit();
 
-                $_SESSION['success'] = "Berhasil! Stok {$total_berat} terjual dengan pendapatan Rp " . number_format($total_pendapatan, 0, ',', '.');
+                // 🛠️ CRITICAL RULE APPLIED: Pesan sukses menggunakan Pcs
+                $_SESSION['success'] = "Berhasil! Stok {$total_pcs} Pcs terjual dengan pendapatan Rp " . number_format($total_pendapatan, 0, ',', '.');
             } catch (Exception $e) {
                 // ❌ ROLLBACK TRANSACTION: Jika ada SATU SAJA yang gagal, batalkan semuanya! (Uang & Barang aman)
                 $this->db->rollBack();
