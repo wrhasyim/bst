@@ -37,11 +37,13 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Nama Web/Sekolah</label>
-                        <input type="text" name="nama_web" value="<?= $data['nama_web'] ?? '' ?>" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <!-- 🛠️ FIX: Ubah name & variabel menjadi nama_sekolah sesuai database -->
+                        <input type="text" name="nama_sekolah" value="<?= htmlspecialchars($data['nama_sekolah'] ?? '') ?>" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Alamat Lengkap</label>
-                        <textarea name="alamat_web" rows="4" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"><?= $data['alamat_web'] ?? '' ?></textarea>
+                        <!-- 🛠️ FIX: Ubah name & variabel menjadi alamat_sekolah sesuai database -->
+                        <textarea name="alamat_sekolah" rows="4" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"><?= htmlspecialchars($data['alamat_sekolah'] ?? '') ?></textarea>
                     </div>
                 </div>
             </div>
@@ -52,24 +54,24 @@
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 italic underline">Kas Bank Sampah (%)</label>
-                        <input type="number" step="0.1" name="persen_kas_bst" x-model="bst" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none">
+                        <input type="number" step="0.1" name="persen_kas_bst" x-model="bst" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 italic underline">Kas Sekolah (%)</label>
-                        <input type="number" step="0.1" name="persen_kas_sekolah" x-model="sekolah" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none">
+                        <input type="number" step="0.1" name="persen_kas_sekolah" x-model="sekolah" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 italic underline">Honor Pengelola (%)</label>
-                        <input type="number" step="0.1" name="persen_honor_pengelola" x-model="pengelola" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none">
+                        <input type="number" step="0.1" name="persen_honor_pengelola" x-model="pengelola" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 italic underline">Honor Wali Kelas (%)</label>
-                        <input type="number" step="0.1" name="persen_honor_walikelas" x-model="wali" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none">
+                        <input type="number" step="0.1" name="persen_honor_walikelas" x-model="wali" class="w-full px-4 py-4 bg-slate-900 text-emerald-400 rounded-3xl text-xl font-black outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
                     </div>
                     <!-- ✨ FITUR BARU: HONOR PIKET -->
                     <div class="col-span-2 md:col-span-1 border-l-4 border-amber-500 pl-4">
                         <label class="block text-[10px] font-bold text-amber-500 uppercase mb-2 ml-1 italic underline">Honor Siswa Piket (%)</label>
-                        <input type="number" step="0.1" name="persen_honor_piket" x-model="piket" class="w-full px-4 py-4 bg-amber-50 text-amber-600 border-2 border-amber-200 rounded-3xl text-xl font-black outline-none focus:ring-2 focus:ring-amber-500">
+                        <input type="number" step="0.1" name="persen_honor_piket" x-model="piket" class="w-full px-4 py-4 bg-amber-50 text-amber-600 border-2 border-amber-200 rounded-3xl text-xl font-black outline-none focus:ring-2 focus:ring-amber-500 transition-all">
                     </div>
                 </div>
 

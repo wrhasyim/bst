@@ -15,6 +15,9 @@ class PengaturanController {
         $this->db = Database::getInstance()->getConnection();
     }
 
+    // =================================================================
+    // 1. TAMPILKAN HALAMAN PENGATURAN
+    // =================================================================
     public function index() {
         $stmt = $this->db->query("SELECT kunci, nilai FROM pengaturan");
         $data = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -29,38 +32,67 @@ class PengaturanController {
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
+    // =================================================================
+    // 2. PROSES UPDATE IDENTITAS & PERSENTASE (AUTO-UPSERT)
+    // =================================================================
     public function update_identitas() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf(); // 🛡️ Cegah serangan manipulasi form
 
-            // 🛠️ FIX & UPDATE: Ambil data dan pastikan formatnya angka (float)
-            $kas_bst = (float)($_POST['persen_kas_bst'] ?? 0);
+            // 1. Ambil & Validasi Data Angka (Casting ke Float)
+            $kas_bst     = (float)($_POST['persen_kas_bst'] ?? 0);
             $kas_sekolah = (float)($_POST['persen_kas_sekolah'] ?? 0);
-            $pengelola = (float)($_POST['persen_honor_pengelola'] ?? 0);
-            $walikelas = (float)($_POST['persen_honor_walikelas'] ?? 0);
-            $piket = (float)($_POST['persen_honor_piket'] ?? 0); // ✨ FITUR BARU: Porsi Siswa Piket
+            $pengelola   = (float)($_POST['persen_honor_pengelola'] ?? 0);
+            $walikelas   = (float)($_POST['persen_honor_walikelas'] ?? 0);
+            $piket       = (float)($_POST['persen_honor_piket'] ?? 0); // ✨ FITUR BARU: Porsi Siswa Piket
 
-            // Kalkulasi 5 Variabel
+            // 2. Kalkulasi Total Persentase
             $total = $kas_bst + $kas_sekolah + $pengelola + $walikelas + $piket;
 
-            // Validasi Ketat 100%
+            // 3. Validasi Ketat 100%
             if ($total != 100) {
-                $_SESSION['error'] = "Gagal! Total alokasi honor harus tepat 100% (Input Anda saat ini: $total%)";
+                $_SESSION['error'] = "Gagal! Total alokasi distribusi harus tepat 100% (Input Anda saat ini: $total%)";
                 header('Location: ' . BASE_URL . '/pengaturan');
                 exit;
             }
 
-            // Simpan perulangan ke database
-            foreach ($_POST as $kunci => $nilai) {
-                if ($kunci !== 'csrf_token') { 
-                    $stmt = $this->db->prepare("UPDATE pengaturan SET nilai = :v WHERE kunci = :k");
-                    $stmt->execute(['v' => $nilai, 'k' => $kunci]);
+            try {
+                // 🔐 START TRANSACTION
+                $this->db->beginTransaction();
+                
+                // 4. Logika Cerdas UPSERT (Update or Insert)
+                foreach ($_POST as $kunci => $nilai) {
+                    if ($kunci !== 'csrf_token') {
+                        // Cek apakah kunci sudah ada di database?
+                        $cek = $this->db->prepare("SELECT id FROM pengaturan WHERE kunci = ?");
+                        $cek->execute([$kunci]);
+                        
+                        if ($cek->rowCount() > 0) {
+                            // Jika ADA -> Lakukan UPDATE
+                            $stmt = $this->db->prepare("UPDATE pengaturan SET nilai = :v WHERE kunci = :k");
+                            $stmt->execute(['v' => $nilai, 'k' => $kunci]);
+                        } else {
+                            // Jika BELUM ADA -> Lakukan INSERT Otomatis
+                            $stmt = $this->db->prepare("INSERT INTO pengaturan (kunci, nilai) VALUES (:k, :v)");
+                            $stmt->execute(['k' => $kunci, 'v' => $nilai]);
+                        }
+                    }
                 }
+                
+                // ✅ COMMIT: Simpan permanen
+                $this->db->commit();
+                
+                // 🛡️ Catat aktivitas ke Audit Trail
+                Logger::log("Update Pengaturan", "Admin memperbarui profil institusi dan distribusi margin honor (5 Entitas).");
+                $_SESSION['success'] = "Pengaturan & Kebijakan Honor berhasil diperbarui secara permanen!";
+
+            } catch (Exception $e) {
+                // ❌ ROLLBACK: Jika database bermasalah
+                $this->db->rollBack();
+                $_SESSION['error'] = "Terjadi Kesalahan Sistem Database: " . $e->getMessage();
             }
-            
-            Logger::log("Update Pengaturan", "Admin mengubah persentase bagi hasil (Menambahkan porsi Siswa Piket).");
-            $_SESSION['success'] = "Pengaturan & Kebijakan Honor (5 Kategori) berhasil diperbarui!";
         }
+        
         header('Location: ' . BASE_URL . '/pengaturan');
         exit;
     }
@@ -142,10 +174,9 @@ class PengaturanController {
     }
 
     // =================================================================
-    // 1. RESET DATA TRANSAKSI SAJA
+    // 5. RESET DATA TRANSAKSI SAJA
     // =================================================================
     public function reset_transaksi() {
-        // 🛡️ WAJIB POST untuk fungsi destruktif
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf(); 
 
@@ -171,10 +202,9 @@ class PengaturanController {
     }
 
     // =================================================================
-    // 2. RESET TOTAL SISTEM
+    // 6. RESET TOTAL SISTEM
     // =================================================================
     public function reset_total() {
-        // 🛡️ WAJIB POST untuk fungsi destruktif
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf();
 
@@ -203,6 +233,9 @@ class PengaturanController {
         exit;
     }
 
+    // =================================================================
+    // 7. LOGS AUDIT TRAIL
+    // =================================================================
     public function logs() {
         if ($_SESSION['role'] !== 'admin') { header('Location: ' . BASE_URL . '/dashboard'); exit; }
 
