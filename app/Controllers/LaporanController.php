@@ -51,29 +51,33 @@ class LaporanController {
         $sqlBebanReward = "SELECT SUM(s.total_harga) FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE k.nama_sampah = '🌟 REWARD PRESTASI'";
         $beban_reward = $this->db->query($sqlBebanReward)->fetchColumn() ?? 0;
 
-        // 🛠️ UPDATE: Sisa untuk Kas BST dikurangi juga dengan Honor Piket
+        // 🛠️ Sisa untuk Kas BST dikurangi juga dengan Honor Piket (Sistem Pengaman Uang)
         $kas_bst = $margin_total - ($honor_walikelas + $honor_pengelola + $kas_sekolah + $honor_piket) - $beban_reward;
 
-        // TRACING STATUS PEMBAYARAN & REFUND PENGELOLA
-        $cair_pengelola_out = $this->db->query("SELECT IFNULL(SUM(ph.jumlah), 0) FROM pencairan_honor ph JOIN users u ON ph.user_id = u.id WHERE u.role IN ('admin', 'staff')")->fetchColumn();
+        // =================================================================
+        // 🛠️ BUG FIX ULTIMATE: TRACING BERBASIS KETERANGAN (MENCEGAH SALAH SASARAN)
+        // =================================================================
+
+        // TRACING STATUS PEMBAYARAN PENGELOLA
+        $cair_pengelola_out = $this->db->query("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE keterangan LIKE '%Pengelola%'")->fetchColumn();
         $refund_pengelola = $this->db->query("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Pengelola%'")->fetchColumn();
         $cair_pengelola = $cair_pengelola_out - $refund_pengelola;
         $sisa_pengelola = $honor_pengelola - $cair_pengelola;
 
-        // TRACING STATUS PEMBAYARAN & REFUND WALI KELAS
+        // TRACING STATUS PEMBAYARAN WALI KELAS
         $cair_wali_out = $this->db->query("SELECT IFNULL(SUM(ph.jumlah), 0) FROM pencairan_honor ph JOIN users u ON ph.user_id = u.id WHERE u.role NOT IN ('admin', 'staff', 'siswa')")->fetchColumn();
         $refund_wali = $this->db->query("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Wali Kelas%'")->fetchColumn();
         $cair_wali = $cair_wali_out - $refund_wali;
         $sisa_wali = $honor_walikelas - $cair_wali;
 
-        // TRACING STATUS PEMBAYARAN & REFUND KAS SEKOLAH
+        // TRACING STATUS PEMBAYARAN KAS SEKOLAH
         $cair_sekolah_out = $this->db->query("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pengeluaran' AND keterangan LIKE '%Sumbangan Kas Sekolah%'")->fetchColumn();
         $refund_sekolah = $this->db->query("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pemasukan' AND keterangan LIKE '%Refund Kas Sekolah%'")->fetchColumn();
         $cair_sekolah = $cair_sekolah_out - $refund_sekolah;
         $sisa_sekolah = $kas_sekolah - $cair_sekolah;
 
-        // ✨ FITUR BARU: TRACING STATUS PEMBAYARAN & REFUND PIKET
-        $cair_piket_out = $this->db->query("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE jenis = 'piket'")->fetchColumn();
+        // ✨ TRACING STATUS PEMBAYARAN PIKET
+        $cair_piket_out = $this->db->query("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE keterangan LIKE '%Piket%'")->fetchColumn();
         $refund_piket = $this->db->query("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Piket%'")->fetchColumn();
         $cair_piket = $cair_piket_out - $refund_piket;
         $sisa_piket = $honor_piket - $cair_piket;
@@ -81,7 +85,7 @@ class LaporanController {
         $persen_sekolah = $config['persen_kas_sekolah'] ?? 0;
         $persen_pengelola = $config['persen_honor_pengelola'] ?? 0;
         $persen_wali = $config['persen_honor_walikelas'] ?? 0;
-        $persen_piket = $config['persen_honor_piket'] ?? 0; // ✨ NEW
+        $persen_piket = $config['persen_honor_piket'] ?? 0; 
         $persen_bst = $config['persen_kas_bst'] ?? 0;
 
         $laporan = [
@@ -93,20 +97,20 @@ class LaporanController {
             'kas_sekolah'      => $kas_sekolah,
             'honor_pengelola'  => $honor_pengelola,
             'honor_walikelas'  => $honor_walikelas,
-            'honor_piket'      => $honor_piket,     // ✨ NEW
+            'honor_piket'      => $honor_piket,     
             'cair_pengelola'   => $cair_pengelola,
             'sisa_pengelola'   => $sisa_pengelola,
             'cair_wali'        => $cair_wali,
             'sisa_wali'        => $sisa_wali,
             'cair_sekolah'     => $cair_sekolah,
             'sisa_sekolah'     => $sisa_sekolah,
-            'cair_piket'       => $cair_piket,      // ✨ NEW
-            'sisa_piket'       => $sisa_piket,      // ✨ NEW
+            'cair_piket'       => $cair_piket,      
+            'sisa_piket'       => $sisa_piket,      
             'persen_bst'       => $persen_bst,
             'persen_sekolah'   => $persen_sekolah,
             'persen_pengelola' => $persen_pengelola,
             'persen_wali'      => $persen_wali,
-            'persen_piket'     => $persen_piket     // ✨ NEW
+            'persen_piket'     => $persen_piket     
         ];
 
         $history = $this->db->query("SELECT p.*, k.nama_sampah FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id ORDER BY p.tanggal_jual DESC LIMIT 10")->fetchAll();
@@ -124,7 +128,6 @@ class LaporanController {
         $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
         $persen_wali = ($config['persen_honor_walikelas'] ?? 0) / 100;
 
-        // Tampilkan rekap honor walikelas meskipun gurunya sudah soft-delete agar histori tetap sinkron
         $qRekap = "SELECT 
                         u.nama AS nama_guru, k.nama_kelas, 
                         SUM(CASE WHEN s.is_sold = 0 THEN (s.total_pengepul - s.total_harga) * :p1 ELSE 0 END) as total_potensi,
@@ -166,7 +169,6 @@ class LaporanController {
             $stmtKelas->execute(['id' => $kelas_id]);
             $nama_kelas_aktif = $stmtKelas->fetchColumn();
 
-            // Tampilkan seluruh siswa (aktif maupun alumni/soft-delete) di rekap sejarah kelas
             $sql = "SELECT u.nama, 
                            IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, 
                            IFNULL(SUM(s.total_harga), 0) as total_rp
@@ -193,7 +195,6 @@ class LaporanController {
         $user_id = $_GET['user_id'] ?? null;
         $kelas_id = $_GET['kelas_id'] ?? null;
         
-        // Filter: Hanya tampilkan siswa yang MASIH AKTIF di dropdown pemilihan nasabah
         $siswa_list = $this->db->query("SELECT u.id, u.nama, k.nama_kelas 
                                         FROM users u 
                                         LEFT JOIN kelas k ON u.kelas_id = k.id 
@@ -235,7 +236,6 @@ class LaporanController {
             $stmtKelas->execute([$kelas_id]);
             $detail_kelas = $stmtKelas->fetch();
 
-            // Tetap hitung saldo meskipun ada siswa alumni/soft-delete agar saldo kelas akurat
             $sqlRekap = "SELECT u.id, u.nama,
                              (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') AS total_masuk,
                              (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) AS total_keluar
@@ -274,7 +274,6 @@ class LaporanController {
 
             UNION ALL
             
-            -- Penarikan: JOIN u tanpa filter deleted_at agar nama nasabah yang sudah dihapus tetap tampil di sejarah Buku Kas
             SELECT MAX(p.tanggal_tarik) AS waktu, CONCAT('Penarikan Kolektif: Kelas ', k.nama_kelas) AS uraian, CONCAT(COUNT(p.id), ' Transaksi Siswa') AS detail, 0 AS debit, SUM(p.jumlah) AS kredit, 'keluar_nasabah' as jenis
             FROM penarikan p JOIN users u ON p.user_id = u.id JOIN kelas k ON u.kelas_id = k.id 
             WHERE DATE_FORMAT(p.tanggal_tarik, '%Y-%m') = :p3a AND u.role = 'siswa' AND u.nama NOT LIKE '%KESISWAAN%'
@@ -397,7 +396,7 @@ class LaporanController {
     // =================================================================
     public function cairkan_kas_sekolah() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'staff')) {
-            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+            Security::validate_csrf(); 
             
             $nominal = (float) $_POST['nominal'];
             if ($nominal > 0) {
@@ -417,7 +416,7 @@ class LaporanController {
 
     public function cairkan_honor_pengelola() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'staff')) {
-            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+            Security::validate_csrf(); 
             
             $nominal = (float) $_POST['nominal'];
             $user_id = $_SESSION['user_id']; 
@@ -437,17 +436,15 @@ class LaporanController {
         exit;
     }
 
-    // ✨ FITUR BARU: Pencairan Honor Siswa Piket
     public function cairkan_honor_piket() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'staff')) {
-            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+            Security::validate_csrf(); 
             
             $nominal = (float) $_POST['nominal'];
             
             if ($nominal > 0) {
                 try {
                     $ket = "Pencairan Honor Siswa Piket (Berdasarkan Margin Pembagian)";
-                    // 'piket' dimasukkan ke kolom jenis
                     $sql = "INSERT INTO pencairan_honor (user_id, jumlah, jenis, keterangan, tanggal_cair) VALUES (?, ?, 'piket', ?, NOW())";
                     $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket]);
                     $_SESSION['success'] = "Berhasil mencairkan Honor Siswa Piket.";
@@ -462,7 +459,7 @@ class LaporanController {
 
     public function refund_lebih_bayar() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'staff')) {
-            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+            Security::validate_csrf(); 
             
             $nominal = (float) $_POST['nominal'];
             $jenis = $_POST['jenis_refund'];
@@ -472,7 +469,7 @@ class LaporanController {
                 if ($jenis === 'sekolah') $ket = "Refund Kas Sekolah (Koreksi)";
                 if ($jenis === 'pengelola') $ket = "Refund Honor Pengelola (Koreksi)";
                 if ($jenis === 'wali') $ket = "Refund Honor Walas (Koreksi)";
-                if ($jenis === 'piket') $ket = "Refund Honor Piket (Koreksi)"; // ✨ NEW
+                if ($jenis === 'piket') $ket = "Refund Honor Piket (Koreksi)";
 
                 if ($ket !== "") {
                     try {
