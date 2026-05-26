@@ -1,5 +1,5 @@
 -- BST SYSTEM DATABASE BACKUP
--- Tanggal: 2026-05-26 10:33:38
+-- Tanggal: 2026-05-26 10:56:09
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -16,7 +16,7 @@ CREATE TABLE `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=76 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=77 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `activity_logs` VALUES("1","1","Logout","User keluar dari sistem","::1","2026-05-04 16:46:33");
 INSERT INTO `activity_logs` VALUES("2","1","Login","User berhasil masuk ke dalam sistem","::1","2026-05-04 16:47:23");
@@ -93,6 +93,7 @@ INSERT INTO `activity_logs` VALUES("72","1","Backup Database","Admin mengunduh f
 INSERT INTO `activity_logs` VALUES("73","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 13:53:59");
 INSERT INTO `activity_logs` VALUES("74","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 15:14:16");
 INSERT INTO `activity_logs` VALUES("75","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 15:33:38");
+INSERT INTO `activity_logs` VALUES("76","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 15:56:09");
 
 
 DROP TABLE IF EXISTS `detail_setoran`;
@@ -148,30 +149,30 @@ CREATE TABLE `kelas` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1027 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `kelas` VALUES("3","KAS KESISWAAN",NULL);
-INSERT INTO `kelas` VALUES("1003","X MPLB 1",NULL);
-INSERT INTO `kelas` VALUES("1004","X MPLB 2",NULL);
-INSERT INTO `kelas` VALUES("1005","X TM 1",NULL);
-INSERT INTO `kelas` VALUES("1006","X TM 2",NULL);
-INSERT INTO `kelas` VALUES("1007","X TM 3",NULL);
-INSERT INTO `kelas` VALUES("1008","X TM 4",NULL);
-INSERT INTO `kelas` VALUES("1009","X TM 5",NULL);
-INSERT INTO `kelas` VALUES("1010","XI MPLB 1",NULL);
-INSERT INTO `kelas` VALUES("1011","XI MPLB 2",NULL);
-INSERT INTO `kelas` VALUES("1012","XI TM 1",NULL);
-INSERT INTO `kelas` VALUES("1013","XI TM 2",NULL);
-INSERT INTO `kelas` VALUES("1014","XI TM 3",NULL);
-INSERT INTO `kelas` VALUES("1015","XI TM 4",NULL);
-INSERT INTO `kelas` VALUES("1016","XI TM 5",NULL);
-INSERT INTO `kelas` VALUES("1017","XI TM 6",NULL);
-INSERT INTO `kelas` VALUES("1018","XII MPLB 1",NULL);
-INSERT INTO `kelas` VALUES("1019","XII MPLB 2",NULL);
-INSERT INTO `kelas` VALUES("1020","XII TM 1",NULL);
-INSERT INTO `kelas` VALUES("1021","XII TM 2",NULL);
-INSERT INTO `kelas` VALUES("1022","XII TM 5",NULL);
-INSERT INTO `kelas` VALUES("1023","XII TM 6",NULL);
-INSERT INTO `kelas` VALUES("1024","XII TM 3",NULL);
-INSERT INTO `kelas` VALUES("1025","XII TM 4",NULL);
-INSERT INTO `kelas` VALUES("1026","XII TM 7",NULL);
+INSERT INTO `kelas` VALUES("1003","X MPLB 1","1871");
+INSERT INTO `kelas` VALUES("1004","X MPLB 2","1864");
+INSERT INTO `kelas` VALUES("1005","X TM 1","1882");
+INSERT INTO `kelas` VALUES("1006","X TM 2","1873");
+INSERT INTO `kelas` VALUES("1007","X TM 3","1863");
+INSERT INTO `kelas` VALUES("1008","X TM 4","1889");
+INSERT INTO `kelas` VALUES("1009","X TM 5","1890");
+INSERT INTO `kelas` VALUES("1010","XI MPLB 1","1879");
+INSERT INTO `kelas` VALUES("1011","XI MPLB 2","1884");
+INSERT INTO `kelas` VALUES("1012","XI TM 1","1874");
+INSERT INTO `kelas` VALUES("1013","XI TM 2","1859");
+INSERT INTO `kelas` VALUES("1014","XI TM 3","1880");
+INSERT INTO `kelas` VALUES("1015","XI TM 4","1878");
+INSERT INTO `kelas` VALUES("1016","XI TM 5","1869");
+INSERT INTO `kelas` VALUES("1017","XI TM 6","1875");
+INSERT INTO `kelas` VALUES("1018","XII MPLB 1","1868");
+INSERT INTO `kelas` VALUES("1019","XII MPLB 2","1865");
+INSERT INTO `kelas` VALUES("1020","XII TM 1","1883");
+INSERT INTO `kelas` VALUES("1021","XII TM 2","1888");
+INSERT INTO `kelas` VALUES("1022","XII TM 5","1857");
+INSERT INTO `kelas` VALUES("1023","XII TM 6","1876");
+INSERT INTO `kelas` VALUES("1024","XII TM 3","1877");
+INSERT INTO `kelas` VALUES("1025","XII TM 4","1858");
+INSERT INTO `kelas` VALUES("1026","XII TM 7","1887");
 
 
 DROP TABLE IF EXISTS `penarikan`;
@@ -267,7 +268,7 @@ CREATE TABLE `users` (
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1890 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1891 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `users` VALUES("1","Administrator","admin","$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi","admin",NULL,NULL,"1",NULL);
 INSERT INTO `users` VALUES("19","KAS KESISWAAN (DENDA)","kesiswaan","$2y$10$J8NFTtxScANV6OZLO6nhjO6ZG9V2XZrBmyrqw6wGSkwQA0.UolFIy","siswa","3","","1",NULL);
@@ -1098,6 +1099,7 @@ INSERT INTO `users` VALUES("1885","TRI ZULFAN PURNAMA PUTRA, S.Pd","trizul","$2y
 INSERT INTO `users` VALUES("1886","VIONA FARA NABILA, S.Pd","viona","$2y$10$KRLstMMqoKDGYfCyWLTIFuiL7SW0sB.8zvdK9vOsoRjd.oN7KBdlS","guru",NULL,NULL,"1",NULL);
 INSERT INTO `users` VALUES("1887","WAHYU RUSDIANSYAH, S.Kom","wahyu","$2y$10$Q8ugTRdKArn1GxD7lTpnXu8QEAGabKVmsrozdckp9vyY.45ipqtES","guru",NULL,NULL,"1",NULL);
 INSERT INTO `users` VALUES("1888","YATI NURHAYATI, S.Pd","yati","$2y$10$s8ujy42hDad4rCQTEYPbA.kI2CBMwT55lrMNEDFM4djHsioCXnAnm","guru",NULL,NULL,"1",NULL);
-INSERT INTO `users` VALUES("1889","Siti Yulyasinta Lukmana Putri, S.Pd","sinta","$2y$10$KAPD8zVaJz5WDcCkUR0ED.QsGqpBVu/n84lNaHTCRnYs6U.sSkxVG","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1889","SITI YULYASINTA LUKMANA PUTRI, S.Pd","sinta","$2y$10$dD4xjeMMgXaWoQmZWqf6jedJpDj/D8MaeAscSuFxVyqWAsS5yvxNu","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1890","NIDA AYU ZAHARA, S.Pd","nida","$2y$10$JYD3j1Ys4tltZa0IYtsdHOZGtCjRd3a9MBfdEXHClIhhEKOrUMnrO","guru",NULL,NULL,"1",NULL);
 
 SET FOREIGN_KEY_CHECKS = 1;

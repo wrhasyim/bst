@@ -249,4 +249,51 @@ class PengaturanController {
         $content = __DIR__ . '/../../views/admin/pengaturan/logs.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
+    // =================================================================
+    // 8. SYSTEM UPDATER (OTA PATCHING)
+    // =================================================================
+    public function apply_patch() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Keamanan ekstra
+
+            // Validasi keberadaan file
+            if (!isset($_FILES['file_patch']) || $_FILES['file_patch']['error'] !== UPLOAD_ERR_OK) {
+                $_SESSION['error'] = "Gagal! File patch tidak ditemukan atau terjadi kesalahan saat mengunggah.";
+                header('Location: ' . BASE_URL . '/pengaturan');
+                exit;
+            }
+
+            $file = $_FILES['file_patch']['tmp_name'];
+            $nama_file = $_FILES['file_patch']['name'];
+
+            // 1. Validasi Ekstensi (Wajib ZIP)
+            $ext = pathinfo($nama_file, PATHINFO_EXTENSION);
+            if (strtolower($ext) !== 'zip') {
+                $_SESSION['error'] = "Gagal! File patch harus berformat .zip";
+                header('Location: ' . BASE_URL . '/pengaturan');
+                exit;
+            }
+
+            // 2. Proses Ekstraksi & Overwrite (Menimpa File)
+            $zip = new ZipArchive;
+            if ($zip->open($file) === TRUE) {
+                // Tentukan lokasi root aplikasi (mundur 2 folder dari lokasi controller ini)
+                $extract_path = realpath(__DIR__ . '/../../'); 
+                
+                // Ekstrak dan timpa file secara paksa
+                $zip->extractTo($extract_path);
+                $zip->close();
+                
+                // 🛡️ Catat aktivitas ke Audit Trail
+                Logger::log("System Patch", "Admin menginstal pembaruan sistem melalui file patch: $nama_file");
+                
+                $_SESSION['success'] = "🚀 Patch Sistem Berhasil Diterapkan! Aplikasi Anda kini berada di versi terbaru.";
+            } else {
+                $_SESSION['error'] = "Sistem gagal membaca atau mengekstrak file ZIP patch. Pastikan file tidak rusak (corrupt).";
+            }
+            
+            header('Location: ' . BASE_URL . '/pengaturan');
+            exit;
+        }
+    }
 }
