@@ -1,5 +1,5 @@
 -- BST SYSTEM DATABASE BACKUP
--- Tanggal: 2026-05-26 10:56:09
+-- Tanggal: 2026-05-26 11:37:14
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -16,7 +16,7 @@ CREATE TABLE `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=77 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `activity_logs` VALUES("1","1","Logout","User keluar dari sistem","::1","2026-05-04 16:46:33");
 INSERT INTO `activity_logs` VALUES("2","1","Login","User berhasil masuk ke dalam sistem","::1","2026-05-04 16:47:23");
@@ -94,6 +94,12 @@ INSERT INTO `activity_logs` VALUES("73","1","Backup Database","Admin mengunduh f
 INSERT INTO `activity_logs` VALUES("74","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 15:14:16");
 INSERT INTO `activity_logs` VALUES("75","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 15:33:38");
 INSERT INTO `activity_logs` VALUES("76","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 15:56:09");
+INSERT INTO `activity_logs` VALUES("77","1","Restore Database","Admin memulihkan database dari file SQL.","::1","2026-05-26 15:56:55");
+INSERT INTO `activity_logs` VALUES("78","1","Update Pengaturan","Admin memperbarui profil institusi dan distribusi margin honor (5 Entitas).","::1","2026-05-26 16:07:02");
+INSERT INTO `activity_logs` VALUES("79","1","Update Pengaturan","Admin memperbarui profil institusi dan distribusi margin honor (5 Entitas).","::1","2026-05-26 16:09:36");
+INSERT INTO `activity_logs` VALUES("80","1","System Patch","Admin menginstal pembaruan sistem melalui file patch: update_V1.zip","::1","2026-05-26 16:12:34");
+INSERT INTO `activity_logs` VALUES("81","1","System Patch","Admin menginstal pembaruan sistem melalui file patch: update.zip","::1","2026-05-26 16:13:19");
+INSERT INTO `activity_logs` VALUES("82","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 16:37:14");
 
 
 DROP TABLE IF EXISTS `detail_setoran`;
