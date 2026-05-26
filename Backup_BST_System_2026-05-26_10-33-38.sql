@@ -1,5 +1,5 @@
 -- BST SYSTEM DATABASE BACKUP
--- Tanggal: 2026-05-26 10:14:16
+-- Tanggal: 2026-05-26 10:33:38
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -16,7 +16,7 @@ CREATE TABLE `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=75 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=76 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `activity_logs` VALUES("1","1","Logout","User keluar dari sistem","::1","2026-05-04 16:46:33");
 INSERT INTO `activity_logs` VALUES("2","1","Login","User berhasil masuk ke dalam sistem","::1","2026-05-04 16:47:23");
@@ -92,6 +92,7 @@ INSERT INTO `activity_logs` VALUES("71","1","Backup Database","Admin mengunduh f
 INSERT INTO `activity_logs` VALUES("72","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 13:30:20");
 INSERT INTO `activity_logs` VALUES("73","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 13:53:59");
 INSERT INTO `activity_logs` VALUES("74","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 15:14:16");
+INSERT INTO `activity_logs` VALUES("75","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 15:33:38");
 
 
 DROP TABLE IF EXISTS `detail_setoran`;
@@ -266,7 +267,7 @@ CREATE TABLE `users` (
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1857 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1890 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `users` VALUES("1","Administrator","admin","$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi","admin",NULL,NULL,"1",NULL);
 INSERT INTO `users` VALUES("19","KAS KESISWAAN (DENDA)","kesiswaan","$2y$10$J8NFTtxScANV6OZLO6nhjO6ZG9V2XZrBmyrqw6wGSkwQA0.UolFIy","siswa","3","","1",NULL);
@@ -1065,5 +1066,38 @@ INSERT INTO `users` VALUES("1853","RIKI","2223274","$2y$10$5T01kohtXeVNj9MZYuvPV
 INSERT INTO `users` VALUES("1854","SAEPUL ANWAR","2223275","$2y$10$5T01kohtXeVNj9MZYuvPV.T.xyOjr2P6CK7p76XaUfhlO6bbmTAdy","siswa","1026","2023/2024","1",NULL);
 INSERT INTO `users` VALUES("1855","WARMAN","2223276","$2y$10$5T01kohtXeVNj9MZYuvPV.T.xyOjr2P6CK7p76XaUfhlO6bbmTAdy","siswa","1026","2023/2024","1",NULL);
 INSERT INTO `users` VALUES("1856","YASMIN","2223277","$2y$10$5T01kohtXeVNj9MZYuvPV.T.xyOjr2P6CK7p76XaUfhlO6bbmTAdy","siswa","1026","2023/2024","1",NULL);
+INSERT INTO `users` VALUES("1857","ABDUL AZIS, A.Md","azis","$2y$10$qmfScm6yk8VK.SQIV.Iie.tm5aCfXaRQ7qqUxJm1vQBHsVn.1JNeO","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1858","AGUNG ISLAHUDIN, S.Pd","agung","$2y$10$BDNUIbHqf0aRZO1YYpoThuhYdMby2Ijbb0XR7GVEW4MXIZauWA6ve","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1859","AHMAD MUHIBBAN, S.Ag","iben","$2y$10$g7Ly.Hh9h57MZSCGnKnd8OgdYMusiZyGrSUJhnz4Ofp6PreA0HBPS","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1860","ASIM AZHARI, A.Md","asim","$2y$10$SQpumttgdoZJ9UvmjTji8OxxINvGAfnHdwTX6WrwlcebtzAzw8YMW","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1861","AYU WULANDARI, S.Tr. Kes","ayu","$2y$10$t2o7rewhhn0JdKuYAOapHuqcJuXOQ0hYlCVMicxJLUxOR2Vt7rbje","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1862","BINTANG KUSUMA WARDHANA, S.Si., M.Or","bintang","$2y$10$SPlh/ENr.8PT3NcufKiUBOP97v9QdgbCx9kJjQZ7MWKkmgZIosISq","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1863","BUDI AZANI, S.Pd","budi","$2y$10$FOwQSo.vDLuthlAbIb6mYOf4tQ7KXCM.We21mC3LYaGx1UJM3rafu","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1864","DEWI DAMAYANTI, S.Pd","dewi","$2y$10$RqBTO2M/nUVkF.0UVugTy.URKptyeQB6mguPI5UvlzHTNwWlGHjNa","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1865","DINI DIMYATI, S.Pd","dini","$2y$10$gY0n/LVzqNknbkg/q2mZyORzb.Jt2.O6aaO6eqBxcUoJXbSX4ZqMa","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1866","Drs. DANA SUTISNA","dana","$2y$10$v3flApPHNXSONARaviI4LOgK/ksXS/2geCbFuyBOL/9FddQG42wma","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1867","EKA SUPRIADI, S.Kom","eka","$2y$10$GtZUWa85qXmGBNvphyMhoOSbGvtFQOTxF.z2SweiI36E82SsLTH4y","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1868","EUIS NANI, S.E","euis","$2y$10$9ySaGWzN6HYv28LQhdYQCuvTAXd5UsYci32hu.SYJUrQHT4cH0cNu","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1869","FADIA ULFA ANGELINA, A.Md","fadia","$2y$10$2d90TRythjOGuVm.KVLSkeWSBBv7i6zMCdyq6Ot20eJOxoqc/xmyO","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1870","ICIH KURNIANENGSIH, S.Pd","icih","$2y$10$PvpM00Q2EJCUN47CdRkr6..I.unNUwudbsoDOIIOv87kBwUB/9S8q","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1871","IIM FAUZIAH, S.Ag","iim","$2y$10$qSLUrh.7oq1bdLBTZ9WkQepRIGkhbX8lNBBekuKxgX44JTYGd7L0G","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1872","KARYATI, S.Pd","karyati","$2y$10$dqepmfbgWrDFPfy7iLLdfOHYYVvizLH55C5EM.ZV6sSlN/cO1HVmO","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1873","MOERDIONO. S.H, Gr","moer","$2y$10$t0Uxz/bOI89sy4wn38y0J.6klXqsxehvp2OzbrFXx67de3eVPRN52","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1874","MOHAMMAD ALWI, S.Pd","alwi","$2y$10$PPsaMsygZt5FMfR2BfNOuOfLEh0dEhPsuw3dSyAROJkus1vc/TOCC","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1875","MUMUN MUNAWAROH, S.Kom","mumun","$2y$10$O/coHG6WyEUIu10klDSDueqsG2dKFqvOupnoJyBdKrb/jT83roI3u","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1876","NAUPAL IRSYAD, S.Pd","naupal","$2y$10$N9uciyF4a1iX87q2mmX10.Mb0t7QBFFWjXCea1VhWIJ5lDjvVEafe","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1877","RENALDI FERDIANSAH, S.Pd","renaldi","$2y$10$Evjrv5I9ggwCQVR697VaPeQRbkhiqy9AyTxWVMEEVdxjJ94ZIL9xy","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1878","RIFKI NUR HIDAYAT, S.T","rifki","$2y$10$a5rZFisKg40w0/JZOodM8uZQYt.okWPwqEd8L3nu4aFvkQz2Y7tKK","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1879","RITA KHOERUNNISA, S.S","rita","$2y$10$kVPriSlrz77k90uoT00vDe15zGoLmDxBLKc.Ic39Srd.t/K2zWwCi","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1880","RUSDIANTO, S.T","rusdi","$2y$10$lmF0BS/K6TEMZLBvSoZeR.upmVeNWIloUUtf5mqgtDkJgsrwFpywy","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1881","SAEPUDIN LUBIS, S.Pd, MM","lubis","$2y$10$9W5CU6uSqyzp72Aybdp4ve3cMU2/4AbMVQ/ZZ9sPbJZgBtbyD.iYS","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1882","SITI INA ROSTIANA, S.Pd","ina","$2y$10$tIm8Wtio.fhl9G5QBBVPOuwJ6zf3TeQmcKMRCGNPYNrdBgzwoMB8W","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1883","SUKATMO, S.Pd","sukatmo","$2y$10$2jPh2cTS9KXNGDqCo14IlOEj/gGOxEL8C2xlRGV430A7UayT0BRT.","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1884","TRI AYUNI BILA KARTIKA, S.Pd","triayu","$2y$10$1/R29qgtiW1K5/L5wYzZauirEvx7sTUIsjHzM/qmT2GahK6I65GJe","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1885","TRI ZULFAN PURNAMA PUTRA, S.Pd","trizul","$2y$10$5rLXVkxSC1X32YrE.siXQuDsXeChU5ti3Dp7lDAsW0uYECNz5PQki","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1886","VIONA FARA NABILA, S.Pd","viona","$2y$10$KRLstMMqoKDGYfCyWLTIFuiL7SW0sB.8zvdK9vOsoRjd.oN7KBdlS","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1887","WAHYU RUSDIANSYAH, S.Kom","wahyu","$2y$10$Q8ugTRdKArn1GxD7lTpnXu8QEAGabKVmsrozdckp9vyY.45ipqtES","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1888","YATI NURHAYATI, S.Pd","yati","$2y$10$s8ujy42hDad4rCQTEYPbA.kI2CBMwT55lrMNEDFM4djHsioCXnAnm","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1889","Siti Yulyasinta Lukmana Putri, S.Pd","sinta","$2y$10$KAPD8zVaJz5WDcCkUR0ED.QsGqpBVu/n84lNaHTCRnYs6U.sSkxVG","guru",NULL,NULL,"1",NULL);
 
 SET FOREIGN_KEY_CHECKS = 1;
