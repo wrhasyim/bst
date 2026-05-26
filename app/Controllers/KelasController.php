@@ -13,7 +13,9 @@ class KelasController {
         $this->db = Database::getInstance()->getConnection();
     }
 
-    // Tampilkan Data Kelas
+    // =================================================================
+    // 1. TAMPILKAN DATA KELAS
+    // =================================================================
     public function index() {
         // Query Cerdas: Ambil data kelas, nama wali kelas, dan hitung total siswa di kelas tersebut
         $sql = "SELECT k.*, u.nama as nama_walikelas, 
@@ -24,53 +26,97 @@ class KelasController {
         $kelas = $this->db->query($sql)->fetchAll();
         
         // Ambil daftar guru untuk dropdown pilihan Wali Kelas
-        $guru = $this->db->query("SELECT id, nama FROM users WHERE role IN ('guru', 'admin') ORDER BY nama ASC")->fetchAll();
+        $guru = $this->db->query("SELECT id, nama FROM users WHERE role IN ('guru', 'admin') AND is_active = 1 ORDER BY nama ASC")->fetchAll();
 
         $title = "Manajemen Data Kelas";
         $content = __DIR__ . '/../../views/admin/kelas/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // Tambah Data Kelas Baru
+    // =================================================================
+    // 2. SIMPAN DATA KELAS BARU (DENGAN PROTEKSI 1 WALAS 1 KELAS)
+    // =================================================================
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $nama_kelas = $_POST['nama_kelas'];
+            $nama_kelas = htmlspecialchars(trim($_POST['nama_kelas']));
             $walikelas_id = !empty($_POST['walikelas_id']) ? $_POST['walikelas_id'] : null;
 
-            $stmt = $this->db->prepare("INSERT INTO kelas (nama_kelas, walikelas_id) VALUES (?, ?)");
-            if ($stmt->execute([$nama_kelas, $walikelas_id])) {
-                $_SESSION['success'] = "Data Kelas baru berhasil ditambahkan!";
-            } else {
-                $_SESSION['error'] = "Gagal menambahkan data kelas.";
+            // 🛡️ VALIDASI BACKEND: Pastikan guru yang ditunjuk belum menjadi Walas di kelas lain
+            if ($walikelas_id) {
+                $cek = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE walikelas_id = ? LIMIT 1");
+                $cek->execute([$walikelas_id]);
+                $konflik = $cek->fetch();
+                
+                if ($konflik) {
+                    $_SESSION['error'] = "Gagal! Guru tersebut sudah menjabat sebagai wali kelas di kelas " . $konflik['nama_kelas'] . ".";
+                    header('Location: ' . BASE_URL . '/kelas');
+                    exit;
+                }
             }
+
+            try {
+                $sql = "INSERT INTO kelas (nama_kelas, walikelas_id) VALUES (?, ?)";
+                $stmt = $this->db->prepare($sql);
+                if ($stmt->execute([$nama_kelas, $walikelas_id])) {
+                    $_SESSION['success'] = "Kelas berhasil ditambahkan!";
+                } else {
+                    $_SESSION['error'] = "Gagal menambahkan data kelas.";
+                }
+            } catch (PDOException $e) {
+                $_SESSION['error'] = "Terjadi kesalahan database saat menambah kelas.";
+            }
+            header('Location: ' . BASE_URL . '/kelas');
+            exit;
         }
-        header('Location: ' . BASE_URL . '/kelas');
     }
 
-    // Update Data Kelas
+    // =================================================================
+    // 3. UBAH DATA KELAS (DENGAN PROTEKSI MULTI-CLAIM WALAS)
+    // =================================================================
     public function update() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = $_POST['id'];
-            $nama_kelas = $_POST['nama_kelas'];
+            $nama_kelas = htmlspecialchars(trim($_POST['nama_kelas']));
             $walikelas_id = !empty($_POST['walikelas_id']) ? $_POST['walikelas_id'] : null;
 
-            $stmt = $this->db->prepare("UPDATE kelas SET nama_kelas=?, walikelas_id=? WHERE id=?");
-            if ($stmt->execute([$nama_kelas, $walikelas_id, $id])) {
-                $_SESSION['success'] = "Data Kelas berhasil diperbarui!";
-            } else {
-                $_SESSION['error'] = "Gagal memperbarui data kelas.";
+            // 🛡️ VALIDASI BACKEND: Pastikan guru tersebut tidak dipakai kelas lain (kecuali kelas ini sendiri)
+            if ($walikelas_id) {
+                $cek = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE walikelas_id = ? AND id != ? LIMIT 1");
+                $cek->execute([$walikelas_id, $id]);
+                $konflik = $cek->fetch();
+                
+                if ($konflik) {
+                    $_SESSION['error'] = "Gagal! Guru tersebut sudah menjabat sebagai wali kelas di kelas " . $konflik['nama_kelas'] . ".";
+                    header('Location: ' . BASE_URL . '/kelas');
+                    exit;
+                }
             }
+
+            try {
+                $sql = "UPDATE kelas SET nama_kelas=?, walikelas_id=? WHERE id=?";
+                $stmt = $this->db->prepare($sql);
+                if ($stmt->execute([$nama_kelas, $walikelas_id, $id])) {
+                    $_SESSION['success'] = "Data Kelas berhasil diperbarui!";
+                } else {
+                    $_SESSION['error'] = "Gagal memperbarui data kelas.";
+                }
+            } catch (PDOException $e) {
+                $_SESSION['error'] = "Terjadi kesalahan database saat memperbarui kelas.";
+            }
+            header('Location: ' . BASE_URL . '/kelas');
+            exit;
         }
-        header('Location: ' . BASE_URL . '/kelas');
     }
 
-    // Hapus Data Kelas
-   public function delete() {
+    // =================================================================
+    // 4. HAPUS DATA KELAS (INTEGRITAS SINKRONISASI NASABAH)
+    // =================================================================
+    public function delete() {
         $id = $_GET['id'] ?? null;
 
         if ($id) {
             try {
-                // CEK APAKAH MASIH ADA SISWA DI KELAS INI
+                // 🛡️ DATA INTEGRITY CHECK: Cek apakah masih ada siswa aktif di kelas ini
                 $cekSiswa = $this->db->prepare("SELECT COUNT(*) FROM users WHERE kelas_id = ?");
                 $cekSiswa->execute([$id]);
                 
@@ -80,7 +126,7 @@ class KelasController {
                     exit;
                 }
 
-                // JIKA KOSONG, BARU HAPUS
+                // Jika kelas sudah benar-benar kosong, lakukan penghapusan
                 $stmt = $this->db->prepare("DELETE FROM kelas WHERE id = ?");
                 $stmt->execute([$id]);
                 $_SESSION['success'] = "Kelas berhasil dihapus.";
@@ -89,7 +135,6 @@ class KelasController {
                 $_SESSION['error'] = "Terjadi kesalahan sistem saat menghapus kelas.";
             }
         }
-        
         header('Location: ' . BASE_URL . '/kelas');
         exit;
     }
