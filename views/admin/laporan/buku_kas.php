@@ -14,20 +14,10 @@
         <form action="<?= BASE_URL ?>/laporan/buku_kas" method="GET" class="flex flex-col md:flex-row gap-4 items-end">
             <div class="flex-1 w-full">
                 <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Periode Pembukuan</label>
-                <div class="flex gap-4">
-                    <select name="bulan" required class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
-                        <?php 
-                        $nama_bulan_list = ['01'=>'Januari', '02'=>'Februari', '03'=>'Maret', '04'=>'April', '05'=>'Mei', '06'=>'Juni', '07'=>'Juli', '08'=>'Agustus', '09'=>'September', '10'=>'Oktober', '11'=>'November', '12'=>'Desember'];
-                        foreach($nama_bulan_list as $m => $nama): 
-                        ?>
-                            <option value="<?= $m ?>" <?= ($m == $bulan) ? 'selected' : '' ?>><?= $nama ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <select name="tahun" required class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
-                        <?php for($y = date('Y')-2; $y <= date('Y')+1; $y++): ?>
-                            <option value="<?= $y ?>" <?= ($y == $tahun) ? 'selected' : '' ?>><?= $y ?></option>
-                        <?php endfor; ?>
-                    </select>
+                <div class="flex gap-4 items-center">
+                    <input type="date" name="start_date" required value="<?= $_GET['start_date'] ?? date('Y-m-01') ?>" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <span class="text-slate-400 font-bold">S/D</span>
+                    <input type="date" name="end_date" required value="<?= $_GET['end_date'] ?? date('Y-m-t') ?>" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
                 </div>
             </div>
             <button type="submit" class="w-full md:w-auto px-10 py-4 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all shadow-lg">
@@ -42,7 +32,7 @@
             <h1 class="text-2xl font-black uppercase tracking-[0.2em] text-slate-900">REKAPITULASI BUKU KAS UMUM</h1>
             <p class="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">Sistem Manajemen Bank Sampah TKM (BST SYSTEM)</p>
             <div class="inline-block px-4 py-1.5 bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-black uppercase tracking-widest mt-4 rounded-lg">
-                Periode: <?= $nama_bulan_list[$bulan] ?> <?= $tahun ?>
+                Periode: <?= date('d/m/Y', strtotime($_GET['start_date'] ?? date('Y-m-01'))) ?> s/d <?= date('d/m/Y', strtotime($_GET['end_date'] ?? date('Y-m-t'))) ?>
             </div>
         </div>
 
@@ -91,8 +81,8 @@
                 <tbody class="text-[11px]">
                     <tr class="bg-slate-50 font-bold italic">
                         <td class="border border-slate-900 px-4 py-3 text-center">-</td>
-                        <td class="border border-slate-900 px-4 py-3 text-center">01/<?= $bulan ?>/<?= $tahun ?></td>
-                        <td class="border border-slate-900 px-4 py-3 uppercase">SALDO PINDAHAN BULAN LALU</td>
+                        <td class="border border-slate-900 px-4 py-3 text-center"><?= date('d/m/Y', strtotime($_GET['start_date'] ?? date('Y-m-01'))) ?></td>
+                        <td class="border border-slate-900 px-4 py-3 uppercase">SALDO SEBELUM PERIODE INI</td>
                         <td class="border border-slate-900 px-4 py-3 text-right">-</td>
                         <td class="border border-slate-900 px-4 py-3 text-right">-</td>
                         <td class="border border-slate-900 px-4 py-3 text-right">Rp <?= number_format($saldo_awal, 0, ',', '.') ?></td>
@@ -102,7 +92,7 @@
                     $saldo_v = $saldo_awal;
                     if(empty($buku_kas)): 
                     ?>
-                        <tr><td colspan="6" class="border border-slate-900 px-4 py-20 text-center text-slate-400 italic font-black uppercase tracking-widest">Tidak ada aktivitas transaksi pada bulan ini.</td></tr>
+                        <tr><td colspan="6" class="border border-slate-900 px-4 py-20 text-center text-slate-400 italic font-black uppercase tracking-widest">Tidak ada aktivitas transaksi pada periode ini.</td></tr>
                     <?php else: ?>
                         <?php foreach($buku_kas as $i => $k): 
                             $saldo_v += $k['debit'];
@@ -204,6 +194,10 @@
             border-collapse: collapse !important;
         }
         
+        .break-inside-avoid {
+            break-inside: avoid;
+        }
+
         #print-area {
             border: none !important;
             padding: 0 !important;

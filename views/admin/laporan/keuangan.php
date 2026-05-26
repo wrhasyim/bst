@@ -10,7 +10,25 @@
         </button>
     </div>
 
-    <!-- FLASH MESSAGES (Ditambahkan untuk feedback aksi Cairkan/Refund) -->
+    <div class="no-print bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+        <form action="<?= BASE_URL ?>/laporan/keuangan" method="GET" class="flex flex-col md:flex-row gap-4 items-end">
+            <div class="flex-1 w-full">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Filter Rentang Waktu (Kosongkan Untuk Semua Waktu)</label>
+                <div class="flex gap-4 items-center">
+                    <input type="date" name="start_date" value="<?= $_GET['start_date'] ?? '' ?>" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <span class="text-slate-400 font-bold">S/D</span>
+                    <input type="date" name="end_date" value="<?= $_GET['end_date'] ?? '' ?>" class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+            </div>
+            <button type="submit" class="w-full md:w-auto px-10 py-4 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all shadow-lg">
+                Terapkan Filter
+            </button>
+            <?php if(!empty($_GET['start_date'])): ?>
+                <a href="<?= BASE_URL ?>/laporan/keuangan" class="w-full md:w-auto px-6 py-4 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-200 text-center transition-all">Reset</a>
+            <?php endif; ?>
+        </form>
+    </div>
+
     <?php if (isset($_SESSION['success'])): ?>
         <div class="no-print p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs font-bold shadow-sm flex items-center animate-in fade-in duration-300">
             <span class="mr-3">✅</span> <?= $_SESSION['success']; unset($_SESSION['success']); ?>
@@ -28,7 +46,12 @@
             <h1 class="text-2xl font-black uppercase tracking-[0.2em] text-slate-900">LAPORAN LABA/RUGI & DISTRIBUSI</h1>
             <p class="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">Sistem Manajemen Bank Sampah TKM (BST SYSTEM)</p>
             <div class="inline-block px-4 py-1.5 bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-black uppercase tracking-widest mt-4 rounded-lg">
-                Tanggal Unduh: <?= date('d F Y') ?>
+                <?php 
+                $periode_teks = (!empty($_GET['start_date']) && !empty($_GET['end_date'])) 
+                    ? date('d M Y', strtotime($_GET['start_date'])) . ' s/d ' . date('d M Y', strtotime($_GET['end_date'])) 
+                    : 'Semua Waktu (All Time)'; 
+                ?>
+                Periode Data: <?= $periode_teks ?> | Dicetak: <?= date('d F Y') ?>
             </div>
         </div>
 
@@ -69,7 +92,6 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
-                <!-- 1. KAS BANK SAMPAH -->
                 <div class="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-center">
                     <div class="flex justify-between items-center">
                         <div>
@@ -80,7 +102,6 @@
                     </div>
                 </div>
 
-                <!-- 2. KAS SEKOLAH -->
                 <div class="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between group transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div>
@@ -118,7 +139,6 @@
                     <?php endif; ?>
                 </div>
 
-                <!-- 3. HONOR PENGELOLA -->
                 <div class="p-6 bg-blue-50/50 border border-blue-100 rounded-2xl shadow-sm flex flex-col justify-between group transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div>
@@ -156,7 +176,6 @@
                     <?php endif; ?>
                 </div>
 
-                <!-- 4. HONOR WALI KELAS -->
                 <div class="p-6 bg-blue-50/50 border border-blue-100 rounded-2xl shadow-sm flex flex-col justify-between">
                     <div class="flex justify-between items-start mb-4">
                         <div>
@@ -179,7 +198,6 @@
                     </div>
                 </div>
 
-                <!-- 5. HONOR SISWA PIKET -->
                 <div class="p-6 bg-amber-50/50 border border-amber-200 rounded-2xl shadow-sm flex flex-col justify-between group transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div>
@@ -247,7 +265,6 @@
                             <td class="border border-slate-900 px-4 py-3 text-center font-bold text-slate-700"><?= $i+1 ?></td>
                             <td class="border border-slate-900 px-4 py-3 text-center font-bold text-slate-600"><?= date('d/m/Y', strtotime($h['tanggal_jual'])) ?></td>
                             <td class="border border-slate-900 px-4 py-3 font-semibold uppercase"><?= htmlspecialchars($h['nama_sampah']) ?></td>
-                            <!-- 🛠️ FIX: Eksekusi variabel total_pcs -->
                             <td class="border border-slate-900 px-4 py-3 text-center font-bold"><?= number_format($h['total_pcs'], 0) ?> Pcs</td>
                             <td class="border border-slate-900 px-4 py-3 text-right font-black text-emerald-700">Rp <?= number_format($h['total_pendapatan'], 0, ',', '.') ?></td>
                         </tr>
