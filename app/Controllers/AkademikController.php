@@ -32,13 +32,37 @@ class AkademikController {
             if ($dari_kelas === $ke_kelas) {
                 $_SESSION['error'] = "Kelas asal dan tujuan tidak boleh sama!";
             } else {
-                // Update seluruh siswa di kelas asal ke kelas tujuan
-                $stmt = $this->db->prepare("UPDATE users SET kelas_id = ? WHERE kelas_id = ? AND role = 'siswa'");
-                if ($stmt->execute([$ke_kelas, $dari_kelas])) {
-                    $count = $stmt->rowCount();
-                    $_SESSION['success'] = "Berhasil menaikkan $count siswa ke kelas baru.";
-                } else {
-                    $_SESSION['error'] = "Gagal memproses kenaikan kelas.";
+                try {
+                    // 🛡️ Mulai Transaksi Database (Aman dari data korup)
+                    $this->db->beginTransaction();
+
+                    // 1. Pindahkan seluruh siswa aktif ke kelas tujuan
+                    $stmtSiswa = $this->db->prepare("UPDATE users SET kelas_id = ? WHERE kelas_id = ? AND role = 'siswa' AND is_active = 1");
+                    $stmtSiswa->execute([$ke_kelas, $dari_kelas]);
+                    $jml_siswa = $stmtSiswa->rowCount();
+
+                    // 2. Logika Auto-Move Wali Kelas (Sistem Kohort)
+                    $stmtGetWalas = $this->db->prepare("SELECT walikelas_id FROM kelas WHERE id = ?");
+                    $stmtGetWalas->execute([$dari_kelas]);
+                    $walasAsal = $stmtGetWalas->fetchColumn();
+
+                    if ($walasAsal) {
+                        // Promosikan/pindahkan Walas ke kelas tujuan (Menimpa Walas di kelas tujuan jika ada)
+                        $stmtUpdateTujuan = $this->db->prepare("UPDATE kelas SET walikelas_id = ? WHERE id = ?");
+                        $stmtUpdateTujuan->execute([$walasAsal, $ke_kelas]);
+
+                        // Kosongkan jabatan Walas di kelas asal
+                        $stmtKosongkanAsal = $this->db->prepare("UPDATE kelas SET walikelas_id = NULL WHERE id = ?");
+                        $stmtKosongkanAsal->execute([$dari_kelas]);
+                    }
+
+                    // 🛡️ Simpan semua perubahan secara permanen
+                    $this->db->commit();
+                    
+                    $_SESSION['success'] = "Berhasil! $jml_siswa siswa dipindahkan. Wali kelas juga otomatis mengikuti rombel barunya.";
+                } catch (Exception $e) {
+                    $this->db->rollBack(); // Batalkan semua jika ada error
+                    $_SESSION['error'] = "Terjadi kesalahan sistem saat memproses kenaikan kelas.";
                 }
             }
             header('Location: ' . BASE_URL . '/akademik/kenaikan');
@@ -61,17 +85,32 @@ class AkademikController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $kelas_id = $_POST['kelas_id'];
 
-            // Proses Kelulusan: 
-            // 1. Set kelas_id menjadi NULL (Alumni tidak punya kelas)
-            // 2. Set is_active menjadi 0 (Akun dinonaktifkan agar tidak muncul di dashboard/leaderboard)
-            $stmt = $this->db->prepare("UPDATE users SET kelas_id = NULL, is_active = 0 WHERE kelas_id = ? AND role = 'siswa'");
-            
-            if ($stmt->execute([$kelas_id])) {
+            try {
+                // 🛡️ Mulai Transaksi Database
+                $this->db->beginTransaction();
+
+                // 1. Proses Kelulusan Siswa (Cabut ID Kelas & Non-aktifkan)
+                $stmt = $this->db->prepare("UPDATE users SET kelas_id = NULL, is_active = 0 WHERE kelas_id = ? AND role = 'siswa'");
+                $stmt->execute([$kelas_id]);
                 $count = $stmt->rowCount();
-                $_SESSION['success'] = "Berhasil meluluskan $count siswa. Status mereka kini menjadi Alumni (Non-aktif).";
-            } else {
-                $_SESSION['error'] = "Gagal memproses kelulusan.";
+
+                // 2. Logika Pembebasan Jabatan Wali Kelas (Otomatis Menganggur)
+                $stmtKosongkanWalas = $this->db->prepare("UPDATE kelas SET walikelas_id = NULL WHERE id = ?");
+                $stmtKosongkanWalas->execute([$kelas_id]);
+
+                // 🛡️ Simpan perubahan
+                $this->db->commit();
+
+                if ($count > 0) {
+                    $_SESSION['success'] = "Berhasil meluluskan $count siswa. Status siswa kini menjadi Alumni, dan Guru yang mengampu kini berstatus bebas tugas (bisa dipilih kembali menjadi Wali Kelas).";
+                } else {
+                    $_SESSION['error'] = "Gagal. Tidak ada siswa yang terdaftar di kelas tersebut.";
+                }
+            } catch (Exception $e) {
+                $this->db->rollBack();
+                $_SESSION['error'] = "Terjadi kesalahan sistem saat memproses kelulusan.";
             }
+            
             header('Location: ' . BASE_URL . '/akademik/kelulusan');
             exit;
         }

@@ -75,7 +75,21 @@
                     <select name="walikelas_id" x-model="formData.walikelas_id" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
                         <option value="">-- Kosongkan / Pilih Guru --</option>
                         <?php foreach($guru as $g): ?>
-                            <option value="<?= $g['id'] ?>"><?= htmlspecialchars($g['nama']) ?></option>
+                            <?php 
+                            // 🛠️ LOGIKA FILTER: Cek apakah guru ini sudah memegang kelas
+                            $kelas_id_dimiliki = '';
+                            foreach($kelas as $k_check) {
+                                if($k_check['walikelas_id'] == $g['id']) {
+                                    $kelas_id_dimiliki = $k_check['id'];
+                                    break;
+                                }
+                            }
+                            ?>
+                            <option value="<?= $g['id'] ?>" 
+                                    x-show="'<?= $kelas_id_dimiliki ?>' === '' || formData.id == '<?= $kelas_id_dimiliki ?>'"
+                                    :disabled="'<?= $kelas_id_dimiliki ?>' !== '' && formData.id != '<?= $kelas_id_dimiliki ?>'">
+                                <?= htmlspecialchars($g['nama']) ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
