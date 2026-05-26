@@ -1,5 +1,5 @@
 -- BST SYSTEM DATABASE BACKUP
--- Tanggal: 2026-05-26 08:53:59
+-- Tanggal: 2026-05-26 10:14:16
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -16,7 +16,7 @@ CREATE TABLE `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=74 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=75 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `activity_logs` VALUES("1","1","Logout","User keluar dari sistem","::1","2026-05-04 16:46:33");
 INSERT INTO `activity_logs` VALUES("2","1","Login","User berhasil masuk ke dalam sistem","::1","2026-05-04 16:47:23");
@@ -91,6 +91,7 @@ INSERT INTO `activity_logs` VALUES("70","1","Restore Database","Admin memulihkan
 INSERT INTO `activity_logs` VALUES("71","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 13:21:18");
 INSERT INTO `activity_logs` VALUES("72","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 13:30:20");
 INSERT INTO `activity_logs` VALUES("73","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 13:53:59");
+INSERT INTO `activity_logs` VALUES("74","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 15:14:16");
 
 
 DROP TABLE IF EXISTS `detail_setoran`;
@@ -129,9 +130,12 @@ CREATE TABLE `kategori_sampah` (
   `harga_pengepul` decimal(15,2) NOT NULL DEFAULT 0.00,
   `satuan` varchar(20) DEFAULT 'Pcs',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1002 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1005 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `kategori_sampah` VALUES("5","🌟 REWARD PRESTASI","0.00","0.00","0.00","Bonus");
+INSERT INTO `kategori_sampah` VALUES("1002","botol plastik","35.00","40.00","66.00","Pcs");
+INSERT INTO `kategori_sampah` VALUES("1003","Botol Warna","16.00","16.00","38.00","Pcs");
+INSERT INTO `kategori_sampah` VALUES("1004","Cup","4.00","4.00","6.00","Pcs");
 
 
 DROP TABLE IF EXISTS `kelas`;
