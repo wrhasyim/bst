@@ -53,58 +53,63 @@ class PenjualanController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_SESSION['role'], ['admin', 'staff'])) {
             
             $kategori_id  = (int)($_POST['kategori_id'] ?? 0);
-            $harga_per_kg = (float)($_POST['harga_per_kg'] ?? $_POST['harga_per_pcs'] ?? 0);
-            
-            // 🛠️ Menerima input volume Pcs & KG Aktual secara independen
+            $harga_per_kg = (float)($_POST['harga_per_kg'] ?? 0);
             $pcs_jual     = (float)($_POST['total_pcs'] ?? 0); 
             $total_kg     = (float)($_POST['total_kg'] ?? 0); 
-            
-            $keterangan   = !empty($_POST['keterangan']) ? htmlspecialchars($_POST['keterangan']) : 'Penjualan Manual / Rutin';
-
-            // Validasi Data
-            if ($kategori_id <= 0 || $harga_per_kg <= 0 || $pcs_jual <= 0 || $total_kg <= 0) {
-                $_SESSION['error'] = "Gagal! Pastikan kategori, volume (KG & Pcs), dan harga telah diisi.";
-                header('Location: ' . BASE_URL . '/penjualan');
-                exit;
-            }
+            $keterangan   = !empty($_POST['keterangan']) ? htmlspecialchars($_POST['keterangan']) : 'Penjualan Manual';
 
             try {
                 $this->db->beginTransaction();
 
-                // FIFO INVENTORY DEDUCTION (Menggunakan hitungan Pcs Aktual yang diinject)
-                $stmtRows = $this->db->prepare("SELECT id, berat, total_harga, honor_walas_rp FROM setoran WHERE kategori_id = ? AND status = 'valid' AND (is_sold = 0 OR is_sold IS NULL) ORDER BY id ASC FOR UPDATE");
+                // 1. Ambil semua baris stok yang tersedia untuk kategori ini (FIFO)
+                $stmtRows = $this->db->prepare("SELECT id, berat, total_harga, honor_walas_rp FROM setoran WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0 ORDER BY id ASC FOR UPDATE");
                 $stmtRows->execute([$kategori_id]);
                 $rows = $stmtRows->fetchAll();
+
+                $total_tersedia = 0;
+                foreach ($rows as $row) { $total_tersedia += (float)$row['berat']; }
+
+                if ($pcs_jual > $total_tersedia) {
+                    throw new Exception("Stok tidak cukup! Diminta: {$pcs_jual} Pcs. Tersedia: {$total_tersedia} Pcs.");
+                }
 
                 $sisa_diminta = $pcs_jual;
                 $hpp_terpakai = 0;
                 $walas_terpakai = 0;
-                $ids_terjual = [];
-                $total_tersedia = 0;
-
-                foreach ($rows as $row) {
-                    $total_tersedia += (float)$row['berat'];
-                }
-
-                if ($pcs_jual > $total_tersedia) {
-                    throw new Exception("Stok gudang tidak cukup! Diminta: {$pcs_jual} Pcs. Tersedia: {$total_tersedia} Pcs.");
-                }
 
                 foreach ($rows as $row) {
                     if ($sisa_diminta <= 0) break;
                     
-                    $berat_row = (float)$row['berat'];
-                    $ids_terjual[] = $row['id'];
+                    $id_setoran = $row['id'];
+                    $berat_row  = (float)$row['berat'];
                     
                     if ($berat_row <= $sisa_diminta) {
+                        // Baris ini habis terjual
+                        $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE id = ?")->execute([$id_setoran]);
                         $hpp_terpakai += (float)$row['total_harga'];
                         $walas_terpakai += (float)$row['honor_walas_rp'];
                         $sisa_diminta -= $berat_row;
                     } else {
-                        // Jika baris database lebih besar dari sisa yang mau dijual (Proporsional HPP)
+                        // Baris ini hanya terpakai sebagian, buat baris "Sisa" baru
+                        $sisa_berat = $berat_row - $sisa_diminta;
                         $proporsi = $sisa_diminta / $berat_row;
-                        $hpp_terpakai += $row['total_harga'] * $proporsi;
-                        $walas_terpakai += $row['honor_walas_rp'] * $proporsi;
+                        
+                        // Tandai baris lama sebagai terjual
+                        $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE id = ?")->execute([$id_setoran]);
+                        
+                        // Masukkan sisa ke baris baru agar tidak hilang
+                        $stmtNew = $this->db->prepare("INSERT INTO setoran (user_id, kelas_id, kategori_id, berat, total_harga, honor_walas_rp, status, is_sold, created_at) VALUES (?, ?, ?, ?, ?, ?, 'valid', 0, NOW())");
+                        $stmtNew->execute([
+                            $row['user_id'] ?? 0, // Perlu dipastikan user_id diambil dari query select awal
+                            $row['kelas_id'] ?? 0,
+                            $kategori_id,
+                            $sisa_berat,
+                            $row['total_harga'] * ($sisa_berat / $berat_row),
+                            $row['honor_walas_rp'] * ($sisa_berat / $berat_row)
+                        ]);
+                        
+                        $hpp_terpakai += ($row['total_harga'] * $proporsi);
+                        $walas_terpakai += ($row['honor_walas_rp'] * $proporsi);
                         $sisa_diminta = 0;
                     }
                 }
@@ -149,12 +154,11 @@ class PenjualanController {
                 }
 
                 $this->db->commit();
-                $_SESSION['success'] = "Berhasil! Penjualan ". number_format($total_kg, 2, ',', '.') ." KG tercatat & memotong stok gudang persis sebanyak ". number_format($pcs_jual, 0, ',', '.') ." Pcs.";
+                $_SESSION['success'] = "Berhasil! Penjualan ".number_format($total_kg, 2)." KG tercatat.";
             } catch (Exception $e) {
                 $this->db->rollBack();
-                $_SESSION['error'] = "Gagal memproses penjualan: " . $e->getMessage();
+                $_SESSION['error'] = "Gagal: " . $e->getMessage();
             }
-
             header('Location: ' . BASE_URL . '/penjualan');
             exit;
         }
