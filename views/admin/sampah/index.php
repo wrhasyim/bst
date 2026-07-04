@@ -1,11 +1,11 @@
-<div class="max-w-7xl mx-auto space-y-8 pb-10" x-data="{ showModal: false, isEdit: false, formData: { id: '', nama_sampah: '', harga_dasar: '', harga_guru: '', harga_pengepul: '' } }">
+<div class="max-w-7xl mx-auto space-y-8 pb-10" x-data="{ showModal: false, isEdit: false, formData: { id: '', nama_sampah: '', harga_dasar: '', harga_guru: '', harga_pengepul: '', konversi_kg: '1' } }">
     
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
             <h2 class="text-3xl font-black text-slate-800 italic uppercase tracking-tight">MASTER<span class="text-emerald-500">KATEGORI</span></h2>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Kategori & Harga Sampah</p>
         </div>
-        <button @click="showModal = true; isEdit = false; formData = {id:'', nama_sampah:'', harga_dasar:'', harga_guru:'', harga_pengepul:''}" class="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-black transition-all flex items-center">
+        <button @click="showModal = true; isEdit = false; formData = {id:'', nama_sampah:'', harga_dasar:'', harga_guru:'', harga_pengepul:'', konversi_kg:'1'}" class="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-black transition-all flex items-center">
             <span class="mr-2 text-lg">+</span> Tambah Kategori Baru
         </button>
     </div>
@@ -50,7 +50,12 @@
                         <tr class="hover:bg-slate-50 transition-all">
                             <td class="px-8 py-5">
                                 <div class="font-black text-slate-800 text-sm uppercase italic tracking-tighter"><?= htmlspecialchars($k['nama_sampah']) ?></div>
-                                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Satuan: <?= htmlspecialchars($k['satuan']) ?></div>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Satuan: <?= htmlspecialchars($k['satuan']) ?></div>
+                                    <div class="text-[9px] font-bold text-amber-600 uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
+                                        ⚖️ <?= $k['konversi_kg'] ?? 1 ?> Pcs = 1 KG
+                                    </div>
+                                </div>
                             </td>
                             <td class="px-6 py-5 text-right font-black text-red-500 text-sm">Rp<?= number_format($k['harga_dasar'], 0, ',', '.') ?></td>
                             <td class="px-6 py-5 text-right font-black text-purple-500 text-sm">Rp<?= number_format($harga_guru, 0, ',', '.') ?></td>
@@ -61,7 +66,7 @@
                                 </span>
                             </td>
                             <td class="px-8 py-5 text-center space-x-2">
-                                <button @click="showModal = true; isEdit = true; formData = { id: '<?= $k['id'] ?>', nama_sampah: '<?= addslashes($k['nama_sampah']) ?>', harga_dasar: '<?= $k['harga_dasar'] ?>', harga_guru: '<?= $harga_guru ?>', harga_pengepul: '<?= $k['harga_pengepul'] ?>' }" 
+                                <button @click="showModal = true; isEdit = true; formData = { id: '<?= $k['id'] ?>', nama_sampah: '<?= addslashes($k['nama_sampah']) ?>', harga_dasar: '<?= $k['harga_dasar'] ?>', harga_guru: '<?= $harga_guru ?>', harga_pengepul: '<?= $k['harga_pengepul'] ?>', konversi_kg: '<?= $k['konversi_kg'] ?? 1 ?>' }" 
                                         class="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">
                                     Edit
                                 </button>
@@ -88,12 +93,17 @@
             <form :action="isEdit ? '<?= BASE_URL ?>/sampah/update' : '<?= BASE_URL ?>/sampah/store'" method="POST" class="p-8 space-y-6">
                 <input type="hidden" name="id" x-model="formData.id">
                 
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Nama / Jenis Sampah</label>
-                    <input type="text" name="nama_sampah" x-model="formData.nama_sampah" required placeholder="Contoh: Botol Plastik" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Nama / Jenis Sampah</label>
+                        <input type="text" name="nama_sampah" x-model="formData.nama_sampah" required placeholder="Contoh: Botol Plastik" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Konversi Pcs ke 1 KG</label>
+                        <input type="number" name="konversi_kg" x-model="formData.konversi_kg" required min="1" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                    </div>
                 </div>
 
-                <!-- 3 Columns Layout for Prices -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-[10px] font-bold text-red-400 uppercase mb-2 ml-1">Harga Beli (Siswa)</label>
@@ -113,12 +123,11 @@
                         <label class="block text-[10px] font-bold text-blue-400 uppercase mb-2 ml-1">Harga Jual (Pengepul)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">Rp</span>
-                            <input type="number" name="harga_pengepul" x-model="formData.harga_pengepul" required min="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                            <input type="number" name="harga_pengepul" x-model.number="formData.harga_pengepul" required min="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                         </div>
                     </div>
                 </div>
 
-                <!-- Smart Margin Calculator (Alpine.js) -->
                 <div class="p-4 rounded-2xl border-2 flex items-center justify-between transition-all" :class="(formData.harga_pengepul - Math.max(formData.harga_dasar || 0, formData.harga_guru || formData.harga_dasar || 0)) >= 0 ? 'border-emerald-100 bg-emerald-50/50' : 'border-red-100 bg-red-50/50'">
                     <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Margin (Profit) Minimal / Pcs :</span>
                     <span class="text-lg font-black" :class="(formData.harga_pengepul - Math.max(formData.harga_dasar || 0, formData.harga_guru || formData.harga_dasar || 0)) >= 0 ? 'text-emerald-600' : 'text-red-600'">

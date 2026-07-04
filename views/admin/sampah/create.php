@@ -21,9 +21,16 @@
               }">
             
             <div class="space-y-6">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Nama Jenis Sampah</label>
-                    <input type="text" name="nama_sampah" required placeholder="Contoh: Kardus Bekas, Botol Plastik, dll" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Nama Jenis Sampah</label>
+                        <input type="text" name="nama_sampah" required placeholder="Contoh: Kardus Bekas, Botol Plastik, dll" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Konversi Pcs ke 1 KG</label>
+                        <input type="number" name="konversi_kg" required min="1" value="1" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-gray-800">
+                        <p class="text-[11px] text-gray-500 mt-1">*Berapa Pcs untuk 1 KG? (Isi 1 jika satuan ukur tetap sama).</p>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100">
@@ -40,7 +47,6 @@
                         <label class="block text-sm font-bold text-gray-700 mb-2">Harga Beli dari Siswa</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
-                            <!-- FIX: name="harga_siswa" diubah menjadi name="harga_dasar" agar terbaca oleh Controller -->
                             <input type="number" name="harga_dasar" x-model.number="hargaSiswa" required min="0" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-gray-800">
                         </div>
                         <p class="text-[11px] mt-1 font-semibold" :class="marginSiswa >= 0 ? 'text-emerald-600' : 'text-red-500'" x-text="marginSiswa >= 0 ? 'Margin: +Rp' + marginSiswa + '/Pcs' : 'Rugi! Cek Harga'"></p>
