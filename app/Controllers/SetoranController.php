@@ -89,6 +89,9 @@ class SetoranController {
                 $harga_dasar = (float)($kat['harga_dasar'] ?? 0);
                 $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
                 
+                // PERBAIKAN: Ambil konversi KG, pastikan tidak 0 untuk menghindari error pembagian
+                $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
+                
                 $total_pcs_masuk = 0;
 
                 foreach ($_POST['berat'] as $uid => $jml) {
@@ -101,7 +104,8 @@ class SetoranController {
                             'kategori_id' => $_POST['kategori_id'], 
                             'berat' => $jml,
                             'total_harga' => $jml * $harga_dasar, 
-                            'total_pengepul' => $jml * $harga_pengepul,
+                            // PERBAIKAN: Bagi jumlah PCS dengan nilai konversi KG terlebih dahulu
+                            'total_pengepul' => ($jml / $konversi_kg) * $harga_pengepul,
                             'walikelas_id' => $kls['walikelas_id'] ?? null, 
                             'status' => 'pending'
                         ]);
@@ -167,16 +171,19 @@ class SetoranController {
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
             
-            // Pengamanan perhitungan
             $harga_satuan = (float)($kat['harga_dasar'] ?? 0);
             $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
+            
+            // PERBAIKAN: Konversi PCS ke KG
+            $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
             
             $this->setoranModel->create([
                 'user_id' => $_POST['user_id'], 
                 'kategori_id' => $_POST['kategori_id'], 
                 'berat' => $jml,
                 'total_harga' => $jml * $harga_satuan, 
-                'total_pengepul' => $jml * $harga_pengepul,
+                // PERBAIKAN: Bagi jumlah PCS dengan nilai konversi KG
+                'total_pengepul' => ($jml / $konversi_kg) * $harga_pengepul,
                 'walikelas_id' => null, 
                 'status' => 'pending'
             ]);
@@ -193,10 +200,11 @@ class SetoranController {
     // =======================================================
     public function validasi() {
         // 🛠️ AUTO-HEALING SYSTEM
+        // PERBAIKAN: Sesuaikan query auto-healing agar membagi berat dengan konversi_kg menggunakan COALESCE NULLIF
         $sql_heal = "UPDATE setoran s 
                      JOIN kategori_sampah k ON s.kategori_id = k.id 
                      SET s.total_harga = (s.berat * k.harga_dasar), 
-                         s.total_pengepul = (s.berat * k.harga_pengepul) 
+                         s.total_pengepul = ((s.berat / COALESCE(NULLIF(k.konversi_kg, 0), 1)) * k.harga_pengepul) 
                      WHERE s.status = 'pending' AND (s.total_harga = 0 OR s.total_pengepul = 0)";
         $this->db->query($sql_heal);
 
@@ -228,11 +236,15 @@ class SetoranController {
             $harga_dasar = (float)($kat['harga_dasar'] ?? 0);
             $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
             
+            // PERBAIKAN: Konversi PCS ke KG
+            $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
+            
             $this->setoranModel->update($id, [
                 'kategori_id' => $_POST['kategori_id'], 
                 'berat' => $jml,
                 'total_harga' => $jml * $harga_dasar, 
-                'total_pengepul' => $jml * $harga_pengepul
+                // PERBAIKAN: Bagi jumlah PCS dengan nilai konversi KG
+                'total_pengepul' => ($jml / $konversi_kg) * $harga_pengepul
             ]);
             
             Logger::log("Edit Pending", "Petugas mengoreksi data setoran pending ID #$id menjadi $jml Pcs");
@@ -250,8 +262,12 @@ class SetoranController {
             $persen_walas = ($stmtPersen->fetchColumn() ?? 0) / 100;
 
             $kat = $this->sampahModel->getById($data['kategori_id']);
+            
+            // PERBAIKAN: Konversi PCS ke KG saat melakukan snapshot
+            $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
+            
             $total_harga = $data['berat'] * (float)$kat['harga_dasar'];
-            $total_pengepul = $data['berat'] * (float)$kat['harga_pengepul'];
+            $total_pengepul = ($data['berat'] / $konversi_kg) * (float)$kat['harga_pengepul'];
 
             // 🛠️ CRITICAL FIX: Hitung dan kunci honor Walas (Hanya jika nasabah punya Walas)
             $honor_walas_rp = 0;
@@ -376,14 +392,20 @@ class SetoranController {
             if ($berat <= 0) {
                 $_SESSION['error'] = "Jumlah tidak valid.";
             } else {
-                $stmtKat = $this->db->prepare("SELECT harga_dasar, harga_pengepul FROM kategori_sampah WHERE id = ?");
+                // PERBAIKAN: Tambahkan pengambilan kolom konversi_kg dari database
+                $stmtKat = $this->db->prepare("SELECT harga_dasar, harga_pengepul, konversi_kg FROM kategori_sampah WHERE id = ?");
                 $stmtKat->execute([$kategori_id]);
                 $kat = $stmtKat->fetch();
+
+                // PERBAIKAN: Konversi PCS ke KG
+                $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
+                $total_harga = $berat * (float)$kat['harga_dasar'];
+                $total_pengepul = ($berat / $konversi_kg) * (float)$kat['harga_pengepul'];
 
                 // walikelas_id NULL memastikan kas kesiswaan tidak dihitung sebagai honor walas siapapun
                 $sql = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
                         VALUES (?, NULL, ?, ?, ?, ?, 'valid', 0)";
-                $this->db->prepare($sql)->execute([$user_id, $kategori_id, $berat, $berat * (float)$kat['harga_dasar'], $berat * (float)$kat['harga_pengepul']]);
+                $this->db->prepare($sql)->execute([$user_id, $kategori_id, $berat, $total_harga, $total_pengepul]);
                 
                 Logger::log("Denda Kesiswaan", "Petugas mencatat denda pelanggaran sebesar $berat Pcs ke Kas Kesiswaan");
                 $_SESSION['success'] = "Berhasil catat denda $berat Pcs ke Kas Kesiswaan.";

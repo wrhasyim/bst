@@ -61,8 +61,8 @@ class PenjualanController {
             try {
                 $this->db->beginTransaction();
 
-                // 1. Ambil semua baris stok yang tersedia untuk kategori ini (FIFO)
-                $stmtRows = $this->db->prepare("SELECT id, berat, total_harga, honor_walas_rp FROM setoran WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0 ORDER BY id ASC FOR UPDATE");
+                // PERBAIKAN 1: Tambahkan 'user_id' ke dalam list SELECT agar kepemilikan sisa setoran tidak hilang
+                $stmtRows = $this->db->prepare("SELECT id, user_id, berat, total_harga, honor_walas_rp FROM setoran WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0 ORDER BY id ASC FOR UPDATE");
                 $stmtRows->execute([$kategori_id]);
                 $rows = $stmtRows->fetchAll();
 
@@ -97,11 +97,10 @@ class PenjualanController {
                         // Tandai baris lama sebagai terjual
                         $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE id = ?")->execute([$id_setoran]);
                         
-                        // Masukkan sisa ke baris baru agar tidak hilang
-                        $stmtNew = $this->db->prepare("INSERT INTO setoran (user_id, kelas_id, kategori_id, berat, total_harga, honor_walas_rp, status, is_sold, created_at) VALUES (?, ?, ?, ?, ?, ?, 'valid', 0, NOW())");
+                        // PERBAIKAN 2: Hapus kolom kelas_id dari query INSERT karena tidak ada di database
+                        $stmtNew = $this->db->prepare("INSERT INTO setoran (user_id, kategori_id, berat, total_harga, honor_walas_rp, status, is_sold, created_at) VALUES (?, ?, ?, ?, ?, 'valid', 0, NOW())");
                         $stmtNew->execute([
-                            $row['user_id'] ?? 0, // Perlu dipastikan user_id diambil dari query select awal
-                            $row['kelas_id'] ?? 0,
+                            $row['user_id'], // Mengambil user_id yang berhasil di SELECT di atas
                             $kategori_id,
                             $sisa_berat,
                             $row['total_harga'] * ($sisa_berat / $berat_row),
@@ -147,11 +146,8 @@ class PenjualanController {
                     $keterangan
                 ]);
 
-                // Update is_sold HANYA untuk baris yang di-inject tadi
-                if (!empty($ids_terjual)) {
-                    $inQuery = implode(',', array_map('intval', $ids_terjual));
-                    $this->db->query("UPDATE setoran SET is_sold = 1 WHERE id IN ($inQuery)");
-                }
+                // PERBAIKAN 3: Menghapus logika update menggunakan $ids_terjual 
+                // Karena data `setoran` sudah diperbarui (is_sold = 1) satu-persatu di dalam proses iterasi $rows di atas.
 
                 $this->db->commit();
                 $_SESSION['success'] = "Berhasil! Penjualan ".number_format($total_kg, 2)." KG tercatat.";
