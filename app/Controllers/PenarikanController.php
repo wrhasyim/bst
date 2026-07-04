@@ -132,4 +132,61 @@ class PenarikanController {
         header('Location: ' . BASE_URL . '/penarikan?kelas_id=' . ($_POST['kelas_id'] ?? ''));
         exit;
     }
+
+    // =================================================================
+    // 3. PENARIKAN KHUSUS KAS KESISWAAN (DANA OSIS)
+    // =================================================================
+    public function kesiswaan_store() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            
+            Security::validate_csrf(); // 🛡️ Validasi Token
+
+            $jumlah = (float) $_POST['jumlah'];
+            $keterangan = $_POST['keterangan'] ?? 'Penarikan Dana OSIS';
+
+            if ($jumlah <= 0) {
+                $_SESSION['error'] = "Nominal penarikan tidak valid!";
+                header('Location: ' . BASE_URL . '/laporan/kas_kesiswaan');
+                exit;
+            }
+
+            try {
+                // 1. Cari akun virtual KESISWAAN
+                $stmtCek = $this->db->query("SELECT id FROM users WHERE nama LIKE '%KESISWAAN%' AND role = 'siswa' LIMIT 1");
+                $akun_kesiswaan = $stmtCek->fetch();
+
+                if (!$akun_kesiswaan) {
+                    $_SESSION['error'] = "Gagal! Sistem tidak menemukan Akun Kas Kesiswaan.";
+                    header('Location: ' . BASE_URL . '/laporan/kas_kesiswaan');
+                    exit;
+                }
+
+                $user_id = $akun_kesiswaan['id'];
+
+                // 2. Cek apakah saldo mencukupi
+                $total_masuk = $this->db->query("SELECT IFNULL(SUM(total_harga),0) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn();
+                $total_tarik = $this->db->query("SELECT IFNULL(SUM(jumlah),0) FROM penarikan WHERE user_id = $user_id")->fetchColumn();
+                $saldo = $total_masuk - $total_tarik;
+
+                if ($jumlah > $saldo) {
+                    $_SESSION['error'] = "Gagal! Saldo tidak mencukupi. Maksimal penarikan: Rp " . number_format($saldo, 0, ',', '.');
+                } else {
+                    // 3. Proses input penarikan
+                    $stmt = $this->db->prepare("INSERT INTO penarikan (user_id, jumlah, keterangan) VALUES (?, ?, ?)");
+                    $stmt->execute([$user_id, $jumlah, $keterangan]);
+                    
+                    // 4. Catat aktivitas ke Logger
+                    Logger::log("Penarikan Kesiswaan", "Kasir menarik Dana OSIS/Kesiswaan sebesar Rp" . number_format($jumlah, 0, ',', '.'));
+                    
+                    $_SESSION['success'] = "Berhasil menarik Dana Kesiswaan sebesar Rp " . number_format($jumlah, 0, ',', '.');
+                }
+            } catch (Exception $e) {
+                $_SESSION['error'] = "Terjadi Kesalahan Sistem: " . $e->getMessage();
+            }
+        }
+        
+        // Kembali ke halaman dasbor kesiswaan
+        header('Location: ' . BASE_URL . '/laporan/kas_kesiswaan');
+        exit;
+    }
 }

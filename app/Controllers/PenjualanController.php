@@ -18,7 +18,8 @@ class PenjualanController {
     // 1. TAMPILKAN DATA RIWAYAT PENJUALAN
     // =================================================================
     public function index() {
-        $sql = "SELECT p.*, k.nama_sampah, k.satuan
+        // 🛠️ FIX: Panggil juga k.konversi_kg agar bisa di-render di tabel riwayat
+        $sql = "SELECT p.*, k.nama_sampah, k.satuan, k.konversi_kg
                 FROM penjualan p
                 JOIN kategori_sampah k ON p.kategori_id = k.id
                 ORDER BY p.tanggal_jual DESC";
@@ -33,7 +34,8 @@ class PenjualanController {
     // 2. FORM INPUT PENJUALAN (Filter Kategori Bersaldo Saja)
     // =================================================================
     public function create() {
-        $sql = "SELECT k.id, k.nama_sampah, k.harga_pengepul, k.satuan,
+        // 🛠️ FIX: Panggil k.konversi_kg agar bisa dibaca oleh Javascript di form input
+        $sql = "SELECT k.id, k.nama_sampah, k.harga_pengepul, k.satuan, k.konversi_kg,
                        (SELECT IFNULL(SUM(berat), 0) 
                         FROM setoran s 
                         WHERE s.kategori_id = k.id 
@@ -56,15 +58,15 @@ class PenjualanController {
     // =================================================================
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'staff')) {
-            $kategori_id   = (int)$_POST['kategori_id'];
-            $harga_per_pcs = (float)$_POST['harga_per_pcs'];
-            $keterangan    = htmlspecialchars($_POST['keterangan'] ?? 'Penjualan ke Pengepul (Rutin)');
+            $kategori_id  = (int)$_POST['kategori_id'];
+            // 🛠️ FIX: Terima name input sebagai harga_per_kg dari Form
+            $harga_per_kg = (float)$_POST['harga_per_kg'];
+            $keterangan   = htmlspecialchars($_POST['keterangan'] ?? 'Penjualan ke Pengepul (Rutin)');
 
             try {
                 $this->db->beginTransaction();
 
                 // 1. Ambil Stok, HPP (Beban Nasabah), dan Snapshot Honor Walas dari tabel Setoran
-                // Snapshot Walas yang sudah ada di setoran harus kita hitung agar jatah Kas BST akurat.
                 $stmtStok = $this->db->prepare("
                     SELECT 
                         IFNULL(SUM(berat), 0) as total_pcs, 
@@ -87,7 +89,20 @@ class PenjualanController {
                     throw new Exception("Stok kosong atau sudah terjual oleh admin lain.");
                 }
 
-                // 2. Ambil Konfigurasi Persentase Terkini (Detik ini juga)
+                // 2. LOGIKA KONVERSI DINAMIS & PEMBULATAN KE KG BULAT 🛠️
+                $stmtKat = $this->db->prepare("SELECT konversi_kg FROM kategori_sampah WHERE id = ?");
+                $stmtKat->execute([$kategori_id]);
+                $konversi = (int)$stmtKat->fetchColumn();
+                
+                if ($konversi <= 0) $konversi = 1; // Mencegah Divide by Zero
+
+                // Kalkulasi Volume dalam KG dengan Pembulatan Bulat Tanpa Desimal
+                $total_kg = round($total_pcs / $konversi);
+                if ($total_kg < 1 && $total_pcs > 0) {
+                    $total_kg = 1; // Pastikan minimal 1 KG walau barang hanya sedikit
+                }
+
+                // 3. Ambil Konfigurasi Persentase Terkini
                 $stmtConfig = $this->db->query("SELECT kunci, nilai FROM pengaturan WHERE kunci LIKE 'persen_%'");
                 $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
                 
@@ -95,18 +110,19 @@ class PenjualanController {
                 $p_sekolah   = (float)($config['persen_kas_sekolah'] ?? 0) / 100;
                 $p_piket     = (float)($config['persen_honor_piket'] ?? 0) / 100;
 
-                // 3. Kalkulasi Laba & Distribusi Margin (Snapshotting Process)
-                $total_pendapatan = $total_pcs * $harga_per_pcs;
+                // 4. Kalkulasi Laba Berdasarkan KG yg Dibulatkan 🛠️
+                $total_pendapatan = $total_kg * $harga_per_kg;
                 $margin_total     = $total_pendapatan - $beban_nasabah;
                 
                 $kas_sekolah_rp      = $margin_total * $p_sekolah;
                 $honor_pengelola_rp  = $margin_total * $p_pengelola;
                 $honor_piket_rp      = $margin_total * $p_piket;
                 
-                // Kas BST = Sisa Margin setelah dipotong semua jatah (termasuk Walas yang sudah dikunci di setoran)
+                // Kas BST = Sisa Margin 
                 $kas_bst_rp = $margin_total - ($kas_sekolah_rp + $honor_pengelola_rp + $honor_piket_rp + $total_walas_setoran);
 
-                // 4. Eksekusi Pertama: Catat di tabel Penjualan (KUNCI PERMANEN NOMINAL RUPIAH)
+                // 5. Eksekusi Pertama: Catat di tabel Penjualan 
+                // Harga dari post (harga per KG) disimpan ke kolom harga_per_pcs di database
                 $sqlInsert = "INSERT INTO penjualan (
                                 kategori_id, total_pcs, harga_per_pcs, total_pendapatan, 
                                 beban_nasabah_rp, margin_total_rp, kas_sekolah_rp, 
@@ -116,18 +132,18 @@ class PenjualanController {
                 
                 $stmtInsert = $this->db->prepare($sqlInsert);
                 $stmtInsert->execute([
-                    $kategori_id, $total_pcs, $harga_per_pcs, $total_pendapatan,
+                    $kategori_id, $total_pcs, $harga_per_kg, $total_pendapatan,
                     $beban_nasabah, $margin_total, $kas_sekolah_rp,
                     $honor_pengelola_rp, $honor_piket_rp, $kas_bst_rp,
                     $keterangan
                 ]);
 
-                // 5. Eksekusi Kedua: Update status barang di tabel Setoran (Tandai Terjual)
+                // 6. Eksekusi Kedua: Update status barang di tabel Setoran (Tandai Terjual)
                 $stmtUpdate = $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE kategori_id = ? AND status = 'valid' AND (is_sold = 0 OR is_sold IS NULL)");
                 $stmtUpdate->execute([$kategori_id]);
 
                 $this->db->commit();
-                $_SESSION['success'] = "Berhasil! Penjualan {$total_pcs} Pcs tercatat. Pembagian margin telah dikunci secara permanen.";
+                $_SESSION['success'] = "Berhasil! Penjualan seberat " . number_format($total_kg, 0, ',', '.') . " KG tercatat. Pembagian margin telah dikunci secara permanen.";
             } catch (Exception $e) {
                 $this->db->rollBack();
                 $_SESSION['error'] = "Gagal memproses penjualan: " . $e->getMessage();

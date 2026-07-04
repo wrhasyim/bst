@@ -36,6 +36,9 @@ class SampahController {
             $harga_guru = !empty($_POST['harga_guru']) ? $_POST['harga_guru'] : $harga_dasar; 
             
             $harga_pengepul = $_POST['harga_pengepul'];
+            
+            // 🛠️ FIX: Tangkap input konversi_kg dari form (Default 1 jika dikosongkan)
+            $konversi_kg = !empty($_POST['konversi_kg']) ? (int)$_POST['konversi_kg'] : 1;
 
             // Validasi: Harga pengepul tidak boleh lebih kecil dari harga terdiversifikasi yang tertinggi
             $max_harga_beli = max($harga_dasar, $harga_guru);
@@ -43,10 +46,10 @@ class SampahController {
             if ($harga_pengepul < $max_harga_beli) {
                 $_SESSION['error'] = "Gagal: Harga Jual (Pengepul) harus lebih besar/sama dengan Harga Beli (Siswa & Guru).";
             } else {
-                // FIX: Masukkan parameter harga_guru ke query INSERT
-                $sql = "INSERT INTO kategori_sampah (nama_sampah, harga_dasar, harga_guru, harga_pengepul, satuan) VALUES (?, ?, ?, ?, 'Pcs')";
+                // 🛠️ FIX: Masukkan parameter konversi_kg ke query INSERT
+                $sql = "INSERT INTO kategori_sampah (nama_sampah, harga_dasar, harga_guru, harga_pengepul, satuan, konversi_kg) VALUES (?, ?, ?, ?, 'Pcs', ?)";
                 $stmt = $this->db->prepare($sql);
-                if ($stmt->execute([$nama, $harga_dasar, $harga_guru, $harga_pengepul])) {
+                if ($stmt->execute([$nama, $harga_dasar, $harga_guru, $harga_pengepul, $konversi_kg])) {
                     $_SESSION['success'] = "Kategori sampah baru berhasil ditambahkan.";
                 }
             }
@@ -65,16 +68,19 @@ class SampahController {
             $harga_guru = !empty($_POST['harga_guru']) ? $_POST['harga_guru'] : $harga_dasar;
             
             $harga_pengepul = $_POST['harga_pengepul'];
+            
+            // 🛠️ FIX: Tangkap input konversi_kg untuk proses update
+            $konversi_kg = !empty($_POST['konversi_kg']) ? (int)$_POST['konversi_kg'] : 1;
 
             $max_harga_beli = max($harga_dasar, $harga_guru);
 
             if ($harga_pengepul < $max_harga_beli) {
                 $_SESSION['error'] = "Update Gagal: Harga Jual (Pengepul) harus lebih besar/sama dengan Harga Beli tertinggi.";
             } else {
-                // FIX: Masukkan parameter harga_guru ke query UPDATE
-                $sql = "UPDATE kategori_sampah SET nama_sampah=?, harga_dasar=?, harga_guru=?, harga_pengepul=? WHERE id=?";
+                // 🛠️ FIX: Masukkan parameter konversi_kg ke query UPDATE
+                $sql = "UPDATE kategori_sampah SET nama_sampah=?, harga_dasar=?, harga_guru=?, harga_pengepul=?, konversi_kg=? WHERE id=?";
                 $stmt = $this->db->prepare($sql);
-                if ($stmt->execute([$nama, $harga_dasar, $harga_guru, $harga_pengepul, $id])) {
+                if ($stmt->execute([$nama, $harga_dasar, $harga_guru, $harga_pengepul, $konversi_kg, $id])) {
                     $_SESSION['success'] = "Data harga sampah berhasil diperbarui.";
                 }
             }
@@ -83,7 +89,7 @@ class SampahController {
     }
 
     // Hapus Data
-  public function delete() {
+    public function delete() {
         $id = $_GET['id'];
         
         try {
