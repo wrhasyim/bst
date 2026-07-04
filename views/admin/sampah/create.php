@@ -16,54 +16,63 @@
                   hargaSiswa: 0, 
                   hargaGuru: 0, 
                   hargaPengepul: 0,
-                  get marginSiswa() { return this.hargaPengepul - this.hargaSiswa; },
-                  get marginGuru() { return this.hargaPengepul - this.hargaGuru; }
+                  konversiKg: 1,
+                  get modalPerKg() { return Math.max(this.hargaSiswa || 0, this.hargaGuru || this.hargaSiswa || 0) * this.konversiKg; },
+                  get marginPerKg() { return this.hargaPengepul - this.modalPerKg; }
               }">
             
             <div class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">Nama Jenis Sampah</label>
-                        <input type="text" name="nama_sampah" required placeholder="Contoh: Kardus Bekas, Botol Plastik, dll" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+                        <input type="text" name="nama_sampah" required placeholder="Contoh: Botol Plastik" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">Konversi Pcs ke 1 KG</label>
-                        <input type="number" name="konversi_kg" required min="1" value="1" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-gray-800">
-                        <p class="text-[11px] text-gray-500 mt-1">*Berapa Pcs untuk 1 KG? (Isi 1 jika satuan ukur tetap sama).</p>
+                        <input type="number" name="konversi_kg" x-model.number="konversiKg" required min="1" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-gray-800">
+                        <p class="text-[11px] text-gray-500 mt-1">*Berapa Pcs untuk 1 KG? (Contoh: Cup 270, Botol 60).</p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100">
                     <div class="relative group">
-                        <label class="block text-sm font-bold text-gray-700 mb-2 text-emerald-700">Harga Jual (Pengepul)</label>
+                        <label class="block text-[11px] font-bold text-emerald-700 uppercase tracking-wider mb-2">Harga Jual (Rp / KG)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
                             <input type="number" name="harga_pengepul" x-model.number="hargaPengepul" required min="0" class="w-full pl-10 pr-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-bold text-gray-800">
                         </div>
-                        <p class="text-[11px] text-gray-500 mt-1">Harga yang dibayarkan pengepul ke BST.</p>
+                        <p class="text-[10px] text-gray-500 mt-1">Dibayar oleh Pengepul.</p>
                     </div>
 
                     <div class="relative group">
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Harga Beli dari Siswa</label>
+                        <label class="block text-[11px] font-bold text-red-600 uppercase tracking-wider mb-2">Harga Beli Siswa (Rp / Pcs)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
-                            <input type="number" name="harga_dasar" x-model.number="hargaSiswa" required min="0" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-gray-800">
+                            <input type="number" name="harga_dasar" x-model.number="hargaSiswa" required min="0" class="w-full pl-10 pr-4 py-3 bg-red-50 border border-red-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-gray-800">
                         </div>
-                        <p class="text-[11px] mt-1 font-semibold" :class="marginSiswa >= 0 ? 'text-emerald-600' : 'text-red-500'" x-text="marginSiswa >= 0 ? 'Margin: +Rp' + marginSiswa + '/Pcs' : 'Rugi! Cek Harga'"></p>
                     </div>
 
                     <div class="relative group">
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Harga Beli dari Guru</label>
+                        <label class="block text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-2">Harga Beli Guru (Rp / Pcs)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">Rp</span>
-                            <input type="number" name="harga_guru" x-model.number="hargaGuru" required min="0" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-gray-800">
+                            <input type="number" name="harga_guru" x-model.number="hargaGuru" required min="0" class="w-full pl-10 pr-4 py-3 bg-purple-50 border border-purple-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-gray-800">
                         </div>
-                        <p class="text-[11px] mt-1 font-semibold" :class="marginGuru >= 0 ? 'text-emerald-600' : 'text-red-500'" x-text="marginGuru >= 0 ? 'Margin: +Rp' + marginGuru + '/Pcs' : 'Rugi! Cek Harga'"></p>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+            <div class="mt-8 p-6 rounded-2xl border-2 flex items-center justify-between transition-all" :class="marginPerKg >= 0 ? 'border-emerald-100 bg-emerald-50/50' : 'border-red-100 bg-red-50/50'">
+                <div>
+                    <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Margin (Profit) Minimal per 1 KG :</span>
+                    <span class="block text-[9px] text-slate-400 mt-1">Hitungan: Jual 1 KG dikurangi (Beli <span x-text="konversiKg"></span> Pcs × Harga Tertinggi)</span>
+                </div>
+                <span class="text-2xl font-black" :class="marginPerKg >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                    Rp<span x-text="new Intl.NumberFormat('id-ID').format(marginPerKg)"></span>
+                </span>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-gray-100 flex justify-end">
                 <button type="submit" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 transition-all duration-300 transform hover:-translate-y-0.5">
                     Simpan Kategori
                 </button>
