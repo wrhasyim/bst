@@ -2,7 +2,7 @@
     <div class="flex justify-between items-end">
         <div>
             <h2 class="text-2xl font-black text-slate-800 italic uppercase tracking-tight">FORM<span class="text-emerald-500">PENJUALAN</span></h2>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Input Data Penjualan Historis / Manual</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Input Data Penjualan (Custom Inject PCS/KG)</p>
         </div>
         <a href="<?= BASE_URL ?>/penjualan" class="text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-all">Batal & Kembali</a>
     </div>
@@ -19,17 +19,13 @@
              get stokTersedia() { return this.detail ? parseFloat(this.detail.stok_tersedia) : 0; },
              get isError() { return this.jumlahPcs > this.stokTersedia; },
              updateFromKg() {
-                 // Jika kolom KG diketik, update Pcs
+                 // Menyarankan jumlah Pcs otomatis saat KG diisi
                  this.jumlahPcs = Math.round(this.jumlahKg * this.konversi);
-             },
-             updateFromPcs() {
-                 // Jika kolom Pcs diketik, update KG
-                 this.jumlahKg = this.jumlahPcs / this.konversi;
              },
              setAllStock() {
                  if(this.detail) {
                      this.jumlahPcs = this.stokTersedia;
-                     this.updateFromPcs();
+                     this.jumlahKg = parseFloat((this.stokTersedia / this.konversi).toFixed(2));
                      this.harga = parseFloat(this.detail.harga_pengepul);
                  } else {
                      this.jumlahPcs = 0;
@@ -57,23 +53,23 @@
                 <div>
                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 tracking-widest">2. Jual Berapa KG?</label>
                     <div class="relative">
-                        <input type="number" step="any" x-model.number="jumlahKg" @input="updateFromKg()" required
+                        <input type="number" step="any" name="total_kg" x-model.number="jumlahKg" @input="updateFromKg()" required
                                class="w-full px-5 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl font-black text-xl outline-none transition-all focus:ring-2 focus:ring-emerald-500 text-emerald-800 placeholder-slate-300" placeholder="0">
                         <span class="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-emerald-600 uppercase">KG</span>
                     </div>
-                    <p class="text-[9px] text-slate-400 font-bold mt-2 ml-1 uppercase italic">*Isi manual berat dalam hitungan KG.</p>
+                    <p class="text-[9px] text-slate-400 font-bold mt-2 ml-1 uppercase italic">*Isi beban KG. Kolom Pcs otomatis menyesuaikan.</p>
                 </div>
                 
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 tracking-widest">Ekuivalen Setara (Pcs)</label>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 tracking-widest">Inject Aktual (Pcs)</label>
                     <div class="relative">
-                        <input type="number" step="1" name="total_pcs" x-model.number="jumlahPcs" @input="updateFromPcs()" required
+                        <input type="number" step="1" name="total_pcs" x-model.number="jumlahPcs" required
                                :class="isError ? 'border-red-500 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-100 text-slate-600'"
                                class="w-full px-5 py-4 rounded-2xl font-black text-xl outline-none transition-all focus:ring-2 focus:ring-emerald-500">
                         <span class="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">Pcs</span>
                     </div>
                     <p x-show="isError" class="text-[10px] text-red-600 font-bold mt-2 ml-1 italic">❌ Melebihi stok! Maksimal: <span x-text="stokTersedia"></span> Pcs.</p>
-                    <p x-show="!isError && katId" class="text-[10px] text-emerald-600 font-bold mt-2 ml-1 italic">✅ Tersedia <span x-text="stokTersedia"></span> Pcs (1 KG = <span x-text="konversi"></span> Pcs).</p>
+                    <p x-show="!isError && katId" class="text-[9px] text-emerald-600 font-bold mt-2 ml-1 italic">✅ Tersedia <span x-text="stokTersedia"></span> Pcs. <br>(Bebas edit angka PCS ini jika realita berbeda).</p>
                 </div>
             </div>
 
@@ -86,7 +82,7 @@
                 </div>
             </div>
 
-            <div x-show="jumlahPcs * harga > 0 && katId && !isError" x-collapse
+            <div x-show="jumlahKg * harga > 0 && katId && !isError" x-collapse
                  class="p-6 bg-slate-900 rounded-[2rem] flex justify-between items-center text-white shadow-2xl transition-all">
                 <div>
                     <span class="block text-[10px] font-bold uppercase opacity-50 tracking-widest mb-1">Total Kas Akan Diterima</span>
@@ -102,8 +98,8 @@
             </div>
 
             <button type="submit" 
-                    :disabled="isError || jumlahPcs <= 0 || !katId"
-                    :class="isError || jumlahPcs <= 0 || !katId ? 'opacity-30 cursor-not-allowed bg-slate-300' : 'bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-500/20'"
+                    :disabled="isError || jumlahPcs <= 0 || jumlahKg <= 0 || !katId"
+                    :class="isError || jumlahPcs <= 0 || jumlahKg <= 0 || !katId ? 'opacity-30 cursor-not-allowed bg-slate-300' : 'bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-500/20'"
                     class="w-full py-5 text-white font-black text-xs uppercase tracking-[0.3em] rounded-2xl transition-all transform active:scale-95">
                 Konfirmasi & Simpan Penjualan
             </button>

@@ -1,5 +1,5 @@
 -- BST SYSTEM DATABASE BACKUP
--- Tanggal: 2026-05-26 11:37:14
+-- Tanggal: 2026-07-04 06:35:19
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -16,7 +16,7 @@ CREATE TABLE `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `activity_logs` VALUES("1","1","Logout","User keluar dari sistem","::1","2026-05-04 16:46:33");
 INSERT INTO `activity_logs` VALUES("2","1","Login","User berhasil masuk ke dalam sistem","::1","2026-05-04 16:47:23");
@@ -100,6 +100,14 @@ INSERT INTO `activity_logs` VALUES("79","1","Update Pengaturan","Admin memperbar
 INSERT INTO `activity_logs` VALUES("80","1","System Patch","Admin menginstal pembaruan sistem melalui file patch: update_V1.zip","::1","2026-05-26 16:12:34");
 INSERT INTO `activity_logs` VALUES("81","1","System Patch","Admin menginstal pembaruan sistem melalui file patch: update.zip","::1","2026-05-26 16:13:19");
 INSERT INTO `activity_logs` VALUES("82","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-05-26 16:37:14");
+INSERT INTO `activity_logs` VALUES("83","1","Login","User berhasil masuk ke dalam sistem","::1","2026-06-02 11:24:04");
+INSERT INTO `activity_logs` VALUES("84","1","Login","User berhasil masuk ke dalam sistem","::1","2026-06-18 13:32:39");
+INSERT INTO `activity_logs` VALUES("85","1","Login","User berhasil masuk ke dalam sistem","::1","2026-07-03 12:22:49");
+INSERT INTO `activity_logs` VALUES("86","1","Denda Kesiswaan","Petugas mencatat denda pelanggaran sebesar 400 Pcs ke Kas Kesiswaan","::1","2026-07-03 12:26:00");
+INSERT INTO `activity_logs` VALUES("87","1","Login","User berhasil masuk ke dalam sistem","::1","2026-07-04 10:00:38");
+INSERT INTO `activity_logs` VALUES("88","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-04 10:13:47");
+INSERT INTO `activity_logs` VALUES("89","1","Restore Database","Admin memulihkan database dari file SQL.","::1","2026-07-04 10:14:46");
+INSERT INTO `activity_logs` VALUES("90","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-04 11:35:19");
 
 
 DROP TABLE IF EXISTS `detail_setoran`;
@@ -125,8 +133,9 @@ CREATE TABLE `kas_manual` (
   `keterangan` varchar(255) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+INSERT INTO `kas_manual` VALUES("1","1","2026-07-03","pemasukan","7000","Kelebihan kas kesiswaan setoran 3 Juli 2026","2026-07-03 12:27:46");
 
 
 DROP TABLE IF EXISTS `kategori_sampah`;
@@ -137,13 +146,14 @@ CREATE TABLE `kategori_sampah` (
   `harga_guru` decimal(10,2) DEFAULT 0.00,
   `harga_pengepul` decimal(15,2) NOT NULL DEFAULT 0.00,
   `satuan` varchar(20) DEFAULT 'Pcs',
+  `konversi_kg` int(11) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1005 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-INSERT INTO `kategori_sampah` VALUES("5","🌟 REWARD PRESTASI","0.00","0.00","0.00","Bonus");
-INSERT INTO `kategori_sampah` VALUES("1002","botol plastik","35.00","40.00","66.00","Pcs");
-INSERT INTO `kategori_sampah` VALUES("1003","Botol Warna","16.00","16.00","38.00","Pcs");
-INSERT INTO `kategori_sampah` VALUES("1004","Cup","4.00","4.00","6.00","Pcs");
+INSERT INTO `kategori_sampah` VALUES("5","🌟 REWARD PRESTASI","0.00","0.00","0.00","Bonus","1");
+INSERT INTO `kategori_sampah` VALUES("1002","botol plastik","35.00","40.00","5000.00","Pcs","60");
+INSERT INTO `kategori_sampah` VALUES("1003","Botol Warna","16.00","16.00","2500.00","Pcs","60");
+INSERT INTO `kategori_sampah` VALUES("1004","Cup","4.00","4.00","4000.00","Pcs","270");
 
 
 DROP TABLE IF EXISTS `kelas`;
@@ -258,8 +268,9 @@ CREATE TABLE `setoran` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `is_sold` tinyint(1) DEFAULT 0,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+INSERT INTO `setoran` VALUES("1","19","1002","400.00","14000.00","26400.00","0",NULL,"valid","2026-07-03 12:25:59","0");
 
 
 DROP TABLE IF EXISTS `users`;
