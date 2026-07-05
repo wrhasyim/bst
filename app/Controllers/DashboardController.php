@@ -6,6 +6,11 @@ class DashboardController {
     private $db;
 
     public function __construct() {
+        // 🛡️ Mencegah error jika session sudah berjalan
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
         if (!isset($_SESSION['user_id'])) {
             header('Location: ' . BASE_URL . '/auth/login');
             exit;
@@ -16,7 +21,7 @@ class DashboardController {
     public function index() {
         $role = $_SESSION['role'];
         $user_id = $_SESSION['user_id'];
-        $data = [];
+        $data = []; // Array untuk menampung semua data metrik
 
         // =======================================================
         // DATA LEADERBOARD: TOP 5 NASABAH (3 BULAN TERAKHIR)
@@ -122,8 +127,19 @@ class DashboardController {
             }
         }
 
+        // =======================================================
+        // 3. RENDER TAMPILAN (SATU FILE UNTUK SEMUA)
+        // =======================================================
         $title = "Dashboard BST System";
+        
+        // Ekstrak array $data menjadi variabel individual 
+        // (contoh: $data['stok_gudang'] akan menjadi variabel $stok_gudang)
+        extract($data); 
+
+        // Tentukan file isi dashboard
         $content = __DIR__ . '/../../views/admin/dashboard.php';
+        
+        // Panggil layout universal (yang membungkus isi dashboard)
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 }

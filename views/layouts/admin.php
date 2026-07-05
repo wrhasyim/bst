@@ -1,3 +1,7 @@
+<?php 
+// 🛡️ Amankan variabel role agar tidak terjadi error "Undefined index"
+$role = $_SESSION['role'] ?? ''; 
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -17,7 +21,6 @@
         }
         [x-cloak] { display: none !important; }
         
-        /* Sidebar Active Link Style */
         .sidebar-link.active { 
             background-color: rgba(30, 41, 59, 1) !important; 
             color: #ffffff !important; 
@@ -25,7 +28,6 @@
             box-shadow: inset 10px 0 20px -10px rgba(16, 185, 129, 0.6);
         }
 
-        /* Custom Scrollbar for Sidebar */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
@@ -46,6 +48,7 @@
 
             <nav class="flex-1 mt-4 px-4 space-y-1 overflow-y-auto custom-scrollbar">
                 
+                <!-- MENU UNIVERSAL (Semua Role Bisa Lihat) -->
                 <div class="pb-3">
                     <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Utama</p>
                     <a href="<?= BASE_URL ?>/dashboard" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
@@ -53,7 +56,8 @@
                     </a>
                 </div>
 
-                <?php if($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'staff'): ?>
+                <!-- MENU OPERASIONAL (Hanya Admin & Staff) -->
+                <?php if($role === 'admin' || $role === 'staff'): ?>
                 <div class="py-3">
                     <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Operasional</p>
                     <a href="<?= BASE_URL ?>/setoran/siswa_kelas" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
@@ -65,7 +69,8 @@
                     <a href="<?= BASE_URL ?>/setoran/create_kesiswaan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3 text-lg">⚖️</span> Denda Kesiswaan
                     </a>
-                    <?php if($_SESSION['role'] === 'admin'): ?>
+                    
+                    <?php if($role === 'admin'): ?>
                     <a href="<?= BASE_URL ?>/setoran/siswa" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">📋</span> Riwayat Tabungan
                     </a>
@@ -73,8 +78,9 @@
                 </div>
                 <?php endif; ?>
 
-                <?php if($_SESSION['role'] === 'admin'): ?>
-                <div class="py-3">
+                <!-- MENU KHUSUS ADMIN -->
+                <?php if($role === 'admin'): ?>
+                <div class="py-3 border-t border-slate-800 mt-4">
                     <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Keuangan & Validasi</p>
                     <a href="<?= BASE_URL ?>/setoran/validasi" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">✅</span> Validasi Setoran
@@ -135,7 +141,6 @@
                     </a>
                 </div>
 
-                <!-- FITUR BARU: MENU AUDIT TRAIL / SECURITY -->
                 <div class="py-3 border-t border-slate-800 mt-4 mb-8">
                     <p class="nav-header text-[10px] font-bold text-slate-500 uppercase px-4 mb-2">Sistem Keamanan</p>
                     <a href="<?= BASE_URL ?>/pengaturan/logs" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
@@ -157,11 +162,11 @@
                 <div class="ml-auto relative" x-data="{ open: false }">
                     <button @click="open = !open" class="flex items-center space-x-3 p-1 rounded-2xl hover:bg-gray-50 transition-all focus:outline-none">
                         <div class="text-right hidden sm:block">
-                            <p class="text-xs font-black text-slate-800 leading-none"><?= htmlspecialchars($_SESSION['nama']) ?></p>
-                            <p class="text-[9px] text-emerald-500 font-bold uppercase mt-1 tracking-widest italic">Akses: <?= strtoupper($_SESSION['role']) ?></p>
+                            <p class="text-xs font-black text-slate-800 leading-none"><?= htmlspecialchars($_SESSION['nama'] ?? 'Pengguna') ?></p>
+                            <p class="text-[9px] text-emerald-500 font-bold uppercase mt-1 tracking-widest italic">Akses: <?= strtoupper($role) ?></p>
                         </div>
                         <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-sm font-black shadow-lg uppercase">
-                            <?= substr($_SESSION['nama'], 0, 1) ?>
+                            <?= substr($_SESSION['nama'] ?? 'U', 0, 1) ?>
                         </div>
                     </button>
 
@@ -178,7 +183,7 @@
                             <span class="mr-3 text-lg">👤</span> Profil & Sandi
                         </a>
                         
-                        <?php if($_SESSION['role'] === 'admin'): ?>
+                        <?php if($role === 'admin'): ?>
                             <hr class="border-gray-50 my-1">
                             <a href="<?= BASE_URL ?>/pengaturan" class="flex items-center px-6 py-3.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 font-bold transition-all">
                                 <span class="mr-3 text-lg">⚙️</span> Pengaturan Sistem
@@ -189,7 +194,6 @@
                         <?php endif; ?>
 
                         <hr class="border-gray-50 my-1">
-                        <!-- ACTION MENU LOGOUT -->
                         <a href="<?= BASE_URL ?>/auth/logout" class="flex items-center px-6 py-3.5 text-xs text-red-600 hover:bg-red-50 font-bold transition-all">
                             <span class="mr-3 text-lg">🚪</span> Keluar Aplikasi
                         </a>
@@ -199,7 +203,14 @@
 
             <main class="flex-1 overflow-x-hidden overflow-y-auto p-8 bg-slate-50/50">
                 <div class="container mx-auto">
-                    <?php require_once $content; ?>
+                    <!-- INJEKSI KONTEN DARI CONTROLLER -->
+                    <?php 
+                    if (isset($content) && file_exists($content)) {
+                        require_once $content; 
+                    } else {
+                        echo "<p class='text-red-500'>Error: File konten tidak ditemukan.</p>";
+                    }
+                    ?>
                 </div>
             </main>
         </div>
@@ -212,7 +223,6 @@
             
             links.forEach(link => {
                 const linkUrl = link.href.split(/[?#]/)[0];
-                // Mengecek kecocokan URL tepat atau jika URL saat ini adalah sub-halaman dari link tersebut
                 if (currentUrl === linkUrl || (currentUrl.startsWith(linkUrl) && linkUrl !== window.location.origin + '/')) {
                     link.classList.add('active');
                 }

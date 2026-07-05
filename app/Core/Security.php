@@ -39,4 +39,47 @@ class Security {
             }
         }
     }
+
+    /**
+     * 🛡️ Satpam URL: Validasi Hak Akses (Role-Based Access Control)
+     * Mencegah user mengakses halaman yang bukan haknya melalui URL browser.
+     * 
+     * @param array $allowed_roles Daftar peran yang diizinkan masuk (misal: ['admin', 'staff'])
+     */
+    public static function requireRole($allowed_roles = []) {
+        // Pastikan sesi sudah dimulai sebelum kita membaca $_SESSION
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        // 1. Jika pengguna belum login sama sekali, lempar ke halaman login
+        if (!isset($_SESSION['user_id'])) {
+            $_SESSION['error'] = "Akses ditolak! Silakan login terlebih dahulu.";
+            header("Location: " . BASE_URL . "/auth/login");
+            exit;
+        }
+
+        // 2. Ambil peran pengguna saat ini (ubah ke huruf kecil agar aman dari salah ketik)
+        $user_role = strtolower($_SESSION['role'] ?? '');
+
+        // 3. Cek apakah peran pengguna ADA di dalam daftar yang diizinkan ($allowed_roles)
+        if (!in_array($user_role, $allowed_roles)) {
+            
+            // Jika tidak diizinkan, berikan pesan error
+            $_SESSION['error'] = "Akses ditolak! Anda tidak memiliki izin untuk membuka halaman ini.";
+            
+            // Tendang kembali ke dashboard sesuai dengan role mereka masing-masing
+            if ($user_role === 'admin' || $user_role === 'staff') {
+                header('Location: ' . BASE_URL . '/admin/dashboard');
+            } elseif ($user_role === 'walas') {
+                header('Location: ' . BASE_URL . '/walas/dashboard');
+            } elseif ($user_role === 'siswa') {
+                header('Location: ' . BASE_URL . '/siswa/dashboard');
+            } else {
+                header('Location: ' . BASE_URL . '/dashboard');
+            }
+            exit; // Hentikan eksekusi kode sepenuhnya
+        }
+    }
 }
+?>

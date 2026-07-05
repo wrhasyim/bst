@@ -12,6 +12,11 @@ class AuthController {
     }
 
     public function login() {
+        // 0. Pastikan Sesi sudah dimulai sebelum menggunakan $_SESSION
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
         // 1. PROSES LOGIKA LOGIN (Jika form disubmit via POST)
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
@@ -21,7 +26,7 @@ class AuthController {
             $username = trim($_POST['username'] ?? '');
             $password = $_POST['password'] ?? '';
 
-            // ✅ BUG FIX: Menggunakan findByUsername sesuai dengan Model User Anda
+            // ✅ Memanggil data user dari Model
             $user = $this->userModel->findByUsername($username);
 
             if ($user && password_verify($password, $user['password'])) {
@@ -33,9 +38,9 @@ class AuthController {
                     exit;
                 }
 
-                // Set Session Utama
+                // Set Session Utama (Identitas Digital)
                 $_SESSION['user_id'] = $user['id'];
-                $_SESSION['role'] = $user['role'];
+                $_SESSION['role'] = $user['role']; // Ini penentu hak akses kita
                 $_SESSION['nama'] = $user['nama'];
 
                 // 🛡️ Buat token CSRF baru khusus untuk sesi login ini
@@ -44,8 +49,11 @@ class AuthController {
                 // 🛡️ Catat aktivitas login ke Audit Trail
                 Logger::log("Login", "User berhasil masuk ke dalam sistem");
 
+                // 🚀 PERBAIKAN BUG 404: 
+                // Semua pengguna (Admin, Staf, Walas, Siswa) kini diarahkan ke satu rute utama
                 header('Location: ' . BASE_URL . '/dashboard');
                 exit;
+
             } else {
                 $_SESSION['error'] = "Username atau password salah!";
                 header('Location: ' . BASE_URL . '/auth/login');
@@ -59,12 +67,16 @@ class AuthController {
     }
 
     public function logout() {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
         // 🛡️ Catat log SEBELUM session dihancurkan (agar nama/user_id masih terbaca oleh Logger)
         if (isset($_SESSION['user_id'])) {
             Logger::log("Logout", "User keluar dari sistem");
         }
 
-        // Hancurkan semua sesi keamanan
+        // Hancurkan semua sesi keamanan dan identitas
         unset($_SESSION['csrf_token']);
         session_unset();
         session_destroy();
@@ -73,3 +85,4 @@ class AuthController {
         exit;
     }
 }
+?>
