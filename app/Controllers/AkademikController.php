@@ -1,15 +1,15 @@
 <?php
 // app/Controllers/AkademikController.php
 require_once __DIR__ . '/../Core/Database.php';
+require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security Global
+require_once __DIR__ . '/../Core/Logger.php';   // 🛡️ Load Audit Trail
 
 class AkademikController {
     private $db;
 
     public function __construct() {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
-        }
+        // 🛡️ Satpam URL: Mutasi akademik mutlak hanya boleh dilakukan oleh Admin
+        Security::requireRole(['admin']);
         $this->db = Database::getInstance()->getConnection();
     }
 
@@ -17,8 +17,11 @@ class AkademikController {
     // 1. HALAMAN KENAIKAN KELAS
     // =================================================================
     public function kenaikan() {
-        $kelas_list = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
+        $data = []; // Wadah untuk data View
+        $data['kelas_list'] = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
         
+        // RENDER TAMPILAN DENGAN LAYOUT UNIVERSAL
+        extract($data);
         $title = "Kenaikan Kelas Massal";
         $content = __DIR__ . '/../../views/admin/akademik/kenaikan.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -26,6 +29,8 @@ class AkademikController {
 
     public function proses_kenaikan() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Proteksi CSRF
+
             $dari_kelas = $_POST['dari_kelas'];
             $ke_kelas = $_POST['ke_kelas'];
 
@@ -59,6 +64,7 @@ class AkademikController {
                     // 🛡️ Simpan semua perubahan secara permanen
                     $this->db->commit();
                     
+                    Logger::log("Akademik Kenaikan", "Admin memindahkan $jml_siswa siswa dari ID Kelas $dari_kelas ke ID Kelas $ke_kelas.");
                     $_SESSION['success'] = "Berhasil! $jml_siswa siswa dipindahkan. Wali kelas juga otomatis mengikuti rombel barunya.";
                 } catch (Exception $e) {
                     $this->db->rollBack(); // Batalkan semua jika ada error
@@ -74,8 +80,10 @@ class AkademikController {
     // 2. HALAMAN KELULUSAN (ALUMNI)
     // =================================================================
     public function kelulusan() {
-        $kelas_list = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
+        $data = [];
+        $data['kelas_list'] = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
         
+        extract($data);
         $title = "Kelulusan Alumni";
         $content = __DIR__ . '/../../views/admin/akademik/kelulusan.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -83,6 +91,8 @@ class AkademikController {
 
     public function proses_kelulusan() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Proteksi CSRF
+
             $kelas_id = $_POST['kelas_id'];
 
             try {
@@ -102,6 +112,7 @@ class AkademikController {
                 $this->db->commit();
 
                 if ($count > 0) {
+                    Logger::log("Akademik Kelulusan", "Admin memproses kelulusan $count siswa dari ID Kelas $kelas_id menjadi Alumni.");
                     $_SESSION['success'] = "Berhasil meluluskan $count siswa. Status siswa kini menjadi Alumni, dan Guru yang mengampu kini berstatus bebas tugas (bisa dipilih kembali menjadi Wali Kelas).";
                 } else {
                     $_SESSION['error'] = "Gagal. Tidak ada siswa yang terdaftar di kelas tersebut.";
@@ -116,3 +127,4 @@ class AkademikController {
         }
     }
 }
+?>

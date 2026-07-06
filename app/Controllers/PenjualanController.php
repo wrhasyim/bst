@@ -1,49 +1,57 @@
 <?php
 // app/Controllers/PenjualanController.php
 require_once __DIR__ . '/../Core/Database.php';
+require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security Global
+require_once __DIR__ . '/../Core/Logger.php';   // 🛡️ Load Audit Trail
 
 class PenjualanController {
     private $db;
 
     public function __construct() {
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: ' . BASE_URL . '/auth/login');
-            exit;
-        }
+        // 🛡️ Menerapkan "Satpam URL": Hanya Admin dan Staf yang boleh mengakses
+        Security::requireRole(['admin', 'staff']);
         $this->db = Database::getInstance()->getConnection();
     }
 
     public function index() {
+        $data = []; // Wadah untuk data yang akan dikirim ke View
+
         try {
             $sql = "SELECT p.*, k.nama_sampah, k.satuan, k.konversi_kg
                     FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id
                     ORDER BY p.tanggal_jual DESC";
-            $penjualan = $this->db->query($sql)->fetchAll();
+            $data['penjualan'] = $this->db->query($sql)->fetchAll();
         } catch (Exception $e) {
             $sql = "SELECT p.*, k.nama_sampah, k.satuan, 1 as konversi_kg
                     FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id
                     ORDER BY p.tanggal_jual DESC";
-            $penjualan = $this->db->query($sql)->fetchAll();
+            $data['penjualan'] = $this->db->query($sql)->fetchAll();
         }
 
+        // RENDER TAMPILAN
+        extract($data);
         $title = "Data Penjualan Pengepul";
         $content = __DIR__ . '/../../views/admin/penjualan/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
     public function create() {
+        $data = [];
+
         try {
             $sql = "SELECT k.id, k.nama_sampah, k.harga_pengepul, k.satuan, k.konversi_kg,
                            (SELECT IFNULL(SUM(berat), 0) FROM setoran s WHERE s.kategori_id = k.id AND s.status = 'valid' AND (s.is_sold = 0 OR s.is_sold IS NULL)) as stok_tersedia
                     FROM kategori_sampah k WHERE k.nama_sampah != '🌟 REWARD PRESTASI' HAVING stok_tersedia > 0";
-            $kategori_ready = $this->db->query($sql)->fetchAll();
+            $data['kategori_ready'] = $this->db->query($sql)->fetchAll();
         } catch (Exception $e) {
             $sql = "SELECT k.id, k.nama_sampah, k.harga_pengepul, k.satuan, 1 as konversi_kg,
                            (SELECT IFNULL(SUM(berat), 0) FROM setoran s WHERE s.kategori_id = k.id AND s.status = 'valid' AND (s.is_sold = 0 OR s.is_sold IS NULL)) as stok_tersedia
                     FROM kategori_sampah k WHERE k.nama_sampah != '🌟 REWARD PRESTASI' HAVING stok_tersedia > 0";
-            $kategori_ready = $this->db->query($sql)->fetchAll();
+            $data['kategori_ready'] = $this->db->query($sql)->fetchAll();
         }
 
+        // RENDER TAMPILAN
+        extract($data);
         $title = "Input Penjualan Pengepul";
         $content = __DIR__ . '/../../views/admin/penjualan/create.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -52,6 +60,8 @@ class PenjualanController {
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_SESSION['role'], ['admin', 'staff'])) {
             
+            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+
             $kategori_id  = (int)($_POST['kategori_id'] ?? 0);
             $harga_per_kg = (float)($_POST['harga_per_kg'] ?? 0);
             $pcs_jual     = (float)($_POST['total_pcs'] ?? 0); 
@@ -146,9 +156,8 @@ class PenjualanController {
                     $keterangan
                 ]);
 
-                // PERBAIKAN 3: Menghapus logika update menggunakan $ids_terjual 
-                // Karena data `setoran` sudah diperbarui (is_sold = 1) satu-persatu di dalam proses iterasi $rows di atas.
-
+                Logger::log("Proses Penjualan", "Mencatat penjualan sebanyak " . number_format($total_kg, 2) . " KG. Total Pendapatan: Rp " . number_format($total_pendapatan, 0, ',', '.'));
+                
                 $this->db->commit();
                 $_SESSION['success'] = "Berhasil! Penjualan ".number_format($total_kg, 2)." KG tercatat.";
             } catch (Exception $e) {
@@ -162,6 +171,9 @@ class PenjualanController {
 
     public function delete() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_SESSION['role'] === 'admin') {
+            
+            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+
             $id = (int)$_POST['id'];
 
             try {
@@ -181,6 +193,8 @@ class PenjualanController {
                 $stmtRestore = $this->db->prepare("UPDATE setoran SET is_sold = 0 WHERE kategori_id = ? AND is_sold = 1 AND created_at <= ?");
                 $stmtRestore->execute([$penjualan['kategori_id'], $penjualan['tanggal_jual']]);
 
+                Logger::log("Batal Penjualan", "Admin membatalkan transaksi penjualan ID #$id dan mengembalikan stok ke gudang.");
+
                 $this->db->commit();
                 $_SESSION['success'] = "Penjualan dibatalkan. Stok dikembalikan ke gudang.";
 
@@ -194,3 +208,4 @@ class PenjualanController {
         }
     }
 }
+?>

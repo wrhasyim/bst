@@ -147,6 +147,9 @@ $role = $_SESSION['role'] ?? '';
     // =========================================================================
     if($role === 'admin' || $role === 'staff'): 
     ?>
+        
+        <!-- 🛡️ HANYA ADMIN YANG BISA MELIHAT 4 KARTU KEUANGAN INI -->
+        <?php if($role === 'admin'): ?>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
             <div class="bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
                 <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Kas Masuk</p>
@@ -168,7 +171,9 @@ $role = $_SESSION['role'] ?? '';
                 <h3 class="text-2xl font-black text-emerald-800">Rp<?= number_format($keuntungan_bersih ?? 0, 0, ',', '.') ?></h3>
             </div>
         </div>
+        <?php endif; ?>
 
+        <!-- BLOK ANGGOTA AKTIF & TOMBOL (DILIHAT OLEH ADMIN & STAFF) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <div class="lg:col-span-2 bg-white border border-slate-200 rounded-[3rem] p-8 shadow-sm">
                 <div class="flex justify-between items-center mb-8">

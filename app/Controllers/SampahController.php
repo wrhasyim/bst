@@ -1,26 +1,29 @@
 <?php
 // app/Controllers/SampahController.php
 require_once __DIR__ . '/../Core/Database.php';
+require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security Global
 
 class SampahController {
     private $db;
 
     public function __construct() {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
-        }
+        // 🛡️ Satpam URL: Manajemen Kategori Sampah hanya boleh diakses oleh Admin
+        Security::requireRole(['admin']);
         $this->db = Database::getInstance()->getConnection();
     }
 
     // Tampilkan Data
     public function index() {
-        //$kategori = $this->db->query("SELECT * FROM kategori_sampah ORDER BY nama_sampah ASC")->fetchAll();
-        $kategori = $this->db->query("
+        $data = []; // Wadah untuk data View
+        
+        $data['kategori'] = $this->db->query("
             SELECT * FROM kategori_sampah 
             WHERE nama_sampah != '🌟 REWARD PRESTASI' 
             ORDER BY nama_sampah ASC
         ")->fetchAll();
+        
+        // RENDER TAMPILAN DENGAN LAYOUT UNIVERSAL
+        extract($data);
         $title = "Kategori & Harga Sampah";
         $content = __DIR__ . '/../../views/admin/sampah/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -29,6 +32,8 @@ class SampahController {
     // Tambah Data Baru
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Proteksi Keamanan Form
+
             $nama = $_POST['nama_sampah'];
             $harga_dasar = $_POST['harga_dasar']; 
             
@@ -55,11 +60,14 @@ class SampahController {
             }
         }
         header('Location: ' . BASE_URL . '/sampah');
+        exit;
     }
 
     // Update Data
     public function update() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Proteksi Keamanan Form
+
             $id = $_POST['id'];
             $nama = $_POST['nama_sampah'];
             $harga_dasar = $_POST['harga_dasar']; 
@@ -86,6 +94,7 @@ class SampahController {
             }
         }
         header('Location: ' . BASE_URL . '/sampah');
+        exit;
     }
 
     // Hapus Data
@@ -124,3 +133,4 @@ class SampahController {
         exit;
     }
 }
+?>

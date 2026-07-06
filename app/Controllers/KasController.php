@@ -1,33 +1,37 @@
 <?php
 // app/Controllers/KasController.php
 require_once __DIR__ . '/../Core/Database.php';
+require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security Global
 
 class KasController {
     private $db;
 
     public function __construct() {
-        if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'staff')) {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
-        }
+        // 🛡️ Satpam URL: Hanya Admin dan Staff yang boleh mengakses menu Kas
+        Security::requireRole(['admin', 'staff']);
         $this->db = Database::getInstance()->getConnection();
     }
 
     public function index() {
+        $data = []; // Wadah untuk data View
+
         $sql = "SELECT k.*, u.nama as admin_nama 
                 FROM kas_manual k 
                 JOIN users u ON k.user_id = u.id 
                 ORDER BY k.tanggal DESC, k.created_at DESC";
-        $data_kas = $this->db->query($sql)->fetchAll();
+        $data['data_kas'] = $this->db->query($sql)->fetchAll();
 
+        // RENDER TAMPILAN DENGAN LAYOUT UNIVERSAL
+        extract($data);
         $title = "Pencatatan Kas Manual";
-        // Folder view tetap menggunakan nama asli, ini aman.
         $content = __DIR__ . '/../../views/admin/kas_manual/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Proteksi Keamanan Form
+
             $tanggal = $_POST['tanggal'];
             $jenis = $_POST['jenis'];
             $nominal = (float) $_POST['nominal'];
@@ -45,7 +49,7 @@ class KasController {
                     $_SESSION['error'] = "Gagal mencatat kas manual.";
                 }
             }
-            // URL disesuaikan
+            
             header('Location: ' . BASE_URL . '/kas');
             exit;
         }
@@ -60,8 +64,9 @@ class KasController {
                 $_SESSION['error'] = "Gagal menghapus data.";
             }
         }
-        // URL disesuaikan
+        
         header('Location: ' . BASE_URL . '/kas');
         exit;
     }
 }
+?>

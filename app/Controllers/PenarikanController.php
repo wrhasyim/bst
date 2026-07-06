@@ -8,10 +8,8 @@ class PenarikanController {
     private $db;
 
     public function __construct() {
-        if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'staff'])) {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
-        }
+        // 🛡️ Satpam URL: Hanya Admin dan Staf yang bisa mencairkan uang siswa
+        Security::requireRole(['admin', 'staff']);
         $this->db = Database::getInstance()->getConnection();
     }
 
@@ -19,13 +17,16 @@ class PenarikanController {
     // 1. TAMPILAN HALAMAN PENARIKAN MASSAL PER KELAS
     // =================================================================
     public function index() {
+        $data = []; // Wadah untuk data View
+        
         $kelas_id = $_GET['kelas_id'] ?? null;
+        $data['kelas_id'] = $kelas_id;
         
         // 🛡️ FIX: Sembunyikan kelas Kesiswaan dari Dropdown
-        $all_kelas = $this->db->query("SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%KESISWAAN%' ORDER BY nama_kelas ASC")->fetchAll();
+        $data['all_kelas'] = $this->db->query("SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%KESISWAAN%' ORDER BY nama_kelas ASC")->fetchAll();
         
-        $siswa_list = [];
-        $total_saldo_kelas = 0; // Untuk summary kasir
+        $data['siswa_list'] = [];
+        $data['total_saldo_kelas'] = 0; // Untuk summary kasir
 
         if ($kelas_id) {
             // 🛡️ FIX: Isolasi ganda, pastikan nama user kesiswaan juga tidak ikut terhitung
@@ -37,23 +38,25 @@ class PenarikanController {
                     ORDER BY u.nama ASC";
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['kid' => $kelas_id]);
-            $siswa_list = $stmt->fetchAll();
+            $data['siswa_list'] = $stmt->fetchAll();
 
             // Hitung total uang yang harus disiapkan Admin untuk kelas ini
-            foreach ($siswa_list as $s) {
+            foreach ($data['siswa_list'] as $s) {
                 if ($s['saldo_tersedia'] > 0) {
-                    $total_saldo_kelas += $s['saldo_tersedia'];
+                    $data['total_saldo_kelas'] += $s['saldo_tersedia'];
                 }
             }
         }
 
         // Riwayat Penarikan Global (20 Terakhir)
-        $riwayat = $this->db->query("SELECT p.*, u.nama, k.nama_kelas 
+        $data['riwayat'] = $this->db->query("SELECT p.*, u.nama, k.nama_kelas 
                                     FROM penarikan p 
                                     JOIN users u ON p.user_id = u.id 
                                     LEFT JOIN kelas k ON u.kelas_id = k.id 
                                     ORDER BY p.tanggal_tarik DESC LIMIT 20")->fetchAll();
 
+        // RENDER TAMPILAN DENGAN LAYOUT UNIVERSAL
+        extract($data);
         $title = "Kasir Pencairan Kelas";
         $content = __DIR__ . '/../../views/admin/penarikan/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -190,3 +193,4 @@ class PenarikanController {
         exit;
     }
 }
+?>

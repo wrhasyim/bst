@@ -1,29 +1,31 @@
 <?php
 // app/Controllers/UserController.php
 require_once __DIR__ . '/../Core/Database.php';
+require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security Global
 
 class UserController {
     private $db;
 
     public function __construct() {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            $_SESSION['error'] = 'Akses ditolak! Khusus Administrator.';
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
-        }
+        // 🛡️ Satpam URL: Hanya Admin yang bisa mengelola Pengguna
+        Security::requireRole(['admin']);
         $this->db = Database::getInstance()->getConnection();
     }
 
     // --- 1. TAMPILKAN DATA (HANYA USER AKTIF) ---
     public function index() {
+        $data = []; // Wadah untuk data View
+
         $sql = "SELECT u.*, k.nama_kelas 
                 FROM users u 
                 LEFT JOIN kelas k ON u.kelas_id = k.id 
                 WHERE u.deleted_at IS NULL
                 ORDER BY u.role ASC, u.nama ASC";
-        $users = $this->db->query($sql)->fetchAll();
-        $kelas = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
+        $data['users'] = $this->db->query($sql)->fetchAll();
+        $data['kelas'] = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
 
+        // RENDER TAMPILAN
+        extract($data);
         $title = "Manajemen Data Pengguna";
         $content = __DIR__ . '/../../views/admin/user/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -32,6 +34,8 @@ class UserController {
     // --- 2. TAMBAH USER ---
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Validasi Token Form
+
             $nama = htmlspecialchars(trim($_POST['nama']));
             $username = strtolower(trim($_POST['username']));
             $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
@@ -64,6 +68,8 @@ class UserController {
     // --- 3. UPDATE USER ---
     public function update() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Validasi Token Form
+
             $id = $_POST['id'];
             $nama = htmlspecialchars(trim($_POST['nama']));
             $username = strtolower(trim($_POST['username']));
@@ -103,6 +109,8 @@ class UserController {
     // --- 4. HAPUS USER (SOFT DELETE) ---
     public function delete() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Validasi Token Form
+
             $id = $_POST['id'] ?? null;
             
             if ($id) {
@@ -127,6 +135,7 @@ class UserController {
 
     // --- 5. TAMPILKAN FORM IMPORT CSV ---
     public function import() {
+        // Halaman ini tidak melempar data variabel apa pun selain judul, jadi langsung dirender
         $title = "Import Data Siswa Terintegrasi";
         $content = __DIR__ . '/../../views/admin/user/import.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -135,6 +144,8 @@ class UserController {
     // --- 6. 🚀 PROSES FILE CSV (DYNAMIC AUTO-MAPPING) ---
     public function proses_import() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Validasi Token Form
+
             $file = $_FILES['file_csv']['tmp_name'];
 
             if (empty($file)) {
@@ -222,3 +233,4 @@ class UserController {
         exit;
     }
 }
+?>

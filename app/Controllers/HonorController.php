@@ -9,10 +9,9 @@ class HonorController {
     private $db; 
 
     public function __construct() {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
-        }
+        // 🛡️ Satpam URL: Pencairan honor hanya boleh dilakukan oleh Admin
+        Security::requireRole(['admin']);
+        
         $this->honorModel = new Honor();
         $this->db = Database::getInstance()->getConnection(); 
     }
@@ -21,6 +20,8 @@ class HonorController {
     // 1. TAMPILKAN HALAMAN HONOR WALI KELAS
     // =================================================================
     public function index() {
+        $data = []; // Wadah untuk data View
+
         // 🚀 CRITICAL RULE APPLIED: ARCHITECT SNAPSHOT PATTERN
         $sql = "SELECT s.walikelas_id as user_id, u.nama as nama_guru, k.nama_kelas, SUM(s.honor_walas_rp) as total_jatah
                 FROM setoran s
@@ -47,6 +48,8 @@ class HonorController {
         } else {
             $data_honor = []; 
         }
+        
+        $data['data_honor'] = $data_honor;
 
         // 🛠️ BUG FIX: Override Query untuk Sidebar Riwayat
         $sqlRiwayat = "SELECT ph.*, u.nama 
@@ -54,8 +57,10 @@ class HonorController {
                        JOIN users u ON ph.user_id = u.id 
                        WHERE ph.jenis = 'walikelas' 
                        ORDER BY ph.tanggal_cair DESC LIMIT 20";
-        $riwayat = $this->db->query($sqlRiwayat)->fetchAll();
+        $data['riwayat'] = $this->db->query($sqlRiwayat)->fetchAll();
         
+        // RENDER TAMPILAN DENGAN LAYOUT UNIVERSAL
+        extract($data);
         $title = "Pencairan Honor Wali Kelas";
         $content = __DIR__ . '/../../views/admin/honor/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -125,7 +130,7 @@ class HonorController {
                 if ($sisa_honor > 0) {
                     $data_honor[] = [
                         'nama'   => $h['nama_guru'],
-                        'jumlah' => $sisa_honor // Variabel 'jumlah' disesuaikan agar cocok dengan cetak_nota.php
+                        'jumlah' => $sisa_honor 
                     ];
                 }
             }
@@ -137,6 +142,8 @@ class HonorController {
             exit;
         }
 
+        // 📝 Catatan: Tidak menggunakan layout admin karena ini halaman cetak (print/kertas)
         require_once __DIR__ . '/../../views/admin/honor/cetak_nota.php';
     }
 }
+?>

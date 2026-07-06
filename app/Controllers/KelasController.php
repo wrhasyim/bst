@@ -1,15 +1,14 @@
 <?php
 // app/Controllers/KelasController.php
 require_once __DIR__ . '/../Core/Database.php';
+require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security Global
 
 class KelasController {
     private $db;
 
     public function __construct() {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
-        }
+        // 🛡️ Satpam URL: Hanya Admin yang bisa mengelola kelas
+        Security::requireRole(['admin']);
         $this->db = Database::getInstance()->getConnection();
     }
 
@@ -17,17 +16,21 @@ class KelasController {
     // 1. TAMPILKAN DATA KELAS
     // =================================================================
     public function index() {
-        // Query Cerdas: Ambil data kelas, nama wali kelas, dan hitung total siswa di kelas tersebut
+        $data = []; // Wadah untuk data View
+
+        // Query Cerdas: Ambil data kelas, nama wali kelas, dan hitung total siswa
         $sql = "SELECT k.*, u.nama as nama_walikelas, 
                 (SELECT COUNT(id) FROM users WHERE kelas_id = k.id AND role = 'siswa') as total_siswa
                 FROM kelas k 
                 LEFT JOIN users u ON k.walikelas_id = u.id 
                 ORDER BY k.nama_kelas ASC";
-        $kelas = $this->db->query($sql)->fetchAll();
+        $data['kelas'] = $this->db->query($sql)->fetchAll();
         
         // Ambil daftar guru untuk dropdown pilihan Wali Kelas
-        $guru = $this->db->query("SELECT id, nama FROM users WHERE role IN ('guru', 'admin') AND is_active = 1 ORDER BY nama ASC")->fetchAll();
+        $data['guru'] = $this->db->query("SELECT id, nama FROM users WHERE role IN ('guru', 'admin') AND is_active = 1 ORDER BY nama ASC")->fetchAll();
 
+        // RENDER TAMPILAN DENGAN LAYOUT UNIVERSAL
+        extract($data);
         $title = "Manajemen Data Kelas";
         $content = __DIR__ . '/../../views/admin/kelas/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -38,6 +41,8 @@ class KelasController {
     // =================================================================
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Validasi Token Form
+
             $nama_kelas = htmlspecialchars(trim($_POST['nama_kelas']));
             $walikelas_id = !empty($_POST['walikelas_id']) ? $_POST['walikelas_id'] : null;
 
@@ -75,11 +80,13 @@ class KelasController {
     // =================================================================
     public function update() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); // 🛡️ Validasi Token Form
+
             $id = $_POST['id'];
             $nama_kelas = htmlspecialchars(trim($_POST['nama_kelas']));
             $walikelas_id = !empty($_POST['walikelas_id']) ? $_POST['walikelas_id'] : null;
 
-            // 🛡️ VALIDASI BACKEND: Pastikan guru tersebut tidak dipakai kelas lain (kecuali kelas ini sendiri)
+            // 🛡️ VALIDASI BACKEND: Pastikan guru tersebut tidak dipakai kelas lain
             if ($walikelas_id) {
                 $cek = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE walikelas_id = ? AND id != ? LIMIT 1");
                 $cek->execute([$walikelas_id, $id]);
@@ -126,7 +133,6 @@ class KelasController {
                     exit;
                 }
 
-                // Jika kelas sudah benar-benar kosong, lakukan penghapusan
                 $stmt = $this->db->prepare("DELETE FROM kelas WHERE id = ?");
                 $stmt->execute([$id]);
                 $_SESSION['success'] = "Kelas berhasil dihapus.";
@@ -139,3 +145,4 @@ class KelasController {
         exit;
     }
 }
+?>

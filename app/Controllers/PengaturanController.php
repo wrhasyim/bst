@@ -8,10 +8,8 @@ class PengaturanController {
     private $db;
 
     public function __construct() {
-        if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-            header('Location: ' . BASE_URL . '/dashboard');
-            exit;
-        }
+        // 🛡️ Satpam URL: Halaman pengaturan SANGAT SENSITIF, hanya untuk Admin
+        Security::requireRole(['admin']);
         $this->db = Database::getInstance()->getConnection();
     }
 
@@ -19,14 +17,19 @@ class PengaturanController {
     // 1. TAMPILKAN HALAMAN PENGATURAN
     // =================================================================
     public function index() {
+        $data = [];
         $stmt = $this->db->query("SELECT kunci, nilai FROM pengaturan");
-        $data = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        $data['pengaturan'] = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        
+        extract($data);
         $title = "Pengaturan Sistem";
         $content = __DIR__ . '/../../views/admin/pengaturan/index.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
     public function maintenance() {
+        $data = [];
+        extract($data);
         $title = "Pemeliharaan Data";
         $content = __DIR__ . '/../../views/admin/pengaturan/maintenance.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
@@ -101,7 +104,8 @@ class PengaturanController {
     // 3. FITUR BACKUP DATABASE
     // =================================================================
     public function backup() {
-        if ($_SESSION['role'] !== 'admin') { header('Location: ' . BASE_URL . '/dashboard'); exit; }
+        // Karena diletakkan di dalam PengaturanController, 
+        // Security::requireRole(['admin']) di construct sudah melindunginya.
 
         Logger::log("Backup Database", "Admin mengunduh file backup SQL sistem.");
 
@@ -237,18 +241,19 @@ class PengaturanController {
     // 7. LOGS AUDIT TRAIL
     // =================================================================
     public function logs() {
-        if ($_SESSION['role'] !== 'admin') { header('Location: ' . BASE_URL . '/dashboard'); exit; }
-
+        $data = [];
         $sql = "SELECT l.*, u.nama 
                 FROM activity_logs l 
                 JOIN users u ON l.user_id = u.id 
                 ORDER BY l.created_at DESC LIMIT 100";
-        $logs = $this->db->query($sql)->fetchAll();
+        $data['logs'] = $this->db->query($sql)->fetchAll();
 
+        extract($data);
         $title = "Audit Trail / Log Aktivitas";
         $content = __DIR__ . '/../../views/admin/pengaturan/logs.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
+
     // =================================================================
     // 8. SYSTEM UPDATER (OTA PATCHING)
     // =================================================================
@@ -297,3 +302,4 @@ class PengaturanController {
         }
     }
 }
+?>
