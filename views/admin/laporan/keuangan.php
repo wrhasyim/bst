@@ -236,6 +236,32 @@
                 </div>
 
             </div>
+
+            <div class="p-6 bg-blue-50 border border-blue-200 rounded-3xl mt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-black text-blue-800 uppercase tracking-widest">KAS TUTUP BOTOL</h3>
+                        <p class="text-[10px] font-bold text-blue-500 uppercase tracking-wider mt-1">Laporan Pemasukan & Pengeluaran Khusus Tutup Botol</p>
+                    </div>
+                    <div class="p-3 bg-blue-100 text-blue-600 rounded-2xl">
+                        🧊
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="font-bold text-blue-600">Total Masuk (Otomatis & Manual)</span>
+                        <span class="font-black text-blue-800">Rp <?= number_format($tutup_botol_in ?? 0, 0, ',', '.') ?></span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="font-bold text-red-500">Total Keluar / Cair (Bonus)</span>
+                        <span class="font-black text-red-600">Rp <?= number_format($tutup_botol_out ?? 0, 0, ',', '.') ?></span>
+                    </div>
+                    <div class="pt-3 border-t border-blue-200 flex justify-between items-center">
+                        <span class="font-black text-blue-900 uppercase text-xs">SISA KAS TUTUP BOTOL SAAT INI</span>
+                        <span class="font-black text-blue-700 text-lg">Rp <?= number_format($sisa_tutup_botol ?? 0, 0, ',', '.') ?></span>
+                    </div>
+                </div>
+            </div>
             
             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-4 flex items-center no-print">
                 <span class="text-lg mr-2">💡</span> Info: Pencairan & Refund uang untuk Wali Kelas dikelola melalui menu "Pencairan Honor" di sidebar.

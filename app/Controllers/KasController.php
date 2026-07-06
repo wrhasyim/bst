@@ -40,15 +40,33 @@ class KasController {
             if ($nominal <= 0) {
                 $_SESSION['error'] = "Nominal tidak valid!";
             } else {
-                // ✨ LOGIKA VALIDASI SALDO (Hanya jika pengeluaran)
+                // ✨ LOGIKA VALIDASI SALDO (Diperbarui agar sinkron dengan Buku Kas)
                 if ($jenis === 'pengeluaran') {
-                    // Hitung total masuk vs total keluar untuk sumber kas tersebut
-                    $masuk = $this->db->query("SELECT IFNULL(SUM(nominal),0) FROM kas_manual WHERE jenis = 'pemasukan' AND sumber_kas = '$sumber_kas'")->fetchColumn();
-                    $keluar = $this->db->query("SELECT IFNULL(SUM(nominal),0) FROM kas_manual WHERE jenis = 'pengeluaran' AND sumber_kas = '$sumber_kas'")->fetchColumn();
-                    $saldo = $masuk - $keluar;
+                    $saldo = 0;
 
+                    if ($sumber_kas === 'kas_tutup_botol') {
+                        // 1. Kalkulasi Saldo Kas Tutup Botol (Pemasukan Penjualan + Manual - Pengeluaran Manual)
+                        $in_penjualan = $this->db->query("SELECT IFNULL(SUM(kas_tutup_botol_rp), 0) FROM penjualan")->fetchColumn();
+                        $in_manual = $this->db->query("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pemasukan' AND sumber_kas = 'kas_tutup_botol'")->fetchColumn();
+                        $out_manual = $this->db->query("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pengeluaran' AND sumber_kas = 'kas_tutup_botol'")->fetchColumn();
+                        
+                        $saldo = ($in_penjualan + $in_manual) - $out_manual;
+                    } else {
+                        // 2. Kalkulasi Saldo Kas Besar
+                        $in_penjualan = $this->db->query("SELECT IFNULL(SUM(total_pendapatan - kas_tutup_botol_rp), 0) FROM penjualan")->fetchColumn();
+                        $in_manual = $this->db->query("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pemasukan' AND sumber_kas = 'kas_besar'")->fetchColumn();
+                        
+                        $out_tarik = $this->db->query("SELECT IFNULL(SUM(jumlah), 0) FROM penarikan")->fetchColumn();
+                        $out_honor = $this->db->query("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor")->fetchColumn();
+                        $out_reward = $this->db->query("SELECT IFNULL(SUM(s.total_harga), 0) FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE k.nama_sampah = '🌟 REWARD PRESTASI'")->fetchColumn();
+                        $out_manual = $this->db->query("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pengeluaran' AND sumber_kas = 'kas_besar'")->fetchColumn();
+                        
+                        $saldo = ($in_penjualan + $in_manual) - ($out_tarik + $out_honor + $out_reward + $out_manual);
+                    }
+
+                    // Cek apakah saldo mencukupi
                     if ($nominal > $saldo) {
-                        $_SESSION['error'] = "Gagal! Saldo " . strtoupper(str_replace('_', ' ', $sumber_kas)) . " tidak mencukupi. (Sisa: Rp " . number_format($saldo, 0, ',', '.') . ")";
+                        $_SESSION['error'] = "Gagal! Saldo " . strtoupper(str_replace('_', ' ', $sumber_kas)) . " tidak mencukupi. (Sisa Saldo Ril: Rp " . number_format($saldo, 0, ',', '.') . ")";
                         header('Location: ' . BASE_URL . '/kas');
                         exit;
                     }
