@@ -1,5 +1,5 @@
 -- BST SYSTEM DATABASE BACKUP
--- Tanggal: 2026-07-04 06:35:19
+-- Tanggal: 2026-07-06 04:32:55
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -16,7 +16,7 @@ CREATE TABLE `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=94 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `activity_logs` VALUES("1","1","Logout","User keluar dari sistem","::1","2026-05-04 16:46:33");
 INSERT INTO `activity_logs` VALUES("2","1","Login","User berhasil masuk ke dalam sistem","::1","2026-05-04 16:47:23");
@@ -108,6 +108,9 @@ INSERT INTO `activity_logs` VALUES("87","1","Login","User berhasil masuk ke dala
 INSERT INTO `activity_logs` VALUES("88","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-04 10:13:47");
 INSERT INTO `activity_logs` VALUES("89","1","Restore Database","Admin memulihkan database dari file SQL.","::1","2026-07-04 10:14:46");
 INSERT INTO `activity_logs` VALUES("90","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-04 11:35:19");
+INSERT INTO `activity_logs` VALUES("91","1","Restore Database","Admin memulihkan database dari file SQL.","::1","2026-07-06 09:21:08");
+INSERT INTO `activity_logs` VALUES("92","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-06 09:27:15");
+INSERT INTO `activity_logs` VALUES("93","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-06 09:32:55");
 
 
 DROP TABLE IF EXISTS `detail_setoran`;
@@ -130,12 +133,13 @@ CREATE TABLE `kas_manual` (
   `tanggal` date NOT NULL,
   `jenis` enum('pemasukan','pengeluaran') NOT NULL,
   `nominal` double NOT NULL,
+  `sumber_kas` enum('kas_besar','kas_tutup_botol') DEFAULT 'kas_besar',
   `keterangan` varchar(255) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-INSERT INTO `kas_manual` VALUES("1","1","2026-07-03","pemasukan","7000","Kelebihan kas kesiswaan setoran 3 Juli 2026","2026-07-03 12:27:46");
+INSERT INTO `kas_manual` VALUES("1","1","2026-07-03","pemasukan","7000","kas_besar","Kelebihan kas kesiswaan setoran 3 Juli 2026","2026-07-03 12:27:46");
 
 
 DROP TABLE IF EXISTS `kategori_sampah`;
@@ -247,6 +251,7 @@ CREATE TABLE `penjualan` (
   `honor_pengelola_rp` double DEFAULT 0,
   `honor_piket_rp` double DEFAULT 0,
   `kas_bst_rp` double DEFAULT 0,
+  `kas_tutup_botol_rp` double DEFAULT 0,
   `tanggal_jual` timestamp NOT NULL DEFAULT current_timestamp(),
   `keterangan` text DEFAULT NULL,
   PRIMARY KEY (`id`)

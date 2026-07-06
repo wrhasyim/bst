@@ -42,7 +42,8 @@ class LaporanController {
         $whereKasInS = "jenis = 'pemasukan' AND keterangan LIKE '%Refund Kas Sekolah%'";
         $whereKasInK = "jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Piket%'";
         
-        // ✨ Filter dinamis khusus Tutup Botol Keluar
+        // ✨ Filter dinamis khusus Tutup Botol Masuk & Keluar (Manual)
+        $whereKasTbInMan = "jenis = 'pemasukan' AND sumber_kas = 'kas_tutup_botol'";
         $whereKasTbOut = "jenis = 'pengeluaran' AND sumber_kas = 'kas_tutup_botol'";
 
         if (!empty($start_date) && !empty($end_date)) {
@@ -65,7 +66,8 @@ class LaporanController {
             $whereKasInS .= " AND tanggal BETWEEN :start AND :end";
             $whereKasInK .= " AND tanggal BETWEEN :start AND :end";
             
-            $whereKasTbOut .= " AND tanggal BETWEEN :start AND :end"; // Filter tgl tutup botol
+            $whereKasTbInMan .= " AND tanggal BETWEEN :start AND :end";
+            $whereKasTbOut .= " AND tanggal BETWEEN :start AND :end";
         }
         
         // ✨ Tambahkan SUM(kas_tutup_botol_rp) di pencarian Penjualan
@@ -91,7 +93,13 @@ class LaporanController {
         $honor_pengelola = (float)($data_snap['honor_pengelola'] ?? 0);
         $honor_piket     = (float)($data_snap['honor_piket'] ?? 0);
         $kas_bst         = (float)($data_snap['kas_bst'] ?? 0);
-        $tutup_botol_in  = (float)($data_snap['total_tutup_botol_in'] ?? 0);
+        
+        // ✨ Kalkulasi Pemasukan Tutup Botol (Otomatis Penjualan + Manual Input)
+        $tutup_botol_in_auto = (float)($data_snap['total_tutup_botol_in'] ?? 0);
+        $stmtTbInMan = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasTbInMan");
+        $stmtTbInMan->execute($params);
+        $tutup_botol_in_manual = (float)$stmtTbInMan->fetchColumn();
+        $tutup_botol_in = $tutup_botol_in_auto + $tutup_botol_in_manual;
 
         // 2. DATA HONOR WALAS (Dari Setoran)
         $sql_honor_wali = "SELECT SUM(s.honor_walas_rp) FROM setoran s JOIN users u ON s.walikelas_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.is_sold = 1 AND $whereSetoran";
@@ -346,14 +354,13 @@ class LaporanController {
             ) as mutasi ORDER BY waktu ASC";
 
         $stmt = $this->db->prepare($sql);
+        // ✨ FIX: Sesuaikan eksekusi array dengan parameter PDO yang ada di query SQL (sampai p5 saja)
         $stmt->execute([
             'p1a'=>$start_dt, 'p1b'=>$end_dt, 
             'p2a'=>$start_dt, 'p2b'=>$end_dt, 
             'p3a'=>$start_dt, 'p3b'=>$end_dt, 
             'p4a'=>$start_dt, 'p4b'=>$end_dt, 
-            'p5a'=>$start_dt, 'p5b'=>$end_dt, 
-            'p6a'=>$start_dt, 'p6b'=>$end_dt, 
-            'p7a'=>$start_dt, 'p7b'=>$end_dt
+            'p5a'=>$start_dt, 'p5b'=>$end_dt
         ]);
         $data['buku_kas'] = $stmt->fetchAll();
 
