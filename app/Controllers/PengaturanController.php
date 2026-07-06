@@ -36,7 +36,7 @@ class PengaturanController {
     }
 
     // =================================================================
-    // 2. PROSES UPDATE IDENTITAS & PERSENTASE (AUTO-UPSERT)
+    // 2. PROSES UPDATE IDENTITAS, PERSENTASE & PARAMETER LAINNYA
     // =================================================================
     public function update_identitas() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -47,7 +47,7 @@ class PengaturanController {
             $kas_sekolah = (float)($_POST['persen_kas_sekolah'] ?? 0);
             $pengelola   = (float)($_POST['persen_honor_pengelola'] ?? 0);
             $walikelas   = (float)($_POST['persen_honor_walikelas'] ?? 0);
-            $piket       = (float)($_POST['persen_honor_piket'] ?? 0); // ✨ FITUR BARU: Porsi Siswa Piket
+            $piket       = (float)($_POST['persen_honor_piket'] ?? 0); 
 
             // 2. Kalkulasi Total Persentase
             $total = $kas_bst + $kas_sekolah + $pengelola + $walikelas + $piket;
@@ -64,6 +64,8 @@ class PengaturanController {
                 $this->db->beginTransaction();
                 
                 // 4. Logika Cerdas UPSERT (Update or Insert)
+                // Catatan: Karena menggunakan looping dinamis, input baru seperti 'tanggal_mulai_reward'
+                // akan otomatis ditangkap dan disimpan tanpa perlu hardcode variabelnya di sini.
                 foreach ($_POST as $kunci => $nilai) {
                     if ($kunci !== 'csrf_token') {
                         // Cek apakah kunci sudah ada di database?
@@ -85,9 +87,9 @@ class PengaturanController {
                 // ✅ COMMIT: Simpan permanen
                 $this->db->commit();
                 
-                // 🛡️ Catat aktivitas ke Audit Trail
-                Logger::log("Update Pengaturan", "Admin memperbarui profil institusi dan distribusi margin honor (5 Entitas).");
-                $_SESSION['success'] = "Pengaturan & Kebijakan Honor berhasil diperbarui secara permanen!";
+                // 🛡️ Catat aktivitas ke Audit Trail (Pesan log diperbarui)
+                Logger::log("Update Pengaturan", "Admin memperbarui profil institusi, distribusi margin, dan parameter reward.");
+                $_SESSION['success'] = "Pengaturan Sistem berhasil diperbarui secara permanen!";
 
             } catch (Exception $e) {
                 // ❌ ROLLBACK: Jika database bermasalah
@@ -104,9 +106,6 @@ class PengaturanController {
     // 3. FITUR BACKUP DATABASE
     // =================================================================
     public function backup() {
-        // Karena diletakkan di dalam PengaturanController, 
-        // Security::requireRole(['admin']) di construct sudah melindunginya.
-
         Logger::log("Backup Database", "Admin mengunduh file backup SQL sistem.");
 
         $tables = [];

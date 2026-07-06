@@ -1,10 +1,8 @@
-<!-- views/admin/dashboard.php -->
 <?php 
 // 🛡️ Variabel sakelar untuk mempermudah pengecekan hak akses di bawah
 $role = $_SESSION['role'] ?? ''; 
 ?>
 <div class="max-w-7xl mx-auto space-y-6 pb-10">
-    <!-- HEADER -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
             <h2 class="text-3xl font-black text-slate-800 tracking-tight italic uppercase">
@@ -25,14 +23,12 @@ $role = $_SESSION['role'] ?? '';
         </div>
     </div>
 
-    <!-- WIDGET LEADERBOARD (GLOBAL UNTUK SEMUA ROLE) -->
     <div class="bg-gradient-to-br from-amber-400 to-orange-500 p-8 rounded-[3rem] text-white shadow-xl shadow-orange-200/50 relative overflow-hidden mt-6">
         <div class="absolute -right-4 -top-8 opacity-20 text-[10rem] pointer-events-none">🏆</div>
         <div class="relative z-20 flex flex-col lg:flex-row gap-8 items-center">
             <div class="lg:w-1/3">
                 <h3 class="font-black text-3xl uppercase tracking-tighter mb-1 drop-shadow-md">TOP NASABAH</h3>
-                <!-- PERUBAHAN TEKS: TRIWULAN -->
-                <p class="text-xs font-bold uppercase tracking-widest opacity-90 mb-4">Penyetor Terbanyak • 3 Bulan Terakhir</p>
+                <p class="text-xs font-bold uppercase tracking-widest opacity-90 mb-4">Penyetor Terbanyak • Sejak <?= date('d M Y', strtotime($tgl_mulai_reward)) ?></p>
                 <div class="inline-block px-4 py-2 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-[10px] font-bold uppercase tracking-widest shadow-sm">
                     🎁 Hadiah menanti di akhir Triwulan!
                 </div>
@@ -41,11 +37,10 @@ $role = $_SESSION['role'] ?? '';
             <div class="lg:w-2/3 w-full grid grid-cols-1 md:grid-cols-3 gap-6 relative z-30">
                 <?php if(empty($leaderboard)): ?>
                     <div class="col-span-3 text-center py-4 bg-white/10 rounded-2xl border border-white/20">
-                        <p class="text-sm italic font-bold">Belum ada setoran dalam 3 bulan terakhir. Ayo mulai menabung!</p>
+                        <p class="text-sm italic font-bold">Belum ada setoran pada periode reward kali ini. Ayo mulai menabung!</p>
                     </div>
                 <?php else: ?>
                     <?php foreach($leaderboard as $idx => $lb): if($idx > 2) break; ?>
-                        <!-- Card Pemenang -->
                         <div class="relative group">
                             <div class="bg-white/20 backdrop-blur-md p-5 rounded-2xl border border-white/30 flex items-center gap-4 transform transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-xl group-hover:bg-white/30 cursor-default">
                                 <div class="w-12 h-12 shrink-0 rounded-full bg-white flex items-center justify-center font-black text-2xl shadow-inner <?= $idx === 0 ? 'text-amber-500' : ($idx === 1 ? 'text-slate-400' : 'text-orange-700') ?>">
@@ -58,7 +53,6 @@ $role = $_SESSION['role'] ?? '';
                                 </div>
                             </div>
                             
-                            <!-- Tombol Eksekusi Hadiah (Muncul di Bawah Card saat Hover) -->
                             <?php if($role === 'admin'): ?>
                             <div class="absolute -bottom-4 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 group-hover:translate-y-2 transition-all duration-300 z-[60]">
                                 <button onclick="bukaModalReward(<?= $lb['id'] ?>, '<?= htmlspecialchars($lb['nama']) ?>')" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black shadow-lg shadow-black/20 transform active:scale-95 whitespace-nowrap">
@@ -73,7 +67,6 @@ $role = $_SESSION['role'] ?? '';
         </div>
     </div>
 
-    <!-- MODAL EKSEKUSI HADIAH (HANYA UNTUK ADMIN) -->
     <?php if($role === 'admin'): ?>
     <div id="modalReward" class="fixed inset-0 z-[100] hidden bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden transform transition-all relative">
@@ -93,10 +86,8 @@ $role = $_SESSION['role'] ?? '';
                         <div>
                             <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Tentukan Nominal Hadiah (Rp)</label>
                             
-                            <!-- Input Nominal Kustom yang Bebas Diisi -->
                             <input type="number" id="inputNominal" name="nominal" placeholder="Contoh: 15000" required class="w-full px-5 py-4 bg-white border-2 border-slate-200 rounded-2xl text-xl font-black text-slate-800 text-center focus:border-amber-400 focus:ring-0 outline-none mb-3">
                             
-                            <!-- Tombol Preset Cepat -->
                             <div class="grid grid-cols-3 gap-2">
                                 <button type="button" onclick="document.getElementById('inputNominal').value = 10000" class="py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-100 transition-colors">10K</button>
                                 <button type="button" onclick="document.getElementById('inputNominal').value = 25000" class="py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-100 transition-colors">25K</button>
@@ -126,7 +117,6 @@ $role = $_SESSION['role'] ?? '';
             document.getElementById('namaSiswaTarget').innerText = nama;
             document.getElementById('namaSiswaInput').value = nama;
             
-            // Toggle classes for flex centering
             const modal = document.getElementById('modalReward');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -136,7 +126,7 @@ $role = $_SESSION['role'] ?? '';
             const modal = document.getElementById('modalReward');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
-            document.getElementById('inputNominal').value = ''; // Reset input saat ditutup
+            document.getElementById('inputNominal').value = ''; 
         }
     </script>
     <?php endif; ?>
@@ -148,7 +138,6 @@ $role = $_SESSION['role'] ?? '';
     if($role === 'admin' || $role === 'staff'): 
     ?>
         
-        <!-- 🛡️ HANYA ADMIN YANG BISA MELIHAT 4 KARTU KEUANGAN INI -->
         <?php if($role === 'admin'): ?>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
             <div class="bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
@@ -173,7 +162,6 @@ $role = $_SESSION['role'] ?? '';
         </div>
         <?php endif; ?>
 
-        <!-- BLOK ANGGOTA AKTIF & TOMBOL (DILIHAT OLEH ADMIN & STAFF) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <div class="lg:col-span-2 bg-white border border-slate-200 rounded-[3rem] p-8 shadow-sm">
                 <div class="flex justify-between items-center mb-8">
@@ -232,7 +220,7 @@ $role = $_SESSION['role'] ?? '';
                 <div class="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-sm">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest italic underline">Ranking Internal Kelas <?= htmlspecialchars($kelas_dikelola['nama_kelas']) ?></h3>
-                        <span class="text-[9px] font-bold text-slate-400">Top 5 Volume</span>
+                        <span class="text-[9px] font-bold text-slate-400">Periode: Sejak <?= date('d M Y', strtotime($tgl_mulai_reward)) ?></span>
                     </div>
                     <div class="space-y-4">
                         <?php foreach($ranking_siswa as $idx => $s): ?>
@@ -244,6 +232,10 @@ $role = $_SESSION['role'] ?? '';
                             <span class="text-xs font-bold text-emerald-600"><?= number_format($s['total_pcs'], 0) ?> Pcs</span>
                         </div>
                         <?php endforeach; ?>
+                        
+                        <?php if(empty($ranking_siswa)): ?>
+                            <p class="text-[10px] italic text-slate-400 text-center py-4">Belum ada penyetoran pada periode ini.</p>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <?php endif; ?>

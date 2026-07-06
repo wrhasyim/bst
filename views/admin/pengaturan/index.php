@@ -1,9 +1,9 @@
 <div class="max-w-6xl mx-auto space-y-8 pb-10" x-data="{ 
-    bst: <?= $data['persen_kas_bst'] ?? 0 ?>, 
-    sekolah: <?= $data['persen_kas_sekolah'] ?? 0 ?>, 
-    pengelola: <?= $data['persen_honor_pengelola'] ?? 0 ?>, 
-    wali: <?= $data['persen_honor_walikelas'] ?? 0 ?>, 
-    piket: <?= $data['persen_honor_piket'] ?? 0 ?>, 
+    bst: <?= $pengaturan['persen_kas_bst'] ?? 0 ?>, 
+    sekolah: <?= $pengaturan['persen_kas_sekolah'] ?? 0 ?>, 
+    pengelola: <?= $pengaturan['persen_honor_pengelola'] ?? 0 ?>, 
+    wali: <?= $pengaturan['persen_honor_walikelas'] ?? 0 ?>, 
+    piket: <?= $pengaturan['persen_honor_piket'] ?? 0 ?>, 
     get total() { return parseFloat(this.bst) + parseFloat(this.sekolah) + parseFloat(this.pengelola) + parseFloat(this.wali) + parseFloat(this.piket) } 
 }">
     
@@ -36,11 +36,20 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Nama Web/Sekolah</label>
-                        <input type="text" name="nama_sekolah" value="<?= htmlspecialchars($data['nama_sekolah'] ?? '') ?>" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                        <input type="text" name="nama_sekolah" value="<?= htmlspecialchars($pengaturan['nama_sekolah'] ?? '') ?>" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Alamat Lengkap</label>
-                        <textarea name="alamat_sekolah" rows="4" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"><?= htmlspecialchars($data['alamat_sekolah'] ?? '') ?></textarea>
+                        <textarea name="alamat_sekolah" rows="4" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all"><?= htmlspecialchars($pengaturan['alamat_sekolah'] ?? '') ?></textarea>
+                    </div>
+                </div>
+
+                <h3 class="font-black text-slate-800 text-[11px] uppercase tracking-wider border-b pb-4 mt-8 pt-4">🎁 Parameter Reward</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Tanggal Mulai Perhitungan</label>
+                        <input type="date" name="tanggal_mulai_reward" value="<?= htmlspecialchars($pengaturan['tanggal_mulai_reward'] ?? date('Y-m-01')) ?>" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                        <p class="text-[9px] text-slate-400 mt-2 ml-1 italic leading-relaxed">Tentukan tanggal batas bawah untuk akumulasi data perhitungan poin reward (agar fair bagi siswa baru).</p>
                     </div>
                 </div>
             </div>
@@ -77,6 +86,7 @@
                         Simpan Perubahan
                     </button>
                 </div>
+                <p class="text-[9px] text-slate-400 mt-3 text-center italic">*Tombol simpan otomatis aktif jika total persentase tepat 100%. Akan menyimpan semua Identitas, Parameter Reward, dan Distribusi sekaligus.</p>
             </div>
         </div>
     </form>

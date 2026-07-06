@@ -1,5 +1,5 @@
 -- BST SYSTEM DATABASE BACKUP
--- Tanggal: 2026-07-06 04:32:55
+-- Tanggal: 2026-07-06 09:00:49
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -16,7 +16,7 @@ CREATE TABLE `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=94 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=99 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `activity_logs` VALUES("1","1","Logout","User keluar dari sistem","::1","2026-05-04 16:46:33");
 INSERT INTO `activity_logs` VALUES("2","1","Login","User berhasil masuk ke dalam sistem","::1","2026-05-04 16:47:23");
@@ -111,6 +111,11 @@ INSERT INTO `activity_logs` VALUES("90","1","Backup Database","Admin mengunduh f
 INSERT INTO `activity_logs` VALUES("91","1","Restore Database","Admin memulihkan database dari file SQL.","::1","2026-07-06 09:21:08");
 INSERT INTO `activity_logs` VALUES("92","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-06 09:27:15");
 INSERT INTO `activity_logs` VALUES("93","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-06 09:32:55");
+INSERT INTO `activity_logs` VALUES("94","1","Restore Database","Admin memulihkan database dari file SQL.","::1","2026-07-06 13:34:34");
+INSERT INTO `activity_logs` VALUES("95","1","Update Pengaturan","Admin memperbarui profil institusi, distribusi margin, dan parameter reward.","::1","2026-07-06 13:52:16");
+INSERT INTO `activity_logs` VALUES("96","1","Update Pengaturan","Admin memperbarui profil institusi, distribusi margin, dan parameter reward.","::1","2026-07-06 13:55:32");
+INSERT INTO `activity_logs` VALUES("97","1","Update Pengaturan","Admin memperbarui profil institusi, distribusi margin, dan parameter reward.","::1","2026-07-06 13:56:57");
+INSERT INTO `activity_logs` VALUES("98","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-06 14:00:49");
 
 
 DROP TABLE IF EXISTS `detail_setoran`;
@@ -227,7 +232,7 @@ CREATE TABLE `pengaturan` (
   `nilai` text NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `kunci` (`kunci`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `pengaturan` VALUES("1","persen_kas_sekolah","10");
 INSERT INTO `pengaturan` VALUES("2","persen_honor_pengelola","30");
@@ -235,7 +240,8 @@ INSERT INTO `pengaturan` VALUES("3","persen_honor_walikelas","10");
 INSERT INTO `pengaturan` VALUES("4","nama_sekolah","SMK Taruna Karya Mandiri");
 INSERT INTO `pengaturan` VALUES("5","persen_honor_piket","20");
 INSERT INTO `pengaturan` VALUES("6","persen_kas_bst","30");
-INSERT INTO `pengaturan` VALUES("7","alamat_sekolah","Jl. Purwajaya Dusun Banir RT.01/04, Desa Purwajaya, Kecamatan Tempuran, Kabupaten Karawang, Jawa Barat");
+INSERT INTO `pengaturan` VALUES("7","alamat_sekolah","");
+INSERT INTO `pengaturan` VALUES("8","tanggal_mulai_reward","2026-05-01");
 
 
 DROP TABLE IF EXISTS `penjualan`;
