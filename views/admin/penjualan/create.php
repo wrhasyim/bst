@@ -12,6 +12,7 @@
              jumlahPcs: 0, 
              jumlahKg: 0, 
              harga: 0, 
+             tutupBotol: 0,
              katId: '', 
              list: <?= htmlspecialchars(json_encode($kategori_ready ?? [])) ?>,
              get detail() { return this.list.find(i => i.id == this.katId) || null },
@@ -19,7 +20,6 @@
              get stokTersedia() { return this.detail ? parseFloat(this.detail.stok_tersedia) : 0; },
              get isError() { return this.jumlahPcs > this.stokTersedia; },
              updateFromKg() {
-                 // Menyarankan jumlah Pcs otomatis saat KG diisi
                  this.jumlahPcs = Math.round(this.jumlahKg * this.konversi);
              },
              setAllStock() {
@@ -36,6 +36,8 @@
          }">
         
         <form action="<?= BASE_URL ?>/penjualan/store" method="POST" class="space-y-6">
+            <!-- 🛡️ CSRF Token -->
+            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
             
             <div>
                 <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 tracking-widest">1. Pilih Barang di Gudang</label>
@@ -69,24 +71,42 @@
                         <span class="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase">Pcs</span>
                     </div>
                     <p x-show="isError" class="text-[10px] text-red-600 font-bold mt-2 ml-1 italic">❌ Melebihi stok! Maksimal: <span x-text="stokTersedia"></span> Pcs.</p>
-                    <p x-show="!isError && katId" class="text-[9px] text-emerald-600 font-bold mt-2 ml-1 italic">✅ Tersedia <span x-text="stokTersedia"></span> Pcs. <br>(Bebas edit angka PCS ini jika realita berbeda).</p>
+                    <p x-show="!isError && katId" class="text-[9px] text-emerald-600 font-bold mt-2 ml-1 italic">✅ Tersedia <span x-text="stokTersedia"></span> Pcs.</p>
                 </div>
             </div>
 
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 tracking-widest">3. Harga Nego / KG (Rp)</label>
-                <div class="relative">
-                    <span class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">Rp</span>
-                    <input type="number" name="harga_per_kg" x-model.number="harga" required 
-                           class="w-full pl-12 pr-5 py-4 bg-blue-50 border border-blue-100 rounded-2xl font-black text-xl text-blue-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1 tracking-widest">3. Harga Nego / KG (Rp)</label>
+                    <div class="relative">
+                        <span class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">Rp</span>
+                        <input type="number" name="harga_per_kg" x-model.number="harga" required 
+                               class="w-full pl-12 pr-5 py-4 bg-blue-50 border border-blue-100 rounded-2xl font-black text-xl text-blue-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                    </div>
+                </div>
+
+                <!-- ✨ FITUR BARU: Input Kas Tutup Botol -->
+                <div>
+                    <label class="block text-[10px] font-bold text-amber-500 uppercase mb-2 ml-1 tracking-widest">4. Kas Tutup Botol (Rp)</label>
+                    <div class="relative">
+                        <span class="absolute left-5 top-1/2 -translate-y-1/2 text-amber-500 font-bold">Rp</span>
+                        <input type="number" name="kas_tutup_botol_rp" x-model.number="tutupBotol" 
+                               class="w-full pl-12 pr-5 py-4 bg-amber-50 border border-amber-100 rounded-2xl font-black text-xl text-amber-700 outline-none focus:ring-2 focus:ring-amber-500 transition-all" placeholder="0 (Kosongkan jika tidak ada)">
+                    </div>
+                    <p class="text-[9px] text-amber-600 font-bold mt-2 ml-1 uppercase italic">*Terpisah 100% ke dompet Tutup Botol.</p>
                 </div>
             </div>
 
-            <div x-show="jumlahKg * harga > 0 && katId && !isError" x-collapse
+            <div x-show="(jumlahKg * harga > 0 || tutupBotol > 0) && katId && !isError" x-collapse
                  class="p-6 bg-slate-900 rounded-[2rem] flex justify-between items-center text-white shadow-2xl transition-all">
                 <div>
-                    <span class="block text-[10px] font-bold uppercase opacity-50 tracking-widest mb-1">Total Kas Akan Diterima</span>
-                    <span class="block text-3xl font-black text-emerald-400 tracking-tighter">Rp <span x-text="new Intl.NumberFormat('id-ID').format(Math.round(jumlahKg * harga))"></span></span>
+                    <span class="block text-[10px] font-bold uppercase opacity-50 tracking-widest mb-1">Total Setoran Pengepul</span>
+                    <span class="block text-3xl font-black text-emerald-400 tracking-tighter">
+                        Rp <span x-text="new Intl.NumberFormat('id-ID').format(Math.round(jumlahKg * harga) + (tutupBotol || 0))"></span>
+                    </span>
+                    <span x-show="tutupBotol > 0" class="block text-[9px] text-amber-400 uppercase tracking-widest mt-1">
+                        (Termasuk Tutup Botol: Rp <span x-text="new Intl.NumberFormat('id-ID').format(tutupBotol)"></span>)
+                    </span>
                 </div>
                 <div class="text-4xl">💰</div>
             </div>

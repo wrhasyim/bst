@@ -41,6 +41,9 @@ class LaporanController {
         $whereKasInW = "jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Wali Kelas%'";
         $whereKasInS = "jenis = 'pemasukan' AND keterangan LIKE '%Refund Kas Sekolah%'";
         $whereKasInK = "jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Piket%'";
+        
+        // ✨ Filter dinamis khusus Tutup Botol Keluar
+        $whereKasTbOut = "jenis = 'pengeluaran' AND sumber_kas = 'kas_tutup_botol'";
 
         if (!empty($start_date) && !empty($end_date)) {
             $sd = $start_date . ' 00:00:00';
@@ -61,9 +64,11 @@ class LaporanController {
             $whereKasInW .= " AND tanggal BETWEEN :start AND :end";
             $whereKasInS .= " AND tanggal BETWEEN :start AND :end";
             $whereKasInK .= " AND tanggal BETWEEN :start AND :end";
+            
+            $whereKasTbOut .= " AND tanggal BETWEEN :start AND :end"; // Filter tgl tutup botol
         }
         
-        // 1. DATA UTAMA (PENJUALAN)
+        // ✨ Tambahkan SUM(kas_tutup_botol_rp) di pencarian Penjualan
         $sqlSnapshot = "SELECT 
                             SUM(total_pendapatan) as total_kotor,
                             SUM(beban_nasabah_rp) as beban_nasabah,
@@ -71,7 +76,8 @@ class LaporanController {
                             SUM(kas_sekolah_rp) as kas_sekolah,
                             SUM(honor_pengelola_rp) as honor_pengelola,
                             SUM(honor_piket_rp) as honor_piket,
-                            SUM(kas_bst_rp) as kas_bst
+                            SUM(kas_bst_rp) as kas_bst,
+                            SUM(kas_tutup_botol_rp) as total_tutup_botol_in
                         FROM penjualan $wherePenjualan";
         
         $stmtSnap = $this->db->prepare($sqlSnapshot);
@@ -85,6 +91,7 @@ class LaporanController {
         $honor_pengelola = (float)($data_snap['honor_pengelola'] ?? 0);
         $honor_piket     = (float)($data_snap['honor_piket'] ?? 0);
         $kas_bst         = (float)($data_snap['kas_bst'] ?? 0);
+        $tutup_botol_in  = (float)($data_snap['total_tutup_botol_in'] ?? 0);
 
         // 2. DATA HONOR WALAS (Dari Setoran)
         $sql_honor_wali = "SELECT SUM(s.honor_walas_rp) FROM setoran s JOIN users u ON s.walikelas_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.is_sold = 1 AND $whereSetoran";
@@ -122,6 +129,12 @@ class LaporanController {
         $cair_piket = (float)$cair_piket_out - (float)$refund_piket;
         $sisa_piket = $honor_piket - $cair_piket;
 
+        // ✨ TRACING PENGELUARAN KAS TUTUP BOTOL
+        $stmtTbOut = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasTbOut");
+        $stmtTbOut->execute($params);
+        $tutup_botol_out = (float)$stmtTbOut->fetchColumn();
+        $sisa_tutup_botol = $tutup_botol_in - $tutup_botol_out;
+
         $data['laporan'] = [
             'total_kotor'      => $total_kotor,
             'beban_nasabah'    => $beban_nasabah,
@@ -140,6 +153,12 @@ class LaporanController {
             'sisa_sekolah'     => $sisa_sekolah,
             'cair_piket'       => $cair_piket,
             'sisa_piket'       => $sisa_piket,
+            
+            // ✨ Data untuk dirender di file HTML Laporan Keuangan
+            'tutup_botol_in'   => $tutup_botol_in,
+            'tutup_botol_out'  => $tutup_botol_out,
+            'sisa_tutup_botol' => $sisa_tutup_botol,
+
             'persen_bst'       => $config['persen_kas_bst'] ?? 0,
             'persen_sekolah'   => $config['persen_kas_sekolah'] ?? 0,
             'persen_pengelola' => $config['persen_honor_pengelola'] ?? 0,
@@ -307,29 +326,24 @@ class LaporanController {
         $end_dt = $data['end_date'] . ' 23:59:59';
 
         $sql = "
-            SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, total_pendapatan AS debit, 0 AS kredit, 'masuk' as jenis
-            FROM penjualan WHERE tanggal_jual BETWEEN :p1a AND :p1b
-            UNION ALL
-            SELECT tanggal AS waktu, CASE WHEN keterangan LIKE '%Refund%' THEN 'Koreksi Kelebihan Bayar' ELSE 'Pemasukan Kas (Manual)' END AS uraian, keterangan AS detail, nominal AS debit, 0 AS kredit, 'masuk_manual' as jenis
-            FROM kas_manual WHERE jenis = 'pemasukan' AND tanggal BETWEEN :p2a AND :p2b
-            UNION ALL
-            SELECT MAX(p.tanggal_tarik) AS waktu, CONCAT('Penarikan Kolektif: Kelas ', k.nama_kelas) AS uraian, CONCAT(COUNT(p.id), ' Transaksi Siswa') AS detail, 0 AS debit, SUM(p.jumlah) AS kredit, 'keluar_nasabah' as jenis
-            FROM penarikan p JOIN users u ON p.user_id = u.id JOIN kelas k ON u.kelas_id = k.id 
-            WHERE p.tanggal_tarik BETWEEN :p3a AND :p3b AND u.role = 'siswa' AND u.nama NOT LIKE '%KESISWAAN%'
-            GROUP BY DATE(p.tanggal_tarik), k.id, k.nama_kelas
-            UNION ALL
-            SELECT p.tanggal_tarik AS waktu, CONCAT('Penarikan Tunai: ', u.nama) AS uraian, p.keterangan AS detail, 0 AS debit, p.jumlah AS kredit, 'keluar_nasabah' as jenis
-            FROM penarikan p JOIN users u ON p.user_id = u.id WHERE p.tanggal_tarik BETWEEN :p4a AND :p4b AND (u.role != 'siswa' OR u.kelas_id IS NULL OR u.nama LIKE '%KESISWAAN%')
-            UNION ALL
-            SELECT h.tanggal_cair AS waktu, CASE WHEN h.keterangan LIKE '%Pengelola%' THEN 'Pencairan Honor Pengelola' WHEN h.keterangan LIKE '%Piket%' THEN 'Pencairan Honor Piket' ELSE CONCAT('Pencairan Honor: ', u.nama) END AS uraian, h.keterangan AS detail, 0 AS debit, h.jumlah AS kredit, 'keluar_honor' as jenis
-            FROM pencairan_honor h JOIN users u ON h.user_id = u.id WHERE h.tanggal_cair BETWEEN :p5a AND :p5b
-            UNION ALL
-            SELECT s.created_at AS waktu, CONCAT('Reward Prestasi: ', u.nama) AS uraian, 'Pemberian Hadiah Saldo' AS detail, 0 AS debit, s.total_harga AS kredit, 'keluar_reward' as jenis
-            FROM setoran s JOIN users u ON s.user_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id WHERE k.nama_sampah = '🌟 REWARD PRESTASI' AND s.created_at BETWEEN :p6a AND :p6b
-            UNION ALL
-            SELECT tanggal AS waktu, CASE WHEN keterangan LIKE '%Sumbangan Kas Sekolah%' THEN 'Penyerahan Kas Sekolah' ELSE 'Pengeluaran Kas (Manual)' END AS uraian, keterangan AS detail, 0 AS debit, nominal AS kredit, 'keluar_manual' as jenis
-            FROM kas_manual WHERE jenis = 'pengeluaran' AND tanggal BETWEEN :p7a AND :p7b
-            ORDER BY waktu ASC";
+            SELECT waktu, uraian, detail, debit, kredit, sumber_kas FROM (
+                SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, total_pendapatan AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
+                FROM penjualan WHERE tanggal_jual BETWEEN :p1a AND :p1b
+                UNION ALL
+                SELECT tanggal AS waktu, CASE WHEN keterangan LIKE '%Refund%' THEN 'Koreksi' ELSE 'Pemasukan Kas' END AS uraian, keterangan AS detail, nominal AS debit, 0 AS kredit, sumber_kas
+                FROM kas_manual WHERE jenis = 'pemasukan' AND tanggal BETWEEN :p2a AND :p2b
+                UNION ALL
+                SELECT MAX(p.tanggal_tarik) AS waktu, CONCAT('Penarikan: ', k.nama_kelas) AS uraian, 'Mutasi Siswa' AS detail, 0 AS debit, SUM(p.jumlah) AS kredit, 'kas_besar' as sumber_kas
+                FROM penarikan p JOIN users u ON p.user_id = u.id JOIN kelas k ON u.kelas_id = k.id 
+                WHERE p.tanggal_tarik BETWEEN :p3a AND :p3b 
+                GROUP BY DATE(p.tanggal_tarik), k.id
+                UNION ALL
+                SELECT h.tanggal_cair AS waktu, 'Pencairan Honor' AS uraian, h.keterangan AS detail, 0 AS debit, h.jumlah AS kredit, 'kas_besar' as sumber_kas
+                FROM pencairan_honor h WHERE h.tanggal_cair BETWEEN :p4a AND :p4b
+                UNION ALL
+                SELECT tanggal AS waktu, 'Pengeluaran Kas' AS uraian, keterangan AS detail, 0 AS debit, nominal AS kredit, sumber_kas
+                FROM kas_manual WHERE jenis = 'pengeluaran' AND tanggal BETWEEN :p5a AND :p5b
+            ) as mutasi ORDER BY waktu ASC";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([

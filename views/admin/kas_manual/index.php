@@ -24,8 +24,10 @@
                     <h3 class="font-black text-slate-800 uppercase italic">Catat Transaksi Baru</h3>
                 </div>
 
-                <!-- URL DISESUAIKAN -->
                 <form action="<?= BASE_URL ?>/kas/store" method="POST" class="space-y-5">
+                    <!-- 🛡️ CSRF Token -->
+                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+
                     <div>
                         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Tanggal Transaksi</label>
                         <input type="date" name="tanggal" value="<?= date('Y-m-d') ?>" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-400 outline-none">
@@ -49,6 +51,15 @@
                                 </div>
                             </label>
                         </div>
+                    </div>
+
+                    <!-- ✨ FITUR BARU: Pemilihan Dompet Kas -->
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Sumber / Tujuan Kas</label>
+                        <select name="sumber_kas" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-400 outline-none">
+                            <option value="kas_besar">Dompet Kas Besar (Utama)</option>
+                            <option value="kas_tutup_botol">Dompet Kas Tutup Botol</option>
+                        </select>
                     </div>
 
                     <div>
@@ -102,10 +113,13 @@
                                         </td>
                                         <td class="px-4 py-4 text-right font-black <?= $k['jenis'] == 'pemasukan' ? 'text-emerald-600' : 'text-red-600' ?>">
                                             <?= $k['jenis'] == 'pemasukan' ? '+' : '-' ?> Rp <?= number_format($k['nominal'], 0, ',', '.') ?>
-                                            <span class="block text-[8px] opacity-70 mt-1"><?= strtoupper($k['jenis']) ?></span>
+                                            
+                                            <!-- ✨ Menampilkan Sumber Kas pada tabel -->
+                                            <span class="block text-[8px] opacity-70 mt-1 uppercase tracking-widest">
+                                                <?= strtoupper($k['jenis']) ?> • <?= strtoupper(str_replace('_', ' ', $k['sumber_kas'] ?? 'KAS BESAR')) ?>
+                                            </span>
                                         </td>
                                         <td class="px-4 py-4 text-center">
-                                            <!-- URL DISESUAIKAN -->
                                             <a href="<?= BASE_URL ?>/kas/delete?id=<?= $k['id'] ?>" onclick="return confirm('Yakin ingin menghapus catatan ini? Saldo Buku Kas akan menyesuaikan otomatis.')" class="opacity-0 group-hover:opacity-100 transition-opacity inline-block px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-200">
                                                 Hapus
                                             </a>

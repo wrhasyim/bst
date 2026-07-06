@@ -114,6 +114,7 @@
                             <td class="border border-slate-900 px-4 py-3 text-right font-black text-slate-900">
                                 <?= number_format($saldo_v, 0, ',', '.') ?>
                             </td>
+                            
                         </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

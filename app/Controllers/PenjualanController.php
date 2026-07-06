@@ -67,11 +67,14 @@ class PenjualanController {
             $pcs_jual     = (float)($_POST['total_pcs'] ?? 0); 
             $total_kg     = (float)($_POST['total_kg'] ?? 0); 
             $keterangan   = !empty($_POST['keterangan']) ? htmlspecialchars($_POST['keterangan']) : 'Penjualan Manual';
+            
+            // ✨ FITUR BARU: Menangkap uang khusus dari tutup botol
+            $kas_tutup_botol_rp = (float)($_POST['kas_tutup_botol_rp'] ?? 0);
 
             try {
                 $this->db->beginTransaction();
 
-                // PERBAIKAN 1: Tambahkan 'user_id' ke dalam list SELECT agar kepemilikan sisa setoran tidak hilang
+                // Tambahkan 'user_id' ke dalam list SELECT agar kepemilikan sisa setoran tidak hilang
                 $stmtRows = $this->db->prepare("SELECT id, user_id, berat, total_harga, honor_walas_rp FROM setoran WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0 ORDER BY id ASC FOR UPDATE");
                 $stmtRows->execute([$kategori_id]);
                 $rows = $stmtRows->fetchAll();
@@ -107,7 +110,7 @@ class PenjualanController {
                         // Tandai baris lama sebagai terjual
                         $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE id = ?")->execute([$id_setoran]);
                         
-                        // PERBAIKAN 2: Hapus kolom kelas_id dari query INSERT karena tidak ada di database
+                        // Hapus kolom kelas_id dari query INSERT karena tidak ada di database
                         $stmtNew = $this->db->prepare("INSERT INTO setoran (user_id, kategori_id, berat, total_harga, honor_walas_rp, status, is_sold, created_at) VALUES (?, ?, ?, ?, ?, 'valid', 0, NOW())");
                         $stmtNew->execute([
                             $row['user_id'], // Mengambil user_id yang berhasil di SELECT di atas
@@ -142,24 +145,25 @@ class PenjualanController {
                 $honor_piket_rp      = $margin_total * $p_piket;
                 $kas_bst_rp = $margin_total - ($kas_sekolah_rp + $honor_pengelola_rp + $honor_piket_rp + $total_walas_setoran);
 
+                // ✨ Kueri dimodifikasi untuk memasukkan kolom kas_tutup_botol_rp
                 $sqlInsert = "INSERT INTO penjualan (
                                 kategori_id, total_pcs, harga_per_pcs, total_pendapatan, 
                                 beban_nasabah_rp, margin_total_rp, kas_sekolah_rp, 
-                                honor_pengelola_rp, honor_piket_rp, kas_bst_rp, 
+                                honor_pengelola_rp, honor_piket_rp, kas_bst_rp, kas_tutup_botol_rp,
                                 tanggal_jual, keterangan
-                              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+                              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
                 $stmtInsert = $this->db->prepare($sqlInsert);
                 $stmtInsert->execute([
                     $kategori_id, $pcs_jual, $harga_per_kg, $total_pendapatan,
                     $beban_nasabah, $margin_total, $kas_sekolah_rp,
-                    $honor_pengelola_rp, $honor_piket_rp, $kas_bst_rp,
+                    $honor_pengelola_rp, $honor_piket_rp, $kas_bst_rp, $kas_tutup_botol_rp,
                     $keterangan
                 ]);
 
-                Logger::log("Proses Penjualan", "Mencatat penjualan sebanyak " . number_format($total_kg, 2) . " KG. Total Pendapatan: Rp " . number_format($total_pendapatan, 0, ',', '.'));
+                Logger::log("Proses Penjualan", "Mencatat penjualan sebanyak " . number_format($total_kg, 2) . " KG. Pendapatan: Rp " . number_format($total_pendapatan, 0, ',', '.') . " | Tutup Botol: Rp " . number_format($kas_tutup_botol_rp, 0, ',', '.'));
                 
                 $this->db->commit();
-                $_SESSION['success'] = "Berhasil! Penjualan ".number_format($total_kg, 2)." KG tercatat.";
+                $_SESSION['success'] = "Berhasil! Penjualan tercatat beserta uang tutup botol.";
             } catch (Exception $e) {
                 $this->db->rollBack();
                 $_SESSION['error'] = "Gagal: " . $e->getMessage();
