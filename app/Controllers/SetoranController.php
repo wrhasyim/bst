@@ -164,7 +164,9 @@ class SetoranController {
         $data['setoran'] = $stmt->fetchAll();
         $data['pagination'] = ['current_page' => $page, 'total_pages' => $total_pages, 'total_data' => $total_data];
         $data['guru_list'] = $this->db->query("SELECT * FROM users WHERE role NOT IN ('siswa', 'admin') AND is_active = 1 AND deleted_at IS NULL ORDER BY nama ASC")->fetchAll();
-        $data['kategori_list'] = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY nama_sampah ASC")->fetchAll();
+        
+        // 🛠️ PERUBAHAN: Mengubah 'kategori_list' menjadi 'all_sampah' agar terbaca oleh View guru.php
+        $data['all_sampah'] = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY nama_sampah ASC")->fetchAll();
 
         extract($data);
         $title = "Setoran Guru & Staf";
