@@ -89,7 +89,11 @@ $role = $_SESSION['role'] ?? '';
                         <span class="mr-3">🚛</span> Penjualan Pengepul
                     </a>
                     <a href="<?= BASE_URL ?>/penarikan" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
-                        <span class="mr-3">🏧</span> Penarikan Saldo
+                        <span class="mr-3">🏧</span> Penarikan Siswa
+                    </a>
+                    <!-- MENU BARU: PENARIKAN GURU -->
+                    <a href="<?= BASE_URL ?>/penarikan/guru" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">💳</span> Penarikan Guru
                     </a>
                     <a href="<?= BASE_URL ?>/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">💰</span> Pencairan Honor
@@ -112,6 +116,10 @@ $role = $_SESSION['role'] ?? '';
                     </a>
                     <a href="<?= BASE_URL ?>/laporan/honor" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">🏅</span> Laporan Honor
+                    </a>
+                    <!-- 🛠️ MENU BARU: LAPORAN PENARIKAN GURU -->
+                    <a href="<?= BASE_URL ?>/laporan/penarikan_guru" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
+                        <span class="mr-3">💳</span> Laporan Tarik Guru
                     </a>
                     <a href="<?= BASE_URL ?>/laporan/nasabah" class="sidebar-link flex items-center px-4 py-2.5 text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all">
                         <span class="mr-3">📖</span> Buku Tabungan

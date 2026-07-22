@@ -202,8 +202,13 @@ class LaporanController {
                 UNION ALL
                 SELECT MAX(p.tanggal_tarik) AS waktu, CONCAT('Penarikan Kolektif: ', k.nama_kelas) AS uraian, 'Mutasi Siswa' AS detail, 0 AS debit, SUM(p.jumlah) AS kredit, 'kas_besar' as sumber_kas
                 FROM penarikan p JOIN users u ON p.user_id = u.id JOIN kelas k ON u.kelas_id = k.id 
-                WHERE p.tanggal_tarik BETWEEN :p4a AND :p4b 
-                GROUP BY DATE(p.tanggal_tarik), k.id
+                WHERE p.tanggal_tarik BETWEEN :p4a AND :p4b AND u.role = 'siswa'
+                GROUP BY DATE(p.tanggal_tarik), k.id, k.nama_kelas
+                UNION ALL
+                /* 🛠️ SINKRONISASI BARU: Menarik Data Penarikan Guru ke Buku Kas */
+                SELECT p.tanggal_tarik AS waktu, CONCAT('Penarikan Guru: ', u.nama) AS uraian, p.keterangan AS detail, 0 AS debit, p.jumlah AS kredit, 'kas_besar' as sumber_kas
+                FROM penarikan p JOIN users u ON p.user_id = u.id 
+                WHERE p.tanggal_tarik BETWEEN :p7a AND :p7b AND u.role NOT IN ('siswa', 'admin')
                 UNION ALL
                 SELECT h.tanggal_cair AS waktu, 'Pencairan Honor' AS uraian, h.keterangan AS detail, 0 AS debit, h.jumlah AS kredit, 'kas_besar' as sumber_kas
                 FROM pencairan_honor h WHERE h.tanggal_cair BETWEEN :p5a AND :p5b
@@ -218,6 +223,7 @@ class LaporanController {
             'p2a'=>$start_dt, 'p2b'=>$end_dt, 
             'p3a'=>$start_dt, 'p3b'=>$end_dt, 
             'p4a'=>$start_dt, 'p4b'=>$end_dt, 
+            'p7a'=>$start_dt, 'p7b'=>$end_dt, // 🛠️ Parameter penarikan guru
             'p5a'=>$start_dt, 'p5b'=>$end_dt,
             'p6a'=>$start_dt, 'p6b'=>$end_dt
         ]);
@@ -277,6 +283,43 @@ class LaporanController {
         $data = []; $stmtCek = $this->db->query("SELECT id, nama FROM users WHERE nama LIKE '%KESISWAAN%' AND role = 'siswa' LIMIT 1"); $akun_kesiswaan = $stmtCek->fetch(); if (!$akun_kesiswaan) { $_SESSION['error'] = "Akun virtual 'KAS KESISWAAN' belum terdeteksi. Silakan buat terlebih dahulu!"; header('Location: ' . BASE_URL . '/user'); exit; } $user_id = $akun_kesiswaan['id']; $sqlMutasi = "SELECT s.created_at as tanggal, 'setoran' as tipe, k.nama_sampah as jenis_botol, 'Denda Kedisiplinan' as ket, s.berat as qty, s.total_harga as jumlah FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.user_id = :uid1 AND s.status = 'valid' UNION ALL SELECT tanggal_tarik as tanggal, 'penarikan' as tipe, '-' as jenis_botol, keterangan as ket, 0 as qty, jumlah FROM penarikan WHERE user_id = :uid2 ORDER BY tanggal DESC"; $stmtMutasi = $this->db->prepare($sqlMutasi); $stmtMutasi->execute(['uid1' => $user_id, 'uid2' => $user_id]); $data['mutasi'] = $stmtMutasi->fetchAll(); $data['total_uang_masuk'] = $this->db->query("SELECT IFNULL(SUM(total_harga),0) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn(); $data['total_uang_ditarik'] = $this->db->query("SELECT IFNULL(SUM(jumlah),0) FROM penarikan WHERE user_id = $user_id")->fetchColumn(); $data['saldo_aktif'] = $data['total_uang_masuk'] - $data['total_uang_ditarik']; $data['total_botol_pcs'] = $this->db->query("SELECT IFNULL(SUM(berat),0) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn();
         extract($data); $title = "Dashboard Kas Kesiswaan (Denda)"; $content = __DIR__ . '/../../views/admin/laporan/kas_kesiswaan.php'; require_once __DIR__ . '/../../views/layouts/admin.php';
     }
+    
+    // =================================================================
+    // LAPORAN PENARIKAN GURU / STAF
+    // =================================================================
+    public function penarikan_guru() {
+        // Hanya Admin yang bisa melihat laporan ini
+        Security::requireRole(['admin']);
+
+        $data = [];
+        // Set filter bulan default ke bulan saat ini jika tidak ada input
+        $bulan_filter = $_GET['bulan'] ?? date('Y-m');
+        $data['bulan_filter'] = $bulan_filter;
+
+        // Query mengambil riwayat penarikan khusus guru berdasarkan bulan
+        $sql = "SELECT p.tanggal_tarik, p.jumlah, p.keterangan, u.nama 
+                FROM penarikan p 
+                JOIN users u ON p.user_id = u.id 
+                WHERE u.role NOT IN ('siswa', 'admin') 
+                AND DATE_FORMAT(p.tanggal_tarik, '%Y-%m') = :bulan
+                ORDER BY p.tanggal_tarik DESC";
+                
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['bulan' => $bulan_filter]);
+        $data['laporan'] = $stmt->fetchAll();
+
+        // Hitung Grand Total
+        $data['grand_total'] = 0;
+        foreach($data['laporan'] as $row) {
+            $data['grand_total'] += $row['jumlah'];
+        }
+
+        extract($data);
+        $title = "Laporan Penarikan Guru";
+        $content = __DIR__ . '/../../views/admin/laporan/penarikan_guru.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
+
     public function cairkan_kas_sekolah() { if ($_SERVER['REQUEST_METHOD'] === 'POST') { Security::validate_csrf(); $nominal = (float) $_POST['nominal']; if ($nominal > 0) { try { $ket = "Sumbangan Kas Sekolah (Berdasarkan Margin Pembagian)"; $sql = "INSERT INTO kas_manual (user_id, tanggal, jenis, nominal, keterangan, created_at) VALUES (?, NOW(), 'pengeluaran', ?, ?, NOW())"; $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket]); $_SESSION['success'] = "Berhasil mencatat penyerahan dana ke Sekolah."; } catch (PDOException $e) { $_SESSION['error'] = "Gagal memproses data: " . $e->getMessage(); } } } header('Location: ' . BASE_URL . '/laporan/keuangan'); exit; }
     public function cairkan_honor_pengelola() { if ($_SERVER['REQUEST_METHOD'] === 'POST') { Security::validate_csrf(); $nominal = (float) $_POST['nominal']; $user_id = $_SESSION['user_id']; if ($nominal > 0) { try { $ket = "Pencairan Honor Pengelola (Berdasarkan Margin Pembagian)"; $sql = "INSERT INTO pencairan_honor (user_id, jumlah, jenis, keterangan, tanggal_cair) VALUES (?, ?, 'pengelola', ?, NOW())"; $this->db->prepare($sql)->execute([$user_id, $nominal, $ket]); $_SESSION['success'] = "Berhasil mencairkan Honor Pengelola."; } catch (PDOException $e) { $_SESSION['error'] = "Gagal memproses data: " . $e->getMessage(); } } } header('Location: ' . BASE_URL . '/laporan/keuangan'); exit; }
     public function cairkan_honor_piket() { if ($_SERVER['REQUEST_METHOD'] === 'POST') { Security::validate_csrf(); $nominal = (float) $_POST['nominal']; if ($nominal > 0) { try { $ket = "Pencairan Honor Siswa Piket (Berdasarkan Margin Pembagian)"; $sql = "INSERT INTO pencairan_honor (user_id, jumlah, jenis, keterangan, tanggal_cair) VALUES (?, ?, 'piket', ?, NOW())"; $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket]); $_SESSION['success'] = "Berhasil mencairkan Honor Siswa Piket."; } catch (PDOException $e) { $_SESSION['error'] = "Gagal memproses data: " . $e->getMessage(); } } } header('Location: ' . BASE_URL . '/laporan/keuangan'); exit; }
@@ -312,6 +355,11 @@ class LaporanController {
                 WHERE p.tanggal_tarik BETWEEN :p4a AND :p4b AND u.role = 'siswa' 
                 GROUP BY DATE(p.tanggal_tarik), k.id, k.nama_kelas 
                 UNION ALL 
+                /* 🛠️ SINKRONISASI BARU: Menarik Data Penarikan Guru ke Laporan CSV */
+                SELECT p.tanggal_tarik AS waktu, CONCAT('Penarikan Guru: ', u.nama) AS uraian, p.keterangan AS detail, 0 AS debit, p.jumlah AS kredit, 'kas_besar' as sumber_kas
+                FROM penarikan p JOIN users u ON p.user_id = u.id 
+                WHERE p.tanggal_tarik BETWEEN :p7a AND :p7b AND u.role NOT IN ('siswa', 'admin')
+                UNION ALL 
                 SELECT h.tanggal_cair AS waktu, 'Pencairan Honor' AS uraian, h.keterangan AS detail, 0 AS debit, h.jumlah AS kredit, 'kas_besar' as sumber_kas 
                 FROM pencairan_honor h WHERE h.tanggal_cair BETWEEN :p5a AND :p5b 
                 UNION ALL 
@@ -320,7 +368,15 @@ class LaporanController {
             ) as mutasi ORDER BY waktu ASC";
         
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['p1a'=>$sd, 'p1b'=>$ed, 'p2a'=>$sd, 'p2b'=>$ed, 'p3a'=>$sd, 'p3b'=>$ed, 'p4a'=>$sd, 'p4b'=>$ed, 'p5a'=>$sd, 'p5b'=>$ed, 'p6a'=>$sd, 'p6b'=>$ed]);
+        $stmt->execute([
+            'p1a'=>$sd, 'p1b'=>$ed, 
+            'p2a'=>$sd, 'p2b'=>$ed, 
+            'p3a'=>$sd, 'p3b'=>$ed, 
+            'p4a'=>$sd, 'p4b'=>$ed, 
+            'p7a'=>$sd, 'p7b'=>$ed, // 🛠️ Parameter penarikan guru
+            'p5a'=>$sd, 'p5b'=>$ed, 
+            'p6a'=>$sd, 'p6b'=>$ed
+        ]);
 
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             fputcsv($output, $row);

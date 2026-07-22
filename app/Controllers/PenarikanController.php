@@ -8,13 +8,13 @@ class PenarikanController {
     private $db;
 
     public function __construct() {
-        // 🛡️ Satpam URL: Hanya Admin dan Staf yang bisa mencairkan uang siswa
+        // 🛡️ Satpam URL: Hanya Admin dan Staf yang bisa mencairkan uang
         Security::requireRole(['admin', 'staff']);
         $this->db = Database::getInstance()->getConnection();
     }
 
     // =================================================================
-    // 1. TAMPILAN HALAMAN PENARIKAN MASSAL PER KELAS
+    // 1. TAMPILAN HALAMAN PENARIKAN MASSAL PER KELAS (SISWA)
     // =================================================================
     public function index() {
         $data = []; // Wadah untuk data View
@@ -190,6 +190,90 @@ class PenarikanController {
         
         // Kembali ke halaman dasbor kesiswaan
         header('Location: ' . BASE_URL . '/laporan/kas_kesiswaan');
+        exit;
+    }
+
+    // =================================================================
+    // 4. TAMPILAN HALAMAN PENARIKAN KHUSUS GURU/STAF
+    // =================================================================
+    public function guru() {
+        $data = [];
+        
+        // 🛡️ FITUR BARU: Menambahkan klausa HAVING saldo_tersedia > 0 
+        // agar hanya guru yang memiliki saldo tabungan yang muncul di form penarikan.
+        $sql = "SELECT u.id, u.nama, u.username,
+                (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
+                (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_tersedia
+                FROM users u 
+                WHERE u.role != 'siswa' AND u.role != 'admin' AND u.is_active = 1
+                HAVING saldo_tersedia > 0
+                ORDER BY u.nama ASC";
+        
+        $data['guru_list'] = $this->db->query($sql)->fetchAll();
+
+        // 🛠️ PERUBAHAN: Ubah LIMIT menjadi 5 agar tabel riwayat tidak terlalu panjang
+        $data['riwayat'] = $this->db->query("SELECT p.*, u.nama 
+                                    FROM penarikan p 
+                                    JOIN users u ON p.user_id = u.id 
+                                    WHERE u.role != 'siswa'
+                                    ORDER BY p.tanggal_tarik DESC LIMIT 5")->fetchAll();
+
+        // RENDER TAMPILAN
+        extract($data);
+        $title = "Penarikan Tabungan Guru/Staf";
+        $content = __DIR__ . '/../../views/admin/penarikan/guru.php'; 
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
+
+    // =================================================================
+    // 5. PROSES PENARIKAN KHUSUS GURU/STAF
+    // =================================================================
+    public function guru_store() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            
+            Security::validate_csrf(); // 🛡️ Validasi Token
+
+            $user_id = $_POST['user_id'] ?? null;
+            $jumlah = (float) $_POST['jumlah'];
+            $keterangan = $_POST['keterangan'] ?? 'Pencairan Tabungan Guru/Staf';
+
+            if (!$user_id || $jumlah <= 0) {
+                $_SESSION['error'] = "Data tidak lengkap atau nominal tidak valid!";
+                header('Location: ' . BASE_URL . '/penarikan/guru');
+                exit;
+            }
+
+            try {
+                // 1. Hitung sisa saldo guru tersebut
+                $total_masuk = $this->db->query("SELECT IFNULL(SUM(total_harga),0) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn();
+                $total_tarik = $this->db->query("SELECT IFNULL(SUM(jumlah),0) FROM penarikan WHERE user_id = $user_id")->fetchColumn();
+                $saldo = $total_masuk - $total_tarik;
+
+                // 2. Cek apakah uang yang ditarik melebihi saldo
+                if ($jumlah > $saldo) {
+                    $_SESSION['error'] = "Gagal! Saldo tidak mencukupi. Saldo maksimal yang bisa ditarik: Rp " . number_format($saldo, 0, ',', '.');
+                } else {
+                    // 3. Proses input penarikan
+                    $stmt = $this->db->prepare("INSERT INTO penarikan (user_id, jumlah, keterangan) VALUES (?, ?, ?)");
+                    $stmt->execute([$user_id, $jumlah, $keterangan]);
+                    
+                    // Ambil nama guru untuk pencatatan log (Audit Trail)
+                    $stmtN = $this->db->prepare("SELECT nama FROM users WHERE id = ?");
+                    $stmtN->execute([$user_id]);
+                    $nama_guru = $stmtN->fetchColumn();
+
+                    // 4. Catat aktivitas ke Logger
+                    Logger::log("Penarikan Guru", "Kasir mencairkan tabungan guru a.n $nama_guru sebesar Rp" . number_format($jumlah, 0, ',', '.'));
+                    
+                    $_SESSION['success'] = "Berhasil mencairkan tabungan $nama_guru sebesar Rp " . number_format($jumlah, 0, ',', '.');
+                }
+            } catch (Exception $e) {
+                $_SESSION['error'] = "Terjadi Kesalahan Sistem: " . $e->getMessage();
+            }
+        }
+        
+        // Kembali ke halaman penarikan guru
+        header('Location: ' . BASE_URL . '/penarikan/guru');
         exit;
     }
 }
