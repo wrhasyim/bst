@@ -48,6 +48,23 @@
                     </select>
                 </div>
             </div>
+
+            <!-- START: Fitur Tanpa Walas -->
+            <div class="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start transition-colors hover:bg-amber-100">
+                <div class="flex items-center h-5 mt-1">
+                    <input type="checkbox" name="tanpa_walas" value="1" id="tanpa_walas" class="w-5 h-5 text-amber-600 bg-white border-amber-300 rounded focus:ring-amber-500 focus:ring-2 cursor-pointer transition-all">
+                </div>
+                <div class="ml-3">
+                    <label for="tanpa_walas" class="font-bold text-amber-900 cursor-pointer block text-sm">
+                        Setoran Massal Tanpa Wali Kelas (Honor Rp 0)
+                    </label>
+                    <p class="text-amber-700 text-xs mt-1 leading-relaxed">
+                        Centang opsi ini jika kegiatan penimbangan sekelas ini tidak didampingi. Sistem otomatis mengosongkan honor wali kelas untuk seluruh siswa di bawah ini.
+                    </p>
+                </div>
+            </div>
+            <!-- END: Fitur Tanpa Walas -->
+
         </div>
 
         <div class="overflow-x-auto">

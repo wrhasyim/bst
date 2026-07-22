@@ -98,11 +98,17 @@ class SetoranController {
                 $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
                 
                 $total_pcs_masuk = 0;
+                
+                // 🛠️ PERUBAHAN: Menangkap nilai checkbox fitur tanpa walas
+                $tanpa_walas = $_POST['tanpa_walas'] ?? '0';
 
                 foreach ($_POST['berat'] as $uid => $jml) {
                     if ((float)$jml > 0) {
                         $u = $this->userModel->getById($uid);
                         $kls = ($u['kelas_id']) ? $this->kelasModel->getById($u['kelas_id']) : null;
+                        
+                        // 🛠️ PERUBAHAN: Logika mengosongkan ID Wali Kelas jika checkbox dicentang
+                        $walikelas_id = ($tanpa_walas === '1') ? null : ($kls['walikelas_id'] ?? null);
                         
                         $this->setoranModel->create([
                             'user_id' => $uid, 
@@ -110,7 +116,7 @@ class SetoranController {
                             'berat' => $jml,
                             'total_harga' => $jml * $harga_dasar, 
                             'total_pengepul' => ($jml / $konversi_kg) * $harga_pengepul,
-                            'walikelas_id' => $kls['walikelas_id'] ?? null, 
+                            'walikelas_id' => $walikelas_id, // 🛠️ Nilai dimasukkan ke tabel
                             'status' => 'pending'
                         ]);
                         $total_pcs_masuk += $jml;
