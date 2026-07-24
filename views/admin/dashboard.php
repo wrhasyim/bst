@@ -162,6 +162,19 @@ $role = $_SESSION['role'] ?? '';
         </div>
         <?php endif; ?>
 
+        <!-- AREA GRAFIK CHART.JS (BARU) -->
+        <div class="bg-white p-6 md:p-8 rounded-[3rem] border border-slate-200 shadow-sm mt-6 relative z-10">
+            <div class="mb-6 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-100 pb-4">
+                <div>
+                    <h3 class="font-black text-slate-800 uppercase italic">Grafik Arus Kas Tabungan</h3>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Perbandingan Setoran vs Penarikan (6 Bulan Terakhir)</p>
+                </div>
+            </div>
+            <div class="relative h-80 w-full">
+                <canvas id="financeChart"></canvas>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <div class="lg:col-span-2 bg-white border border-slate-200 rounded-[3rem] p-8 shadow-sm">
                 <div class="flex justify-between items-center mb-8">
@@ -289,3 +302,80 @@ $role = $_SESSION['role'] ?? '';
         </div>
     <?php endif; ?>
 </div>
+
+<!-- SCRIPTS UNTUK RENDER GRAFIK -->
+<?php if($role === 'admin' || $role === 'staff'): ?>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('financeChart');
+    if(!canvas) return; 
+
+    const ctx = canvas.getContext('2d');
+    
+    // Menerima data JSON dari DashboardController
+    const labels = <?= $json_labels ?? '[]' ?>;
+    const dataSetoran = <?= $json_setoran ?? '[]' ?>;
+    const dataPenarikan = <?= $json_penarikan ?? '[]' ?>;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Uang Masuk (Setoran)',
+                    data: dataSetoran,
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)', // Emerald 500
+                    borderColor: 'rgb(16, 185, 129)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barPercentage: 0.6
+                },
+                {
+                    label: 'Uang Keluar (Penarikan)',
+                    data: dataPenarikan,
+                    backgroundColor: 'rgba(245, 158, 11, 0.8)', // Amber 500 (Cocok dengan tema web Anda)
+                    borderColor: 'rgb(245, 158, 11)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barPercentage: 0.6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { font: { family: "'Nunito', sans-serif", weight: 'bold', size: 11 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let value = context.raw || 0;
+                            return context.dataset.label + ': Rp ' + value.toLocaleString('id-ID');
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return 'Rp ' + value.toLocaleString('id-ID'); },
+                        font: { size: 10 }
+                    },
+                    grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { weight: 'bold', size: 11 } }
+                }
+            }
+        }
+    });
+});
+</script>
+<?php endif; ?>

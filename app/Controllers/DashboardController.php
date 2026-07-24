@@ -52,7 +52,10 @@ class DashboardController {
         // =======================================================
         if ($role === 'admin' || $role === 'staff') {
             $data['stok_gudang'] = $this->db->query("SELECT SUM(berat) FROM setoran WHERE status = 'valid' AND is_sold = 0")->fetchColumn() ?? 0;
-            $data['total_tabungan'] = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE status = 'valid'")->fetchColumn() ?? 0;
+            // Menghitung Sisa Saldo Mengendap (Total Setoran - Total Penarikan)
+$total_setoran_global = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE status = 'valid'")->fetchColumn() ?? 0;
+$total_penarikan_global = $this->db->query("SELECT SUM(jumlah) FROM penarikan")->fetchColumn() ?? 0;
+$data['total_tabungan'] = $total_setoran_global - $total_penarikan_global;
             $data['kas_masuk'] = $this->db->query("SELECT SUM(total_pendapatan) FROM penjualan")->fetchColumn() ?? 0;
             
             $data['keuntungan_bersih'] = $this->db->query("
@@ -64,29 +67,33 @@ class DashboardController {
             $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1 AND nama NOT LIKE '%KESISWAAN%'")->fetchColumn() ?? 0;
             $data['jml_guru'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'guru' AND is_active = 1")->fetchColumn() ?? 0;
 
-            // FITUR CHART.JS DATA
-            $chart_labels = []; $chart_setoran = []; $chart_penjualan = [];
+            // FITUR CHART.JS DATA: Arus Kas (Uang Masuk vs Uang Keluar 6 Bulan Terakhir)
+            $chart_labels = []; 
+            $chart_setoran = []; 
+            $chart_penarikan = [];
+
+            // Melakukan looping dari 5 bulan lalu hingga bulan ini (total 6 bulan)
             for ($i = 5; $i >= 0; $i--) {
-                $m = date('Y-m', strtotime("-$i months"));
+                // Format "Y-m" untuk kueri SQL (Contoh: 2026-07)
+                $bulan_sql = date('Y-m', strtotime("-$i months"));
+                // Format untuk label di layar (Contoh: Jul 2026)
                 $chart_labels[] = date('M Y', strtotime("-$i months"));
-                $chart_setoran[$m] = 0; $chart_penjualan[$m] = 0;
+
+                // Hitung Uang Masuk (Setoran) per bulan
+                $stmtMasuk = $this->db->prepare("SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE status = 'valid' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
+                $stmtMasuk->execute([$bulan_sql]);
+                $chart_setoran[] = (float) $stmtMasuk->fetchColumn();
+
+                // Hitung Uang Keluar (Penarikan) per bulan
+                $stmtKeluar = $this->db->prepare("SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE DATE_FORMAT(tanggal_tarik, '%Y-%m') = ?");
+                $stmtKeluar->execute([$bulan_sql]);
+                $chart_penarikan[] = (float) $stmtKeluar->fetchColumn();
             }
 
-            $start_date = date('Y-m-01', strtotime('-5 months'));
-
-            $stmtSetoran = $this->db->prepare("SELECT DATE_FORMAT(created_at, '%Y-%m') as bln, SUM(berat) as total FROM setoran WHERE status = 'valid' AND created_at >= ? GROUP BY bln");
-            $stmtSetoran->execute([$start_date]);
-            foreach ($stmtSetoran->fetchAll() as $row) { if (isset($chart_setoran[$row['bln']])) $chart_setoran[$row['bln']] = (float)$row['total']; }
-
-            $stmtPenjualan = $this->db->prepare("SELECT DATE_FORMAT(tanggal_jual, '%Y-%m') as bln, SUM(total_pendapatan) as total FROM penjualan WHERE tanggal_jual >= ? GROUP BY bln");
-            $stmtPenjualan->execute([$start_date]);
-            foreach ($stmtPenjualan->fetchAll() as $row) { if (isset($chart_penjualan[$row['bln']])) $chart_penjualan[$row['bln']] = (float)$row['total']; }
-
-            $data['chart'] = [
-                'labels' => json_encode(array_values($chart_labels)),
-                'setoran' => json_encode(array_values($chart_setoran)),
-                'penjualan' => json_encode(array_values($chart_penjualan))
-            ];
+            // Ubah array PHP menjadi string JSON
+            $data['json_labels'] = json_encode($chart_labels);
+            $data['json_setoran'] = json_encode($chart_setoran);
+            $data['json_penarikan'] = json_encode($chart_penarikan);
         } 
         
         // =======================================================
@@ -143,3 +150,4 @@ class DashboardController {
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 }
+?>
