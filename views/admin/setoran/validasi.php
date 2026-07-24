@@ -6,7 +6,30 @@
         </div>
     </div>
 
-    <?php if (isset($_SESSION['success'])): ?><div class="p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs font-bold shadow-sm">✅ <?= $_SESSION['success']; unset($_SESSION['success']); ?></div><?php endif; ?>
+    <!-- Tampilan Pesan Success/Error -->
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs font-bold shadow-sm">
+            ✅ <?= $_SESSION['success']; unset($_SESSION['success']); ?>
+        </div>
+    <?php endif; ?>
+    
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="p-4 bg-red-50 border-l-4 border-red-500 text-red-800 text-xs font-bold shadow-sm">
+            🚨 <?= $_SESSION['error']; unset($_SESSION['error']); ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- TOMBOL VALIDASI MASSAL SEMUA ANTREAN -->
+    <?php if (!empty($pending)): ?>
+    <div class="flex justify-end mb-2">
+        <form action="<?= BASE_URL ?>/setoran/proses_validasi_semua" method="POST" onsubmit="return confirm('Peringatan: Anda akan memvalidasi SEMUA antrean yang ada di tabel ini secara massal. Lanjutkan?');">
+            <?= Security::csrf_field(); ?>
+            <button type="submit" class="px-6 py-3 bg-emerald-600 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg hover:bg-emerald-700 transition-all flex items-center">
+                <span class="mr-2 text-base">✅</span> Validasi Semua Antrean
+            </button>
+        </form>
+    </div>
+    <?php endif; ?>
 
     <div class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">

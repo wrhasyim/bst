@@ -6,6 +6,23 @@
         </div>
     </div>
 
+    <!-- FLASH MESSAGES -->
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg flex items-center shadow-sm">
+            <span class="text-emerald-500 mr-3 text-lg">✅</span>
+            <p class="text-sm font-bold text-emerald-800"><?= $_SESSION['success'] ?></p>
+        </div>
+        <?php unset($_SESSION['success']); ?>
+    <?php endif; ?>
+
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg flex items-center shadow-sm">
+            <span class="text-red-500 mr-3 text-lg">🚨</span>
+            <p class="text-sm font-bold text-red-800"><?= $_SESSION['error'] ?></p>
+        </div>
+        <?php unset($_SESSION['error']); ?>
+    <?php endif; ?>
+
     <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
         <form action="<?= BASE_URL ?>/setoran/siswa_kelas" method="GET" class="flex flex-col md:flex-row gap-4">
             <div class="flex-1">
@@ -30,7 +47,7 @@
     <?php if($kelas_id && !empty($siswa_list)): ?>
     <form action="<?= BASE_URL ?>/setoran/siswa_batch_store" method="POST" class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden">
         
-        <?= Security::csrf_field(); ?> <!-- 🛡️ CSRF Protection -->
+        <?= Security::csrf_field(); ?> 
 
         <div class="p-8 border-b border-slate-50 bg-slate-50/30">
             <div class="flex flex-col md:flex-row justify-between items-center gap-6">
@@ -102,6 +119,60 @@
         </div>
     </form>
     
+    <!-- ========================================== -->
+    <!-- FITUR IMPORT DATA VIA CSV (MULTIKATEGORI)  -->
+    <!-- ========================================== -->
+    <div class="mt-10 bg-blue-50/50 p-8 rounded-[3rem] border border-blue-200 shadow-sm relative overflow-hidden">
+        <div class="absolute -right-4 -top-4 opacity-5 text-7xl">📑</div>
+        
+        <div class="mb-6 border-b border-blue-200/50 pb-4 relative z-10">
+            <h3 class="font-black text-blue-900 uppercase italic">Import Multikategori via Excel / CSV</h3>
+            <p class="text-xs text-blue-700 mt-1">Gunakan fitur ini untuk memindahkan data dari buku fisik. Unduh template, isi jumlah tabungan pada kolom kategori yang sesuai, lalu unggah kembali.</p>
+        </div>
+
+        <form action="<?= BASE_URL ?>/setoran/import_csv_store" method="POST" enctype="multipart/form-data" class="space-y-6 relative z-10">
+            <?= Security::csrf_field(); ?>
+            <input type="hidden" name="kelas_id" value="<?= $kelas_id ?>">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Sisi Kiri: Opsi Pendampingan -->
+                <div class="space-y-4">
+                    <div class="bg-white border border-blue-200 rounded-xl p-4 flex items-start">
+                        <div class="flex items-center h-5 mt-1">
+                            <input type="checkbox" name="tanpa_walas" value="1" id="tanpa_walas_csv" class="w-5 h-5 text-blue-600 bg-white border-blue-300 rounded focus:ring-blue-500 cursor-pointer">
+                        </div>
+                        <div class="ml-3">
+                            <label for="tanpa_walas_csv" class="font-bold text-blue-900 cursor-pointer block text-sm">Tanpa Wali Kelas</label>
+                            <p class="text-blue-600 text-[10px] mt-0.5 leading-relaxed">Centang opsi ini jika seluruh transaksi di dalam file CSV ini tidak ingin dihitung honor wali kelasnya.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sisi Kanan: Upload File & Tombol Template -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-blue-800 uppercase mb-2 ml-1">1. Unduh Template</label>
+                        <a href="<?= BASE_URL ?>/setoran/download_template_csv?kelas_id=<?= $kelas_id ?>" class="w-full block text-center px-4 py-3 bg-blue-100 text-blue-800 border border-blue-300 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-200 transition-all shadow-sm">
+                            📥 Download Template .CSV
+                        </a>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-blue-800 uppercase mb-2 ml-1">2. Unggah File CSV</label>
+                        <input type="file" name="file_csv" accept=".csv" required class="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-black file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-all">
+                        <p class="text-[9px] text-blue-600 mt-1.5 italic font-bold">*Pastikan judul kolom (Header) tidak diubah agar sistem dapat membaca ID Kategori.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-blue-200/50 flex justify-end">
+                <button type="submit" class="px-10 py-4 bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all transform active:scale-95">
+                    🚀 Mulai Import Data
+                </button>
+            </div>
+        </form>
+    </div>
+
     <?php elseif($kelas_id && empty($siswa_list)): ?>
         <div class="p-16 text-center bg-white rounded-[3rem] border border-dashed border-slate-300">
             <span class="text-4xl mb-4 block">📭</span>

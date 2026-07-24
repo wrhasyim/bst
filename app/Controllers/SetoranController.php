@@ -4,8 +4,8 @@ require_once __DIR__ . '/../Models/Setoran.php';
 require_once __DIR__ . '/../Models/User.php';
 require_once __DIR__ . '/../Models/KategoriSampah.php';
 require_once __DIR__ . '/../Models/Kelas.php';
-require_once __DIR__ . '/../Core/Logger.php';   // 🛡️ Load Audit Trail
-require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security Global
+require_once __DIR__ . '/../Core/Logger.php';   
+require_once __DIR__ . '/../Core/Security.php'; 
 
 class SetoranController {
     private $setoranModel;
@@ -15,7 +15,6 @@ class SetoranController {
     private $db;
 
     public function __construct() {
-        // 🛡️ Menerapkan "Satpam URL": Hanya Admin dan Staf yang boleh mengakses Controller ini
         Security::requireRole(['admin', 'staff']);
         
         $this->setoranModel = new Setoran();
@@ -29,7 +28,7 @@ class SetoranController {
     // 1. RIWAYAT TABUNGAN SISWA
     // =======================================================
     public function siswa() {
-        $data = []; // Wadah untuk data yang akan dikirim ke View
+        $data = []; 
 
         $limit = 10; 
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -59,7 +58,6 @@ class SetoranController {
             'total_data'   => $total_data
         ];
 
-        // RENDER TAMPILAN
         extract($data);
         $title = "Riwayat Tabungan";
         $content = __DIR__ . '/../../views/admin/setoran/siswa_index.php';
@@ -86,7 +84,7 @@ class SetoranController {
 
     public function siswa_batch_store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+            Security::validate_csrf(); 
 
             try {
                 $this->db->beginTransaction(); 
@@ -98,8 +96,6 @@ class SetoranController {
                 $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
                 
                 $total_pcs_masuk = 0;
-                
-                // 🛠️ PERUBAHAN: Menangkap nilai checkbox fitur tanpa walas
                 $tanpa_walas = $_POST['tanpa_walas'] ?? '0';
 
                 foreach ($_POST['berat'] as $uid => $jml) {
@@ -107,7 +103,6 @@ class SetoranController {
                         $u = $this->userModel->getById($uid);
                         $kls = ($u['kelas_id']) ? $this->kelasModel->getById($u['kelas_id']) : null;
                         
-                        // 🛠️ PERUBAHAN: Logika mengosongkan ID Wali Kelas jika checkbox dicentang
                         $walikelas_id = ($tanpa_walas === '1') ? null : ($kls['walikelas_id'] ?? null);
                         
                         $this->setoranModel->create([
@@ -116,7 +111,7 @@ class SetoranController {
                             'berat' => $jml,
                             'total_harga' => $jml * $harga_dasar, 
                             'total_pengepul' => ($jml / $konversi_kg) * $harga_pengepul,
-                            'walikelas_id' => $walikelas_id, // 🛠️ Nilai dimasukkan ke tabel
+                            'walikelas_id' => $walikelas_id, 
                             'status' => 'pending'
                         ]);
                         $total_pcs_masuk += $jml;
@@ -132,6 +127,132 @@ class SetoranController {
             }
 
             header('Location: ' . BASE_URL . '/setoran/siswa');
+            exit;
+        }
+    }
+
+    // =======================================================
+    // 2B. FITUR EXPORT TEMPLATE & IMPORT CSV (MULTIKATEGORI)
+    // =======================================================
+    public function download_template_csv() {
+        $kelas_id = $_GET['kelas_id'] ?? null;
+        if (!$kelas_id) exit("Pilih kelas terlebih dahulu.");
+        
+        $stmtKelas = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
+        $stmtKelas->execute([$kelas_id]);
+        $nama_kelas = $stmtKelas->fetchColumn();
+        
+        $siswa_list = $this->db->query("SELECT id, nama FROM users WHERE kelas_id = $kelas_id AND role = 'siswa' AND is_active = 1 AND deleted_at IS NULL ORDER BY nama ASC")->fetchAll();
+        $all_sampah = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY id ASC")->fetchAll();
+
+        $filename = "Template_Import_" . str_replace(' ', '_', $nama_kelas) . ".csv";
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        $output = fopen('php://output', 'w');
+        
+        $header = ['ID_Siswa', 'Nama_Siswa'];
+        foreach ($all_sampah as $kat) {
+            $header[] = "[ID:" . $kat['id'] . "] " . $kat['nama_sampah']; 
+        }
+        fputcsv($output, $header); 
+        
+        foreach ($siswa_list as $s) {
+            $row = [$s['id'], $s['nama']];
+            foreach ($all_sampah as $kat) {
+                $row[] = 0; 
+            }
+            fputcsv($output, $row); 
+        }
+        fclose($output);
+        exit;
+    }
+
+    public function import_csv_store() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); 
+
+            $kelas_id = $_POST['kelas_id'];
+            $tanpa_walas = $_POST['tanpa_walas'] ?? '0';
+            
+            if (isset($_FILES['file_csv']) && $_FILES['file_csv']['error'] == 0) {
+                $file = $_FILES['file_csv']['tmp_name'];
+                $handle = fopen($file, "r");
+                
+                $headers = fgetcsv($handle, 1000, ","); 
+                
+                $col_to_cat = [];
+                for ($i = 2; $i < count($headers); $i++) {
+                    if (preg_match('/\[ID:(\d+)\]/', $headers[$i], $matches)) {
+                        $col_to_cat[$i] = (int)$matches[1];
+                    }
+                }
+
+                if (empty($col_to_cat)) {
+                    $_SESSION['error'] = "Format template CSV tidak valid atau tidak memiliki kolom kategori sampah.";
+                    header('Location: ' . BASE_URL . '/setoran/siswa_kelas?kelas_id=' . $kelas_id);
+                    exit;
+                }
+
+                try {
+                    $this->db->beginTransaction(); 
+                    
+                    $stmtSampah = $this->db->query("SELECT * FROM kategori_sampah");
+                    $sampahData = [];
+                    while ($s = $stmtSampah->fetch()) {
+                        $sampahData[$s['id']] = $s;
+                    }
+                    
+                    $stmtKelas = $this->db->prepare("SELECT walikelas_id FROM kelas WHERE id = ?");
+                    $stmtKelas->execute([$kelas_id]);
+                    $walikelas_id_db = $stmtKelas->fetchColumn();
+                    
+                    $walikelas_id = ($tanpa_walas === '1') ? null : $walikelas_id_db;
+                    $total_pcs_masuk = 0;
+                    
+                    while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                        $uid = $data[0]; 
+                        
+                        $stmtCek = $this->db->prepare("SELECT id FROM users WHERE id = ? AND kelas_id = ? AND role = 'siswa'");
+                        $stmtCek->execute([$uid, $kelas_id]);
+                        
+                        if ($stmtCek->fetch()) {
+                            foreach ($col_to_cat as $col_index => $kategori_id) {
+                                $jml = (float)($data[$col_index] ?? 0);
+                                
+                                if ($jml > 0 && isset($sampahData[$kategori_id])) {
+                                    $kat = $sampahData[$kategori_id];
+                                    $harga_dasar = (float)$kat['harga_dasar'];
+                                    $harga_pengepul = (float)$kat['harga_pengepul'];
+                                    $konversi_kg = ((float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
+
+                                    $this->setoranModel->create([
+                                        'user_id' => $uid, 
+                                        'kategori_id' => $kategori_id, 
+                                        'berat' => $jml,
+                                        'total_harga' => $jml * $harga_dasar, 
+                                        'total_pengepul' => ($jml / $konversi_kg) * $harga_pengepul,
+                                        'walikelas_id' => $walikelas_id, 
+                                        'status' => 'pending'
+                                    ]);
+                                    $total_pcs_masuk += $jml;
+                                }
+                            }
+                        }
+                    }
+                    fclose($handle);
+                    
+                    $this->db->commit(); 
+                    Logger::log("Import Setoran CSV", "Petugas mengimport setoran massal multikategori sebanyak $total_pcs_masuk Pcs (Status: Pending)");
+                    $_SESSION['success'] = "Data multikategori CSV berhasil di-import ($total_pcs_masuk Pcs). Menunggu validasi kasir.";
+                } catch (Exception $e) {
+                    $this->db->rollBack(); 
+                    $_SESSION['error'] = "Gagal memproses file CSV: " . $e->getMessage();
+                }
+            } else {
+                $_SESSION['error'] = "File CSV tidak ditemukan atau format tidak valid.";
+            }
+            header('Location: ' . BASE_URL . '/setoran/siswa_kelas?kelas_id=' . $kelas_id);
             exit;
         }
     }
@@ -164,8 +285,6 @@ class SetoranController {
         $data['setoran'] = $stmt->fetchAll();
         $data['pagination'] = ['current_page' => $page, 'total_pages' => $total_pages, 'total_data' => $total_data];
         $data['guru_list'] = $this->db->query("SELECT * FROM users WHERE role NOT IN ('siswa', 'admin') AND is_active = 1 AND deleted_at IS NULL ORDER BY nama ASC")->fetchAll();
-        
-        // 🛠️ PERUBAHAN: Mengubah 'kategori_list' menjadi 'all_sampah' agar terbaca oleh View guru.php
         $data['all_sampah'] = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY nama_sampah ASC")->fetchAll();
 
         extract($data);
@@ -176,14 +295,13 @@ class SetoranController {
 
     public function guru_store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+            Security::validate_csrf(); 
 
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
             
             $harga_satuan = (float)($kat['harga_dasar'] ?? 0);
             $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
-            
             $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
             
             $this->setoranModel->create([
@@ -208,7 +326,6 @@ class SetoranController {
     // =======================================================
     public function validasi() {
         $data = [];
-        // 🛠️ AUTO-HEALING SYSTEM
         $sql_heal = "UPDATE setoran s 
                      JOIN kategori_sampah k ON s.kategori_id = k.id 
                      SET s.total_harga = (s.berat * k.harga_dasar), 
@@ -222,6 +339,66 @@ class SetoranController {
         $title = "Validasi Setoran";
         $content = __DIR__ . '/../../views/admin/setoran/validasi.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
+
+    // 🛠️ FUNGSI BARU: VALIDASI MASSAL SEMUA ANTREAN
+    public function proses_validasi_semua() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf();
+            
+            try {
+                $this->db->beginTransaction();
+                
+                // Ambil persentase pengaturan
+                $stmtPersen = $this->db->query("SELECT nilai FROM pengaturan WHERE kunci = 'persen_honor_walikelas'");
+                $persen_walas = ($stmtPersen->fetchColumn() ?? 0) / 100;
+                
+                // Ambil semua data setoran yang masih pending beserta harganya
+                $stmt = $this->db->query("
+                    SELECT s.*, k.harga_dasar, k.harga_pengepul, k.konversi_kg 
+                    FROM setoran s 
+                    JOIN kategori_sampah k ON s.kategori_id = k.id 
+                    WHERE s.status = 'pending'
+                ");
+                $pending_list = $stmt->fetchAll();
+                
+                if (count($pending_list) === 0) {
+                    $this->db->rollBack();
+                    $_SESSION['error'] = "Tidak ada data antrean yang perlu divalidasi.";
+                    header('Location: ' . BASE_URL . '/setoran/validasi');
+                    exit;
+                }
+                
+                $count = 0;
+                foreach ($pending_list as $data) {
+                    $konversi_kg = (isset($data['konversi_kg']) && (float)$data['konversi_kg'] > 0) ? (float)$data['konversi_kg'] : 1;
+                    $total_harga = $data['berat'] * (float)$data['harga_dasar'];
+                    $total_pengepul = ($data['berat'] / $konversi_kg) * (float)$data['harga_pengepul'];
+                    
+                    // Kalkulasi Honor Walas
+                    $honor_walas_rp = 0;
+                    if (!empty($data['walikelas_id'])) {
+                        $honor_walas_rp = ($total_pengepul - $total_harga) * $persen_walas;
+                    }
+                    
+                    // Eksekusi Update ke Valid
+                    $sql = "UPDATE setoran SET total_harga = ?, total_pengepul = ?, honor_walas_rp = ?, status = 'valid' WHERE id = ?";
+                    $this->db->prepare($sql)->execute([$total_harga, $total_pengepul, $honor_walas_rp, $data['id']]);
+                    $count++;
+                }
+                
+                $this->db->commit();
+                Logger::log("Validasi Setoran Massal", "Kasir memvalidasi seluruh antrean setoran sebanyak $count transaksi sekaligus.");
+                $_SESSION['success'] = "Selesai! Berhasil memvalidasi $count data setoran sekaligus ke dalam saldo tabungan utama.";
+                
+            } catch (Exception $e) {
+                $this->db->rollBack();
+                $_SESSION['error'] = "Terjadi kesalahan sistem: " . $e->getMessage();
+            }
+            
+            header('Location: ' . BASE_URL . '/setoran/validasi');
+            exit;
+        }
     }
 
     public function edit_pending($id) {
@@ -241,7 +418,7 @@ class SetoranController {
 
     public function update_pending($id) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+            Security::validate_csrf(); 
 
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
@@ -307,11 +484,10 @@ class SetoranController {
     // 5. FITUR GAMIFIKASI: REWARD PRESTASI
     // =================================================================
     public function reward() {
-        // Khusus fitur Reward, HANYA ADMIN yang boleh mengeksekusi
         Security::requireRole(['admin']);
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+            Security::validate_csrf(); 
 
             $user_id = $_POST['user_id'];
             $nominal = (float) $_POST['nominal'];
@@ -382,7 +558,7 @@ class SetoranController {
 
     public function store_kesiswaan() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            Security::validate_csrf(); // 🛡️ Keamanan CSRF
+            Security::validate_csrf(); 
 
             $user_id = $_POST['user_id'];
             $kategori_id = $_POST['kategori_id'];
