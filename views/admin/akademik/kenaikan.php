@@ -50,6 +50,7 @@
             </div>
 
             <form action="<?= BASE_URL ?>/akademik/proses_kenaikan" method="POST" class="space-y-10" onsubmit="return confirm('Proses ini bersifat permanen. Apakah Anda yakin ingin memigrasi seluruh siswa di kelas tersebut?')">
+                <?= Security::csrf_field(); ?>
                 
                 <!-- HORIZONTAL FLOW LAYOUT -->
                 <div class="flex flex-col lg:flex-row items-center gap-6 lg:gap-8">
@@ -65,7 +66,11 @@
                                 <select name="dari_kelas" id="dari_kelas" required class="w-full appearance-none px-6 py-4 bg-white border border-slate-200 rounded-2xl text-base font-black text-slate-700 outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-400 transition-all cursor-pointer shadow-sm">
                                     <option value="" disabled selected>-- Pilih Kelas Asal --</option>
                                     <?php foreach($kelas_list as $k): ?>
-                                        <?php if(strpos(strtoupper($k['nama_kelas']), 'KESISWAAN') === false): ?>
+                                        <?php 
+                                        $nama_upper = strtoupper($k['nama_kelas']);
+                                        // Filter: Sembunyikan KESISWAAN dan Kelas Tingkat Akhir (XII / IX)
+                                        if(strpos($nama_upper, 'KESISWAAN') === false && strpos($nama_upper, 'XII') !== 0 && strpos($nama_upper, 'IX') !== 0): 
+                                        ?>
                                             <option value="<?= $k['id'] ?>"><?= htmlspecialchars($k['nama_kelas']) ?></option>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
@@ -94,7 +99,6 @@
                             <div class="relative">
                                 <select name="ke_kelas" id="ke_kelas" required class="w-full appearance-none px-6 py-4 bg-white border border-emerald-200 rounded-2xl text-base font-black text-slate-800 outline-none focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 transition-all cursor-pointer shadow-sm opacity-50" disabled>
                                     <option value="" disabled selected>Menunggu Pilihan Asal...</option>
-                                    <!-- Opsi akan di-generate oleh JS -->
                                 </select>
                                 <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-emerald-500">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -124,6 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const keKelas = document.getElementById('ke_kelas');
     const btnSubmit = document.getElementById('btn_submit');
     
+    // Master Kelas tetap memuat Kelas XII agar bisa digunakan sebagai kelas tujuan
     const masterKelas = [
         <?php foreach($kelas_list as $k): ?>
             { id: "<?= $k['id'] ?>", nama: "<?= htmlspecialchars($k['nama_kelas']) ?>" },
@@ -145,13 +150,6 @@ document.addEventListener('DOMContentLoaded', function() {
             targetNama = asalNama.replace("X ", "XI ");
         } else if (asalNama.startsWith("XI ")) {
             targetNama = asalNama.replace("XI ", "XII ");
-        } else if (asalNama.startsWith("XII ")) {
-            keKelas.innerHTML = '<option value="" disabled selected>-- Gunakan Menu Kelulusan Alumni --</option>';
-            keKelas.disabled = true;
-            keKelas.classList.add('opacity-50');
-            btnSubmit.disabled = true;
-            btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
-            return;
         }
 
         let targetDitemukan = masterKelas.find(k => k.nama === targetNama);

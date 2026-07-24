@@ -18,9 +18,11 @@ class AkademikController {
     // =================================================================
     public function kenaikan() {
         $data = []; // Wadah untuk data View
-        $data['kelas_list'] = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
         
-        // RENDER TAMPILAN DENGAN LAYOUT UNIVERSAL
+        // 🛠️ FILTER LIST: Menyaring daftar kelas. Mengecualikan Kas Kesiswaan.
+        $data['kelas_list'] = $this->db->query("SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%KESISWAAN%' ORDER BY nama_kelas ASC")->fetchAll();
+
+        // RENDER TAMPILAN
         extract($data);
         $title = "Kenaikan Kelas Massal";
         $content = __DIR__ . '/../../views/admin/akademik/kenaikan.php';
@@ -31,18 +33,38 @@ class AkademikController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf(); // 🛡️ Proteksi CSRF
 
-            $dari_kelas = $_POST['dari_kelas'];
-            $ke_kelas = $_POST['ke_kelas'];
+            $dari_kelas = (int) $_POST['dari_kelas'];
+            $ke_kelas = (int) $_POST['ke_kelas'];
+
+            // Keamanan Dasar
+            if (empty($dari_kelas) || empty($ke_kelas)) {
+                 $_SESSION['error'] = "Harap pastikan Kelas Asal dan Tujuan dipilih dengan benar!";
+                 header('Location: ' . BASE_URL . '/akademik/kenaikan');
+                 exit;
+            }
 
             if ($dari_kelas === $ke_kelas) {
                 $_SESSION['error'] = "Kelas asal dan tujuan tidak boleh sama!";
             } else {
+                // 🛠️ VALIDASI BARU: Cegah Kenaikan Jika Kelas Tujuan Belum Kosong
+                $stmtCekTujuan = $this->db->prepare("SELECT COUNT(id) FROM users WHERE kelas_id = ? AND role = 'siswa' AND deleted_at IS NULL");
+                $stmtCekTujuan->execute([$ke_kelas]);
+                $jmlSiswaTujuan = (int) $stmtCekTujuan->fetchColumn();
+
+                if ($jmlSiswaTujuan > 0) {
+                    // Ambil nama kelas tujuan untuk pesan error yang informatif
+                    $nm_tuj = $this->db->query("SELECT nama_kelas FROM kelas WHERE id = $ke_kelas")->fetchColumn();
+                    $_SESSION['error'] = "Kenaikan ditolak! Kelas tujuan ($nm_tuj) masih berisi $jmlSiswaTujuan siswa. Harap luluskan atau pindahkan mereka terlebih dahulu.";
+                    header('Location: ' . BASE_URL . '/akademik/kenaikan');
+                    exit;
+                }
+
                 try {
                     // 🛡️ Mulai Transaksi Database (Aman dari data korup)
                     $this->db->beginTransaction();
 
                     // 1. Pindahkan seluruh siswa aktif ke kelas tujuan
-                    $stmtSiswa = $this->db->prepare("UPDATE users SET kelas_id = ? WHERE kelas_id = ? AND role = 'siswa' AND is_active = 1");
+                    $stmtSiswa = $this->db->prepare("UPDATE users SET kelas_id = ? WHERE kelas_id = ? AND role = 'siswa' AND deleted_at IS NULL");
                     $stmtSiswa->execute([$ke_kelas, $dari_kelas]);
                     $jml_siswa = $stmtSiswa->rowCount();
 
@@ -61,14 +83,23 @@ class AkademikController {
                         $stmtKosongkanAsal->execute([$dari_kelas]);
                     }
 
+                    // Ambil nama kelas untuk catatan Log Audit dan Pesan Sukses
+                    $nm_asal = $this->db->query("SELECT nama_kelas FROM kelas WHERE id = $dari_kelas")->fetchColumn();
+                    $nm_tuj = $this->db->query("SELECT nama_kelas FROM kelas WHERE id = $ke_kelas")->fetchColumn();
+
                     // 🛡️ Simpan semua perubahan secara permanen
                     $this->db->commit();
                     
-                    Logger::log("Akademik Kenaikan", "Admin memindahkan $jml_siswa siswa dari ID Kelas $dari_kelas ke ID Kelas $ke_kelas.");
-                    $_SESSION['success'] = "Berhasil! $jml_siswa siswa dipindahkan. Wali kelas juga otomatis mengikuti rombel barunya.";
+                    if($jml_siswa > 0) {
+                        Logger::log("Akademik Kenaikan", "Admin memindahkan $jml_siswa siswa dari $nm_asal ke $nm_tuj.");
+                        $_SESSION['success'] = "Berhasil! $jml_siswa siswa dipindahkan dari $nm_asal ke $nm_tuj. Wali kelas juga otomatis mengikuti rombel barunya.";
+                    } else {
+                        $_SESSION['error'] = "Tidak ada siswa yang dipindahkan. Mungkin kelas asal tersebut sudah kosong.";
+                    }
+
                 } catch (Exception $e) {
                     $this->db->rollBack(); // Batalkan semua jika ada error
-                    $_SESSION['error'] = "Terjadi kesalahan sistem saat memproses kenaikan kelas.";
+                    $_SESSION['error'] = "Terjadi kesalahan sistem saat memproses kenaikan kelas: " . $e->getMessage();
                 }
             }
             header('Location: ' . BASE_URL . '/akademik/kenaikan');
@@ -81,8 +112,17 @@ class AkademikController {
     // =================================================================
     public function kelulusan() {
         $data = [];
-        $data['kelas_list'] = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll();
+        // Memanggil semua data kelas untuk dikirim ke kelulusan.php
+        $data['kelas_list'] = $this->db->query("SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%KESISWAAN%' ORDER BY nama_kelas ASC")->fetchAll();
         
+        // Memanggil daftar siswa tingkat akhir untuk preview
+        $sql = "SELECT u.id, u.nama, u.angkatan, k.nama_kelas 
+                FROM users u 
+                JOIN kelas k ON u.kelas_id = k.id 
+                WHERE u.role = 'siswa' AND (k.nama_kelas LIKE 'XII %' OR k.nama_kelas LIKE 'IX %') AND u.deleted_at IS NULL
+                ORDER BY k.nama_kelas ASC, u.nama ASC";
+        $data['siswa_xii'] = $this->db->query($sql)->fetchAll();
+
         extract($data);
         $title = "Kelulusan Alumni";
         $content = __DIR__ . '/../../views/admin/akademik/kelulusan.php';
@@ -93,14 +133,21 @@ class AkademikController {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf(); // 🛡️ Proteksi CSRF
 
-            $kelas_id = $_POST['kelas_id'];
+            // Mengambil ID Kelas dari form kelulusan.php
+            $kelas_id = $_POST['kelas_id'] ?? null;
+
+            if (!$kelas_id) {
+                 $_SESSION['error'] = "Harap pilih kelas yang ingin diluluskan!";
+                 header('Location: ' . BASE_URL . '/akademik/kelulusan');
+                 exit;
+            }
 
             try {
                 // 🛡️ Mulai Transaksi Database
                 $this->db->beginTransaction();
 
-                // 1. Proses Kelulusan Siswa (Cabut ID Kelas & Non-aktifkan)
-                $stmt = $this->db->prepare("UPDATE users SET kelas_id = NULL, is_active = 0 WHERE kelas_id = ? AND role = 'siswa'");
+                // 1. Proses Kelulusan Siswa (Ubah Role & Cabut ID Kelas)
+                $stmt = $this->db->prepare("UPDATE users SET kelas_id = NULL, role = 'alumni' WHERE kelas_id = ? AND role = 'siswa'");
                 $stmt->execute([$kelas_id]);
                 $count = $stmt->rowCount();
 
@@ -112,10 +159,10 @@ class AkademikController {
                 $this->db->commit();
 
                 if ($count > 0) {
-                    Logger::log("Akademik Kelulusan", "Admin memproses kelulusan $count siswa dari ID Kelas $kelas_id menjadi Alumni.");
-                    $_SESSION['success'] = "Berhasil meluluskan $count siswa. Status siswa kini menjadi Alumni, dan Guru yang mengampu kini berstatus bebas tugas (bisa dipilih kembali menjadi Wali Kelas).";
+                    Logger::log("Akademik Kelulusan", "Admin memproses kelulusan $count siswa menjadi Alumni dari Kelas ID: $kelas_id.");
+                    $_SESSION['success'] = "Berhasil meluluskan $count siswa! Mereka kini berstatus Alumni, dan Wali Kelas sebelumnya telah dibebastugaskan dari kelas tersebut.";
                 } else {
-                    $_SESSION['error'] = "Gagal. Tidak ada siswa yang terdaftar di kelas tersebut.";
+                    $_SESSION['error'] = "Gagal memproses kelulusan. Kelas tersebut kosong atau tidak ada siswa berstatus reguler.";
                 }
             } catch (Exception $e) {
                 $this->db->rollBack();
