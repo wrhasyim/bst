@@ -5,7 +5,7 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 no-print mb-6">
         <div>
             <h2 class="text-3xl font-black text-slate-800 italic uppercase tracking-tight">BUKU<span class="text-emerald-500">TABUNGAN</span></h2>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Laporan Individu & Kolektif Kelas</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Cetak Mutasi Transaksi Nasabah</p>
         </div>
         
         <?php if(isset($_GET['user_id']) || isset($_GET['kelas_id'])): ?>
@@ -15,14 +15,14 @@
         <?php endif; ?>
     </div>
 
-    <!-- DUAL FILTER SECTION (WEB ONLY) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 no-print mb-8">
+    <!-- TRIPLE FILTER SECTION (WEB ONLY) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 no-print mb-8">
         
         <!-- Filter 1: Kolektif Kelas -->
         <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group">
             <div class="absolute -right-4 -bottom-4 opacity-5 text-7xl group-hover:scale-110 transition-transform">🏫</div>
-            <h3 class="font-black text-slate-800 uppercase italic mb-1 text-sm">Cetak Rekap Per Kelas</h3>
-            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-4">Cocok untuk pencairan akhir semester</p>
+            <h3 class="font-black text-slate-800 uppercase italic mb-1 text-sm">Cetak Rekap Kelas</h3>
+            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-4">Pencairan akhir semester</p>
             
             <form action="" method="GET" class="flex gap-2 relative z-10">
                 <select name="kelas_id" required class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors">
@@ -33,17 +33,17 @@
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <button type="submit" class="px-5 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
-                    Tampilkan
+                <button type="submit" class="px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
+                    Cari
                 </button>
             </form>
         </div>
 
-        <!-- Filter 2: Mutasi Individu -->
+        <!-- Filter 2: Mutasi Individu Siswa -->
         <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group">
             <div class="absolute -right-4 -bottom-4 opacity-5 text-7xl group-hover:scale-110 transition-transform">👤</div>
-            <h3 class="font-black text-slate-800 uppercase italic mb-1 text-sm">Mutasi Tabungan Nasabah</h3>
-            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-4">Cetak detail keluar-masuk saldo</p>
+            <h3 class="font-black text-slate-800 uppercase italic mb-1 text-sm">Mutasi Siswa</h3>
+            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-4">Buku tabungan individu siswa</p>
             
             <form action="" method="GET" class="flex gap-2 relative z-10">
                 <select name="user_id" required class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors">
@@ -54,8 +54,29 @@
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <button type="submit" class="px-5 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
-                    Tampilkan
+                <button type="submit" class="px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
+                    Cari
+                </button>
+            </form>
+        </div>
+        
+        <!-- Filter 3: Mutasi Guru/Staf -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group">
+            <div class="absolute -right-4 -bottom-4 opacity-5 text-7xl group-hover:scale-110 transition-transform">💼</div>
+            <h3 class="font-black text-slate-800 uppercase italic mb-1 text-sm">Mutasi Guru & Staf</h3>
+            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-4">Buku tabungan internal staf</p>
+            
+            <form action="" method="GET" class="flex gap-2 relative z-10">
+                <select name="user_id" required class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                    <option value="" disabled selected>-- Cari Nama Guru --</option>
+                    <?php foreach($guru_list as $g): ?>
+                        <option value="<?= $g['id'] ?>" <?= (isset($_GET['user_id']) && $_GET['user_id'] == $g['id']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($g['nama']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
+                    Cari
                 </button>
             </form>
         </div>
@@ -66,7 +87,7 @@
         <div class="bg-white p-12 rounded-[3rem] border border-slate-200 shadow-sm text-center no-print">
             <div class="text-6xl mb-4 opacity-50">📖</div>
             <h3 class="font-black text-slate-800 uppercase italic">Pilih Filter Laporan</h3>
-            <p class="text-xs text-slate-500 mt-2 font-medium">Gunakan form di atas untuk melihat Mutasi Individu atau Rekap Kolektif Kelas.</p>
+            <p class="text-xs text-slate-500 mt-2 font-medium">Gunakan kotak pencarian di atas untuk melihat Mutasi Individu atau Rekap Kelas.</p>
         </div>
     <?php endif; ?>
 
@@ -152,7 +173,7 @@
 
         <?php elseif(isset($_GET['user_id']) && $detail_siswa): ?>
         <!-- ======================================================= -->
-        <!-- TAMPILAN 2: MUTASI INDIVIDU NASABAH                     -->
+        <!-- TAMPILAN 2: MUTASI INDIVIDU NASABAH / GURU              -->
         <!-- ======================================================= -->
             <div class="hidden print:block text-center border-b-2 border-slate-800 pb-4 mb-6">
                 <h1 class="text-2xl font-black uppercase tracking-widest">BUKU TABUNGAN NASABAH</h1>
@@ -163,7 +184,8 @@
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Informasi Pemilik Rekening</p>
                     <h3 class="text-xl font-black text-slate-800 uppercase"><?= htmlspecialchars($detail_siswa['nama']) ?></h3>
-                    <p class="text-sm font-bold text-slate-500 uppercase mt-0.5">KELAS: <span class="text-slate-700"><?= htmlspecialchars($detail_siswa['nama_kelas'] ?? '-') ?></span></p>
+                    <!-- Label Status / Kelas yang Dinamis -->
+                    <p class="text-sm font-bold text-slate-500 uppercase mt-0.5">STATUS / KELAS: <span class="text-slate-700"><?= htmlspecialchars($detail_siswa['nama_kelas'] ?? 'STAF / GURU') ?></span></p>
                 </div>
                 <div class="text-right bg-slate-50 print:bg-transparent p-4 print:p-0 rounded-2xl border border-slate-100 print:border-none">
                     <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Saldo Akhir</p>
@@ -227,7 +249,8 @@
             <!-- TTD MUTASI INDIVIDU -->
             <div class="hidden print:flex justify-between px-10 mt-16 text-center text-xs font-bold text-slate-800">
                 <div>
-                    <p class="mb-1">Nasabah / Siswa,</p>
+                    <!-- Tanda Tangan Universal -->
+                    <p class="mb-1">Nasabah / Pihak Terkait,</p>
                     <p class="font-black uppercase mb-20 text-transparent select-none">Tanda Tangan</p>
                     <p class="border-b border-slate-800 pb-1 w-48 mx-auto uppercase"><?= htmlspecialchars($detail_siswa['nama']) ?></p>
                 </div>
