@@ -300,7 +300,8 @@ class SetoranController {
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
             
-            $harga_satuan = (float)($kat['harga_dasar'] ?? 0);
+            // Menggunakan harga_pengepul langsung untuk guru
+            $harga_satuan = (float)($kat['harga_pengepul'] ?? 0);
             $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
             $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
             
@@ -326,13 +327,7 @@ class SetoranController {
     // =======================================================
     public function validasi() {
         $data = [];
-        $sql_heal = "UPDATE setoran s 
-                     JOIN kategori_sampah k ON s.kategori_id = k.id 
-                     SET s.total_harga = (s.berat * k.harga_dasar), 
-                         s.total_pengepul = ((s.berat / COALESCE(NULLIF(k.konversi_kg, 0), 1)) * k.harga_pengepul) 
-                     WHERE s.status = 'pending' AND (s.total_harga = 0 OR s.total_pengepul = 0)";
-        $this->db->query($sql_heal);
-
+        // Heal data yang nol (Opsional - menyesuaikan role juga jika diperlukan, tapi fungsi di bawah sudah melindunginya)
         $data['pending'] = $this->setoranModel->getPending();
         
         extract($data);
@@ -341,7 +336,7 @@ class SetoranController {
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // 🛠️ FUNGSI BARU: VALIDASI MASSAL SEMUA ANTREAN
+    // 🛠️ FUNGSI BARU: VALIDASI MASSAL SEMUA ANTREAN (DIPERBARUI DENGAN ROLE)
     public function proses_validasi_semua() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf();
@@ -349,15 +344,15 @@ class SetoranController {
             try {
                 $this->db->beginTransaction();
                 
-                // Ambil persentase pengaturan
                 $stmtPersen = $this->db->query("SELECT nilai FROM pengaturan WHERE kunci = 'persen_honor_walikelas'");
                 $persen_walas = ($stmtPersen->fetchColumn() ?? 0) / 100;
                 
-                // Ambil semua data setoran yang masih pending beserta harganya
+                // JOIN tabel users untuk mendapatkan role secara massal
                 $stmt = $this->db->query("
-                    SELECT s.*, k.harga_dasar, k.harga_pengepul, k.konversi_kg 
+                    SELECT s.*, k.harga_dasar, k.harga_pengepul, k.konversi_kg, u.role
                     FROM setoran s 
                     JOIN kategori_sampah k ON s.kategori_id = k.id 
+                    JOIN users u ON s.user_id = u.id
                     WHERE s.status = 'pending'
                 ");
                 $pending_list = $stmt->fetchAll();
@@ -372,16 +367,22 @@ class SetoranController {
                 $count = 0;
                 foreach ($pending_list as $data) {
                     $konversi_kg = (isset($data['konversi_kg']) && (float)$data['konversi_kg'] > 0) ? (float)$data['konversi_kg'] : 1;
-                    $total_harga = $data['berat'] * (float)$data['harga_dasar'];
+                    
+                    // Logika Dinamis Harga Berdasarkan Role
+                    if ($data['role'] === 'siswa') {
+                        $harga_satuan = (float)$data['harga_dasar'];
+                    } else {
+                        $harga_satuan = (float)$data['harga_pengepul']; // Harga penuh untuk guru
+                    }
+
+                    $total_harga = $data['berat'] * $harga_satuan;
                     $total_pengepul = ($data['berat'] / $konversi_kg) * (float)$data['harga_pengepul'];
                     
-                    // Kalkulasi Honor Walas
                     $honor_walas_rp = 0;
-                    if (!empty($data['walikelas_id'])) {
+                    if (!empty($data['walikelas_id']) && $data['role'] === 'siswa') {
                         $honor_walas_rp = ($total_pengepul - $total_harga) * $persen_walas;
                     }
                     
-                    // Eksekusi Update ke Valid
                     $sql = "UPDATE setoran SET total_harga = ?, total_pengepul = ?, honor_walas_rp = ?, status = 'valid' WHERE id = ?";
                     $this->db->prepare($sql)->execute([$total_harga, $total_pengepul, $honor_walas_rp, $data['id']]);
                     $count++;
@@ -416,31 +417,55 @@ class SetoranController {
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
+    // 🛠️ FUNGSI DIPERBARUI: UPDATE PENDING (DIPERBARUI DENGAN ROLE)
     public function update_pending($id) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf(); 
 
+            // 1. Ambil data setoran saat ini untuk mengetahui ID Pengguna (user_id)
+            $setoran_lama = $this->setoranModel->getById($id);
+            if (!$setoran_lama) {
+                $_SESSION['error'] = "Data setoran tidak ditemukan.";
+                header('Location: ' . BASE_URL . '/setoran/validasi');
+                exit;
+            }
+
+            // 2. Ambil informasi role/jabatan pengguna (Siswa atau Guru)
+            $user_id = $setoran_lama['user_id'];
+            $stmtUser = $this->db->prepare("SELECT role FROM users WHERE id = ?");
+            $stmtUser->execute([$user_id]);
+            $role_pengguna = $stmtUser->fetchColumn();
+
+            // 3. Ambil data kategori sampah yang baru dipilih
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
-            $harga_dasar = (float)($kat['harga_dasar'] ?? 0);
-            $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
             
+            // 4. LOGIKA HARGA DINAMIS BERDASARKAN ROLE
+            if ($role_pengguna === 'siswa') {
+                $harga_satuan = (float)($kat['harga_dasar'] ?? 0);
+            } else {
+                $harga_satuan = (float)($kat['harga_pengepul'] ?? 0);
+            }
+            
+            $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
             $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
             
+            // 5. Simpan pembaruan dengan harga yang sudah benar
             $this->setoranModel->update($id, [
                 'kategori_id' => $_POST['kategori_id'], 
                 'berat' => $jml,
-                'total_harga' => $jml * $harga_dasar, 
+                'total_harga' => $jml * $harga_satuan, 
                 'total_pengepul' => ($jml / $konversi_kg) * $harga_pengepul
             ]);
             
-            Logger::log("Edit Pending", "Petugas mengoreksi data setoran pending ID #$id menjadi $jml Pcs");
-            $_SESSION['success'] = "Data diperbarui.";
+            Logger::log("Edit Pending", "Petugas mengoreksi data setoran pending ID #$id menjadi $jml Pcs (Role: $role_pengguna)");
+            $_SESSION['success'] = "Data diperbarui dengan harga yang disesuaikan.";
             header('Location: ' . BASE_URL . '/setoran/validasi');
             exit;
         }
     }
 
+    // 🛠️ FUNGSI DIPERBARUI: PROSES VALIDASI (DIPERBARUI DENGAN ROLE)
     public function proses_validasi($id) {
         $data = $this->setoranModel->getById($id); 
         if ($data) {
@@ -448,14 +473,25 @@ class SetoranController {
             $persen_walas = ($stmtPersen->fetchColumn() ?? 0) / 100;
 
             $kat = $this->sampahModel->getById($data['kategori_id']);
-            
             $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
             
-            $total_harga = $data['berat'] * (float)$kat['harga_dasar'];
+            // CEK ROLE PENGGUNA UNTUK HARGA SATUAN YANG TEPAT
+            $stmtUser = $this->db->prepare("SELECT role FROM users WHERE id = ?");
+            $stmtUser->execute([$data['user_id']]);
+            $role_pengguna = $stmtUser->fetchColumn();
+
+            if ($role_pengguna === 'siswa') {
+                $harga_satuan = (float)$kat['harga_dasar'];
+            } else {
+                $harga_satuan = (float)$kat['harga_pengepul']; // Harga penuh untuk guru
+            }
+
+            $total_harga = $data['berat'] * $harga_satuan;
             $total_pengepul = ($data['berat'] / $konversi_kg) * (float)$kat['harga_pengepul'];
 
             $honor_walas_rp = 0;
-            if (!empty($data['walikelas_id'])) {
+            // Guru tidak memiliki walikelas, pastikan perhitungan insentif hanya berlaku untuk siswa
+            if (!empty($data['walikelas_id']) && $role_pengguna === 'siswa') {
                 $honor_walas_rp = ($total_pengepul - $total_harga) * $persen_walas;
             }
 

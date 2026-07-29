@@ -65,8 +65,9 @@ class LaporanController {
             $whereKasTbOut .= " AND tanggal BETWEEN :start AND :end";
         }
         
+        // 🛠️ PERBAIKAN: total_pendapatan murni tanpa dikurangi kas_tutup_botol
         $sqlSnapshot = "SELECT 
-                            SUM(total_pendapatan - kas_tutup_botol_rp) as total_kotor,
+                            SUM(total_pendapatan) as total_kotor,
                             SUM(beban_nasabah_rp) as beban_nasabah,
                             SUM(margin_total_rp) as margin_total,
                             SUM(kas_sekolah_rp) as kas_sekolah,
@@ -180,9 +181,10 @@ class LaporanController {
         $start_dt = $data['start_date'] . ' 00:00:00';
         $end_dt = $data['end_date'] . ' 23:59:59';
 
+        // 🛠️ PERBAIKAN: total_pendapatan masuk penuh ke kas_besar
         $sql = "
             SELECT waktu, uraian, detail, debit, kredit, sumber_kas FROM (
-                SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, (total_pendapatan - kas_tutup_botol_rp) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
+                SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, total_pendapatan AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
                 FROM penjualan WHERE tanggal_jual BETWEEN :p1a AND :p1b
                 UNION ALL
                 SELECT tanggal_jual AS waktu, 'Penjualan Tutup Botol' AS uraian, keterangan AS detail, kas_tutup_botol_rp AS debit, 0 AS kredit, 'kas_tutup_botol' as sumber_kas
@@ -219,9 +221,10 @@ class LaporanController {
         ]);
         $data['buku_kas'] = $stmt->fetchAll();
 
+        // 🛠️ PERBAIKAN: total_pendapatan ditarik murni tanpa pengurangan
         $sqlSaldoAwal = "
             SELECT 
-                (SELECT IFNULL(SUM(total_pendapatan - kas_tutup_botol_rp), 0) FROM penjualan WHERE tanggal_jual < :s1) 
+                (SELECT IFNULL(SUM(total_pendapatan), 0) FROM penjualan WHERE tanggal_jual < :s1) 
                 + (SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pemasukan' AND sumber_kas = 'kas_besar' AND tanggal < :s2)
                 - (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE tanggal_tarik < :s3) 
                 - (SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE tanggal_cair < :s4) 
@@ -273,7 +276,6 @@ class LaporanController {
         $data['user_id'] = $_GET['user_id'] ?? null; 
         $data['kelas_id'] = $_GET['kelas_id'] ?? null; 
         
-        // 🛠️ FILTER BARU: Menampilkan daftar siswa yang HANYA memiliki transaksi setoran
         $sqlSiswa = "SELECT u.id, u.nama, k.nama_kelas 
                      FROM users u 
                      LEFT JOIN kelas k ON u.kelas_id = k.id 
@@ -282,7 +284,6 @@ class LaporanController {
                      ORDER BY u.nama ASC";
         $data['siswa_list'] = $this->db->query($sqlSiswa)->fetchAll(); 
         
-        // 🛠️ FILTER BARU: Menampilkan daftar guru yang HANYA memiliki transaksi setoran
         $sqlGuru = "SELECT u.id, u.nama 
                     FROM users u 
                     WHERE u.role NOT IN ('siswa', 'admin') AND u.deleted_at IS NULL 
@@ -290,7 +291,6 @@ class LaporanController {
                     ORDER BY u.nama ASC";
         $data['guru_list'] = $this->db->query($sqlGuru)->fetchAll();
 
-        // 🛠️ FILTER BARU: Menampilkan daftar kelas yang HANYA terdapat setoran di dalamnya
         $sqlKelas = "SELECT k.* 
                      FROM kelas k 
                      WHERE k.nama_kelas NOT LIKE '%KESISWAAN%' 
@@ -396,9 +396,10 @@ class LaporanController {
         $output = fopen('php://output', 'w');
         fputcsv($output, ['Waktu', 'Uraian Transaksi', 'Detail/Keterangan', 'Sumber Kas', 'Debit (Masuk)', 'Kredit (Keluar)']);
 
+        // 🛠️ PERBAIKAN: CSV total_pendapatan disesuaikan
         $sql = "
             SELECT waktu, uraian, detail, sumber_kas, debit, kredit FROM (
-                SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, (total_pendapatan - kas_tutup_botol_rp) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
+                SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, total_pendapatan AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
                 FROM penjualan WHERE tanggal_jual BETWEEN :p1a AND :p1b 
                 UNION ALL 
                 SELECT tanggal_jual AS waktu, 'Penjualan Tutup Botol' AS uraian, keterangan AS detail, kas_tutup_botol_rp AS debit, 0 AS kredit, 'kas_tutup_botol' as sumber_kas

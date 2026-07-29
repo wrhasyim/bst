@@ -292,7 +292,13 @@
                             <td class="border border-slate-900 px-4 py-3 text-center font-bold text-slate-600"><?= date('d/m/Y', strtotime($h['tanggal_jual'])) ?></td>
                             <td class="border border-slate-900 px-4 py-3 font-semibold uppercase"><?= htmlspecialchars($h['nama_sampah']) ?></td>
                             <td class="border border-slate-900 px-4 py-3 text-center font-bold"><?= number_format($h['total_pcs'], 0) ?> Pcs</td>
-                            <td class="border border-slate-900 px-4 py-3 text-right font-black text-emerald-700">Rp <?= number_format($h['total_pendapatan'], 0, ',', '.') ?></td>
+                            <td class="border border-slate-900 px-4 py-3 text-right">
+                                <div class="font-black text-emerald-700">Rp <?= number_format($h['total_pendapatan'], 0, ',', '.') ?></div>
+                                <!-- ✨ Penambahan Indikator Kas Tutup Botol -->
+                                <?php if(isset($h['kas_tutup_botol_rp']) && $h['kas_tutup_botol_rp'] > 0): ?>
+                                    <div class="text-[9px] font-bold text-blue-600 uppercase mt-1">+ TB: Rp <?= number_format($h['kas_tutup_botol_rp'], 0, ',', '.') ?></div>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

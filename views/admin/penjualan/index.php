@@ -49,7 +49,15 @@
                                 <div class="text-[9px] font-bold text-slate-400 mt-1"><?= number_format($r['total_pcs'], 0, ',', '.') ?> PCS</div>
                             </td>
                             <td class="px-8 py-5 text-right font-bold text-slate-500 text-xs">Rp<?= number_format($harga_per_kg, 0, ',', '.') ?></td>
-                            <td class="px-8 py-5 text-right font-black text-emerald-600 text-sm">Rp<?= number_format($r['total_pendapatan'], 0, ',', '.') ?></td>
+                            <td class="px-8 py-5 text-right">
+                                <div class="font-black text-emerald-600 text-sm">Rp<?= number_format($r['total_pendapatan'], 0, ',', '.') ?></div>
+                                <!-- ✨ Menampilkan Kas Tutup Botol jika nilainya lebih dari 0 -->
+                                <?php if(isset($r['kas_tutup_botol_rp']) && $r['kas_tutup_botol_rp'] > 0): ?>
+                                    <div class="text-[9px] font-bold text-amber-500 uppercase tracking-widest mt-1">
+                                        + Tutup Botol: Rp<?= number_format($r['kas_tutup_botol_rp'], 0, ',', '.') ?>
+                                    </div>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
