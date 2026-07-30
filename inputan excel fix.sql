@@ -1,5 +1,5 @@
 -- BST SYSTEM DATABASE BACKUP
--- Tanggal: 2026-07-30 10:18:38
+-- Tanggal: 2026-07-30 11:27:46
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -16,7 +16,7 @@ CREATE TABLE `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=138 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=171 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `activity_logs` VALUES("1","1","Logout","User keluar dari sistem","::1","2026-05-04 16:46:33");
 INSERT INTO `activity_logs` VALUES("2","1","Login","User berhasil masuk ke dalam sistem","::1","2026-05-04 16:47:23");
@@ -155,6 +155,39 @@ INSERT INTO `activity_logs` VALUES("134","1","Restore Database","Admin memulihka
 INSERT INTO `activity_logs` VALUES("135","1","Import Setoran CSV","Petugas mengimport setoran massal multikategori sebanyak 3351 Pcs (Status: Pending)","::1","2026-07-30 15:17:06");
 INSERT INTO `activity_logs` VALUES("136","1","Validasi Setoran Massal","Kasir memvalidasi seluruh antrean setoran sebanyak 25 transaksi sekaligus.","::1","2026-07-30 15:17:39");
 INSERT INTO `activity_logs` VALUES("137","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-30 15:18:38");
+INSERT INTO `activity_logs` VALUES("138","1","Restore Database","Admin memulihkan database dari file SQL.","::1","2026-07-30 16:05:41");
+INSERT INTO `activity_logs` VALUES("139","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 312 Pcs (Status: Pending)","::1","2026-07-30 16:06:03");
+INSERT INTO `activity_logs` VALUES("140","1","Edit Pending","Petugas mengoreksi data setoran pending ID #1616 menjadi 312 Pcs (Role: guru)","::1","2026-07-30 16:15:30");
+INSERT INTO `activity_logs` VALUES("141","1","Denda Kesiswaan","Petugas mencatat denda pelanggaran sebesar 84 Pcs ke Kas Kesiswaan","::1","2026-07-30 16:16:38");
+INSERT INTO `activity_logs` VALUES("142","1","Denda Kesiswaan","Petugas mencatat denda pelanggaran sebesar 1661 Pcs ke Kas Kesiswaan","::1","2026-07-30 16:17:23");
+INSERT INTO `activity_logs` VALUES("143","1","Denda Kesiswaan","Petugas mencatat denda pelanggaran sebesar 17 Pcs ke Kas Kesiswaan","::1","2026-07-30 16:17:35");
+INSERT INTO `activity_logs` VALUES("144","1","Denda Kesiswaan","Petugas mencatat denda pelanggaran sebesar 1029 Pcs ke Kas Kesiswaan","::1","2026-07-30 16:17:42");
+INSERT INTO `activity_logs` VALUES("145","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 120 Pcs (Status: Pending)","::1","2026-07-30 16:18:21");
+INSERT INTO `activity_logs` VALUES("146","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 55 Pcs (Status: Pending)","::1","2026-07-30 16:18:31");
+INSERT INTO `activity_logs` VALUES("147","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 1 Pcs (Status: Pending)","::1","2026-07-30 16:18:40");
+INSERT INTO `activity_logs` VALUES("148","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 208 Pcs (Status: Pending)","::1","2026-07-30 16:18:56");
+INSERT INTO `activity_logs` VALUES("149","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 141 Pcs (Status: Pending)","::1","2026-07-30 16:19:03");
+INSERT INTO `activity_logs` VALUES("150","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 184 Pcs (Status: Pending)","::1","2026-07-30 16:19:11");
+INSERT INTO `activity_logs` VALUES("151","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 30 Pcs (Status: Pending)","::1","2026-07-30 16:19:19");
+INSERT INTO `activity_logs` VALUES("152","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 2 Pcs (Status: Pending)","::1","2026-07-30 16:19:25");
+INSERT INTO `activity_logs` VALUES("153","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 104 Pcs (Status: Pending)","::1","2026-07-30 16:19:41");
+INSERT INTO `activity_logs` VALUES("154","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 27 Pcs (Status: Pending)","::1","2026-07-30 16:19:49");
+INSERT INTO `activity_logs` VALUES("155","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 198 Pcs (Status: Pending)","::1","2026-07-30 16:20:00");
+INSERT INTO `activity_logs` VALUES("156","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 18 Pcs (Status: Pending)","::1","2026-07-30 16:20:05");
+INSERT INTO `activity_logs` VALUES("157","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 52 Pcs (Status: Pending)","::1","2026-07-30 16:20:16");
+INSERT INTO `activity_logs` VALUES("158","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 65 Pcs (Status: Pending)","::1","2026-07-30 16:21:28");
+INSERT INTO `activity_logs` VALUES("159","1","Edit Pending","Petugas mengoreksi data setoran pending ID #1634 menjadi 121 Pcs (Role: guru)","::1","2026-07-30 16:24:53");
+INSERT INTO `activity_logs` VALUES("160","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 5 Pcs (Status: Pending)","::1","2026-07-30 16:25:35");
+INSERT INTO `activity_logs` VALUES("161","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 84 Pcs (Status: Pending)","::1","2026-07-30 16:26:01");
+INSERT INTO `activity_logs` VALUES("162","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 16 Pcs (Status: Pending)","::1","2026-07-30 16:26:17");
+INSERT INTO `activity_logs` VALUES("163","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 1 Pcs (Status: Pending)","::1","2026-07-30 16:26:25");
+INSERT INTO `activity_logs` VALUES("164","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 47 Pcs (Status: Pending)","::1","2026-07-30 16:26:33");
+INSERT INTO `activity_logs` VALUES("165","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 26 Pcs (Status: Pending)","::1","2026-07-30 16:26:40");
+INSERT INTO `activity_logs` VALUES("166","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 216 Pcs (Status: Pending)","::1","2026-07-30 16:26:49");
+INSERT INTO `activity_logs` VALUES("167","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 52 Pcs (Status: Pending)","::1","2026-07-30 16:26:57");
+INSERT INTO `activity_logs` VALUES("168","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 1 Pcs (Status: Pending)","::1","2026-07-30 16:27:05");
+INSERT INTO `activity_logs` VALUES("169","1","Input Setoran Guru","Petugas menginput setoran guru sebesar 198 Pcs (Status: Pending)","::1","2026-07-30 16:27:15");
+INSERT INTO `activity_logs` VALUES("170","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-30 16:27:46");
 
 
 DROP TABLE IF EXISTS `detail_setoran`;
@@ -318,7 +351,7 @@ CREATE TABLE `setoran` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `is_sold` tinyint(1) DEFAULT 0,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1616 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1645 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `setoran` VALUES("1","19","1002","400.00","14000.00","26400.00","0",NULL,"valid","2026-07-03 12:25:59","0");
 INSERT INTO `setoran` VALUES("2","1091","1002","176.00","6160.00","14666.67","850.66666666667","1871","valid","2026-07-28 16:33:20","0");
@@ -1935,6 +1968,35 @@ INSERT INTO `setoran` VALUES("1612","1626","1002","69.00","2415.00","5750.00","3
 INSERT INTO `setoran` VALUES("1613","1627","1002","140.00","4900.00","11666.67","676.66666666667","1865","valid","2026-07-30 15:17:06","0");
 INSERT INTO `setoran` VALUES("1614","1628","1002","117.00","4095.00","9750.00","565.5","1865","valid","2026-07-30 15:17:06","0");
 INSERT INTO `setoran` VALUES("1615","1629","1002","125.00","4375.00","10416.67","604.16666666667","1865","valid","2026-07-30 15:17:06","0");
+INSERT INTO `setoran` VALUES("1616","1864","1002","312.00","12480.00","26000.00","0",NULL,"pending","2026-07-30 16:06:03","0");
+INSERT INTO `setoran` VALUES("1617","19","1002","84.00","2940.00","7000.00","0",NULL,"valid","2026-07-30 16:16:38","0");
+INSERT INTO `setoran` VALUES("1618","19","1002","1661.00","58135.00","138416.67","0",NULL,"valid","2026-07-30 16:17:23","0");
+INSERT INTO `setoran` VALUES("1619","19","1003","17.00","272.00","708.33","0",NULL,"valid","2026-07-30 16:17:35","0");
+INSERT INTO `setoran` VALUES("1620","19","1004","1029.00","4116.00","15244.44","0",NULL,"valid","2026-07-30 16:17:42","0");
+INSERT INTO `setoran` VALUES("1621","1865","1002","120.00","4800.00","10000.00","0",NULL,"pending","2026-07-30 16:18:21","0");
+INSERT INTO `setoran` VALUES("1622","1865","1004","55.00","220.00","814.81","0",NULL,"pending","2026-07-30 16:18:30","0");
+INSERT INTO `setoran` VALUES("1623","1865","1003","1.00","16.00","41.67","0",NULL,"pending","2026-07-30 16:18:39","0");
+INSERT INTO `setoran` VALUES("1624","1868","1002","208.00","8320.00","17333.33","0",NULL,"pending","2026-07-30 16:18:56","0");
+INSERT INTO `setoran` VALUES("1625","1868","1004","141.00","564.00","2088.89","0",NULL,"pending","2026-07-30 16:19:03","0");
+INSERT INTO `setoran` VALUES("1626","1869","1002","184.00","7360.00","15333.33","0",NULL,"pending","2026-07-30 16:19:11","0");
+INSERT INTO `setoran` VALUES("1627","1869","1004","30.00","120.00","444.44","0",NULL,"pending","2026-07-30 16:19:19","0");
+INSERT INTO `setoran` VALUES("1628","1869","1003","2.00","32.00","83.33","0",NULL,"pending","2026-07-30 16:19:25","0");
+INSERT INTO `setoran` VALUES("1629","1871","1002","104.00","4160.00","8666.67","0",NULL,"pending","2026-07-30 16:19:41","0");
+INSERT INTO `setoran` VALUES("1630","1871","1004","27.00","108.00","400.00","0",NULL,"pending","2026-07-30 16:19:49","0");
+INSERT INTO `setoran` VALUES("1631","1872","1002","198.00","7920.00","16500.00","0",NULL,"pending","2026-07-30 16:20:00","0");
+INSERT INTO `setoran` VALUES("1632","1872","1004","18.00","72.00","266.67","0",NULL,"pending","2026-07-30 16:20:05","0");
+INSERT INTO `setoran` VALUES("1633","1873","1002","52.00","2080.00","4333.33","0",NULL,"pending","2026-07-30 16:20:16","0");
+INSERT INTO `setoran` VALUES("1634","1875","1002","121.00","4840.00","10083.33","0",NULL,"pending","2026-07-30 16:21:28","0");
+INSERT INTO `setoran` VALUES("1635","1875","1004","5.00","20.00","74.07","0",NULL,"pending","2026-07-30 16:25:35","0");
+INSERT INTO `setoran` VALUES("1636","1879","1002","84.00","3360.00","7000.00","0",NULL,"pending","2026-07-30 16:26:01","0");
+INSERT INTO `setoran` VALUES("1637","1879","1004","16.00","64.00","237.04","0",NULL,"pending","2026-07-30 16:26:17","0");
+INSERT INTO `setoran` VALUES("1638","1879","1003","1.00","16.00","41.67","0",NULL,"pending","2026-07-30 16:26:25","0");
+INSERT INTO `setoran` VALUES("1639","1888","1002","47.00","1880.00","3916.67","0",NULL,"pending","2026-07-30 16:26:33","0");
+INSERT INTO `setoran` VALUES("1640","1888","1004","26.00","104.00","385.19","0",NULL,"pending","2026-07-30 16:26:40","0");
+INSERT INTO `setoran` VALUES("1641","1882","1002","216.00","8640.00","18000.00","0",NULL,"pending","2026-07-30 16:26:49","0");
+INSERT INTO `setoran` VALUES("1642","1882","1004","52.00","208.00","770.37","0",NULL,"pending","2026-07-30 16:26:57","0");
+INSERT INTO `setoran` VALUES("1643","1882","1003","1.00","16.00","41.67","0",NULL,"pending","2026-07-30 16:27:05","0");
+INSERT INTO `setoran` VALUES("1644","1870","1002","198.00","7920.00","16500.00","0",NULL,"pending","2026-07-30 16:27:15","0");
 
 
 DROP TABLE IF EXISTS `users`;
