@@ -25,7 +25,7 @@
             <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-4">Pencairan akhir semester</p>
             
             <form action="" method="GET" class="flex gap-2 relative z-10">
-                <select name="kelas_id" required class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                <select name="kelas_id" required class="flex-1 min-w-0 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors truncate">
                     <option value="" disabled selected>-- Pilih Kelas --</option>
                     <?php foreach($kelas_list as $k): ?>
                         <option value="<?= $k['id'] ?>" <?= (isset($_GET['kelas_id']) && $_GET['kelas_id'] == $k['id']) ? 'selected' : '' ?>>
@@ -33,7 +33,7 @@
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <button type="submit" class="px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
+                <button type="submit" class="shrink-0 px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
                     Cari
                 </button>
             </form>
@@ -46,7 +46,7 @@
             <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-4">Buku tabungan individu siswa</p>
             
             <form action="" method="GET" class="flex gap-2 relative z-10">
-                <select name="user_id" required class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                <select name="user_id" required class="flex-1 min-w-0 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors truncate">
                     <option value="" disabled selected>-- Cari Nama Siswa --</option>
                     <?php foreach($siswa_list as $s): ?>
                         <option value="<?= $s['id'] ?>" <?= (isset($_GET['user_id']) && $_GET['user_id'] == $s['id']) ? 'selected' : '' ?>>
@@ -54,7 +54,7 @@
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <button type="submit" class="px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
+                <button type="submit" class="shrink-0 px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
                     Cari
                 </button>
             </form>
@@ -67,7 +67,7 @@
             <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-4">Buku tabungan internal staf</p>
             
             <form action="" method="GET" class="flex gap-2 relative z-10">
-                <select name="user_id" required class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors">
+                <select name="user_id" required class="flex-1 min-w-0 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-colors truncate">
                     <option value="" disabled selected>-- Cari Nama Guru --</option>
                     <?php foreach($guru_list as $g): ?>
                         <option value="<?= $g['id'] ?>" <?= (isset($_GET['user_id']) && $_GET['user_id'] == $g['id']) ? 'selected' : '' ?>>
@@ -75,7 +75,7 @@
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <button type="submit" class="px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
+                <button type="submit" class="shrink-0 px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors">
                     Cari
                 </button>
             </form>
@@ -207,12 +207,21 @@
                     </thead>
                     <tbody class="text-xs text-slate-800">
                         <?php 
-                        $saldo_berjalan = $total_saldo; $no = 1;
+                        $saldo_berjalan = 0; // 🛠️ Mulai akumulasi dari 0
+                        $no = 1;
                         if(empty($mutasi)): 
                         ?>
                             <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 font-bold italic border border-slate-800">Nasabah ini belum memiliki riwayat transaksi.</td></tr>
                         <?php else: ?>
                             <?php foreach($mutasi as $m): ?>
+                            <?php 
+                                // 🛠️ Menghitung saldo berjalan ke depan
+                                if($m['tipe'] == 'setoran') { 
+                                    $saldo_berjalan += $m['jumlah']; 
+                                } else { 
+                                    $saldo_berjalan -= $m['jumlah']; 
+                                }
+                            ?>
                             <tr class="border-b border-slate-800 hover:bg-slate-50 transition-colors">
                                 <td class="px-4 py-3 border border-slate-800 text-center"><?= $no++ ?></td>
                                 <td class="px-4 py-3 border border-slate-800 text-center font-bold text-slate-600 whitespace-nowrap">
@@ -237,9 +246,6 @@
                                     Rp <?= number_format($saldo_berjalan, 0, ',', '.') ?>
                                 </td>
                             </tr>
-                            <?php 
-                                if($m['tipe'] == 'setoran') { $saldo_berjalan -= $m['jumlah']; } else { $saldo_berjalan += $m['jumlah']; }
-                            ?>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </tbody>
