@@ -72,6 +72,9 @@ class PenarikanController {
 
             $kelas_id = $_POST['kelas_id'] ?? null;
             $keterangan_global = $_POST['keterangan'] ?? 'Pencairan Tabungan Kolektif';
+            
+            // Tangkap array input nominal yang diketik kasir di form
+            $jumlah_tarik_array = $_POST['jumlah_tarik'] ?? [];
 
             if (!$kelas_id) {
                 $_SESSION['error'] = "Kelas belum dipilih!";
@@ -82,7 +85,7 @@ class PenarikanController {
             try {
                 $this->db->beginTransaction();
 
-                // 1. Ambil seluruh siswa di kelas ini beserta saldonya (Kecuali Kesiswaan)
+                // 1. Ambil seluruh siswa di kelas ini beserta saldo maksimalnya untuk validasi keamanan
                 $sqlSaldo = "SELECT u.id,
                              (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
                              (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_aktif
@@ -95,16 +98,21 @@ class PenarikanController {
                 $count = 0;
                 $total_keluar = 0;
 
-                // 2. Tarik semua saldo yang > 0
+                // 2. Eksekusi penarikan berdasarkan input form (bukan asal tarik semua)
                 foreach ($siswa_kelas as $s) {
-                    $saldo = (float)$s['saldo_aktif'];
+                    $user_id = $s['id'];
+                    $saldo_maksimal = (float)$s['saldo_aktif'];
                     
-                    if ($saldo > 0) {
+                    // Ambil nominal yang diisi di form, jika kosong anggap 0
+                    $nominal_ditarik = isset($jumlah_tarik_array[$user_id]) ? (float)$jumlah_tarik_array[$user_id] : 0;
+                    
+                    // Validasi: Pastikan nominal ditarik lebih dari 0 dan tidak melebihi saldo maksimal
+                    if ($nominal_ditarik > 0 && $nominal_ditarik <= $saldo_maksimal) {
                         $stmtI = $this->db->prepare("INSERT INTO penarikan (user_id, jumlah, keterangan) VALUES (?, ?, ?)");
-                        $stmtI->execute([$s['id'], $saldo, $keterangan_global]);
+                        $stmtI->execute([$user_id, $nominal_ditarik, $keterangan_global]);
                         
                         $count++;
-                        $total_keluar += $saldo;
+                        $total_keluar += $nominal_ditarik;
                     }
                 }
 
@@ -120,10 +128,10 @@ class PenarikanController {
                     // 🛡️ Catat aktivitas pengeluaran uang ke Audit Trail
                     Logger::log("Penarikan Saldo", "Kasir mencairkan total dana kelas $nama_kelas sebesar Rp" . number_format($total_keluar, 0, ',', '.') . " untuk $count siswa.");
 
-                    $_SESSION['success'] = "Selesai! Berhasil mencairkan seluruh saldo untuk $count siswa. Uang yang harus diserahkan ke Wali Kelas: Rp" . number_format($total_keluar, 0, ',', '.');
+                    $_SESSION['success'] = "Selesai! Berhasil mencairkan saldo untuk $count siswa. Uang yang harus diserahkan ke Wali Kelas: Rp" . number_format($total_keluar, 0, ',', '.');
                 } else {
                     $this->db->rollBack();
-                    $_SESSION['error'] = "Gagal! Semua siswa di kelas ini saldonya Rp0 (Kosong).";
+                    $_SESSION['error'] = "Gagal! Tidak ada nominal penarikan yang dimasukkan atau nominal tidak valid.";
                 }
 
             } catch (Exception $e) {

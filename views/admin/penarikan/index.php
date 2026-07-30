@@ -43,12 +43,53 @@
                 <p class="text-sm font-bold text-slate-400 uppercase tracking-widest">Tidak ada nasabah aktif di kelas ini.</p>
             </div>
         <?php else: ?>
-            <form action="<?= BASE_URL ?>/penarikan/batch_store" method="POST" class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden border-t-4 border-t-red-500">
+            <form action="<?= BASE_URL ?>/penarikan/batch_store" method="POST" 
+                  x-data="{
+                      nominalGlobal: '',
+                      totalSiswa: 0,
+                      totalNominal: 0,
+                      formatRp(angka) {
+                          return new Intl.NumberFormat('id-ID').format(angka);
+                      },
+                      hitungRekap() {
+                          this.totalSiswa = 0;
+                          this.totalNominal = 0;
+                          document.querySelectorAll('.input-tarik').forEach(i => {
+                              let val = Number(i.value) || 0;
+                              if(val > 0) {
+                                  this.totalSiswa++;
+                                  this.totalNominal += val;
+                              }
+                          });
+                      },
+                      terapkanSemua() {
+                          document.querySelectorAll('.input-tarik').forEach(i => { 
+                              if(this.nominalGlobal > 0) { 
+                                  if(Number(i.max) >= Number(this.nominalGlobal)) i.value = this.nominalGlobal; 
+                                  else i.value = i.max; 
+                              } 
+                          });
+                          this.hitungRekap();
+                      },
+                      tarikMax() {
+                          document.querySelectorAll('.input-tarik').forEach(i => i.value = i.max);
+                          this.hitungRekap();
+                      },
+                      resetSemua() {
+                          document.querySelectorAll('.input-tarik').forEach(i => i.value = '');
+                          this.hitungRekap();
+                      }
+                  }"
+                  x-init="$nextTick(() => { 
+                      document.querySelectorAll('.input-tarik').forEach(i => i.addEventListener('input', () => hitungRekap()));
+                      hitungRekap();
+                  })"
+                  class="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden border-t-4 border-t-red-500">
                 
-                <?= Security::csrf_field(); ?> <!-- 🛡️ CSRF Protection Injected -->
-                
+                <?= Security::csrf_field(); ?> 
                 <input type="hidden" name="kelas_id" value="<?= $_GET['kelas_id'] ?>">
                 
+                <!-- Header Keterangan -->
                 <div class="p-8 border-b border-slate-50 bg-slate-50/50 flex flex-col md:flex-row justify-between items-center gap-6">
                     <h3 class="font-black text-slate-800 text-xs uppercase tracking-widest italic underline">Langkah 2: Input Penarikan</h3>
                     <div class="w-full md:w-1/2 lg:w-1/3">
@@ -57,23 +98,25 @@
                     </div>
                 </div>
 
-                <div class="p-6 bg-slate-50 border-b border-slate-200 flex flex-col lg:flex-row justify-between items-center gap-4" x-data="{ nominalGlobal: '' }">
+                <!-- Panel Tombol Aksi Cepat -->
+                <div class="p-6 bg-slate-50 border-b border-slate-200 flex flex-col lg:flex-row justify-between items-center gap-4">
                     <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
                         <input type="number" x-model="nominalGlobal" placeholder="Nominal seragam..." class="w-full sm:w-auto px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-red-500 text-slate-800">
-                        <button type="button" @click.prevent="document.querySelectorAll('.input-tarik').forEach(i => { if(nominalGlobal > 0) { if(Number(i.max) >= Number(nominalGlobal)) i.value = nominalGlobal; else i.value = i.max; } })" class="w-full sm:w-auto px-6 py-2 bg-slate-800 text-white text-[10px] font-black uppercase rounded-xl hover:bg-black transition-all">
+                        <button type="button" @click.prevent="terapkanSemua()" class="w-full sm:w-auto px-6 py-2 bg-slate-800 text-white text-[10px] font-black uppercase rounded-xl hover:bg-black transition-all">
                             🎯 Terapkan ke Semua
                         </button>
                     </div>
                     <div class="flex items-center gap-3 w-full lg:w-auto">
-                        <button type="button" @click.prevent="document.querySelectorAll('.input-tarik').forEach(i => i.value = i.max)" class="flex-1 sm:flex-none px-6 py-2 bg-red-100 text-red-700 text-[10px] font-black uppercase rounded-xl hover:bg-red-200 transition-all shadow-sm">
+                        <button type="button" @click.prevent="tarikMax()" class="flex-1 sm:flex-none px-6 py-2 bg-red-100 text-red-700 text-[10px] font-black uppercase rounded-xl hover:bg-red-200 transition-all shadow-sm">
                             💰 Tarik Saldo Max
                         </button>
-                        <button type="button" @click.prevent="document.querySelectorAll('.input-tarik').forEach(i => i.value = '')" class="flex-1 sm:flex-none px-6 py-2 bg-slate-200 text-slate-600 text-[10px] font-black uppercase rounded-xl hover:bg-slate-300 transition-all">
+                        <button type="button" @click.prevent="resetSemua()" class="flex-1 sm:flex-none px-6 py-2 bg-slate-200 text-slate-600 text-[10px] font-black uppercase rounded-xl hover:bg-slate-300 transition-all">
                             🧹 Reset
                         </button>
                     </div>
                 </div>
 
+                <!-- Tabel Nasabah -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead>
@@ -111,8 +154,21 @@
                     </table>
                 </div>
 
-                <div class="p-8 bg-slate-50 border-t border-slate-100 flex justify-end">
-                    <button type="submit" onclick="return confirm('Peringatan: Saldo siswa akan berkurang sesuai nominal yang diisi. Lanjutkan?')" class="px-10 py-4 bg-red-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-red-500/20 hover:bg-red-700 transition-all transform active:scale-95">
+                <!-- PANEL REKAPITULASI (BARU) -->
+                <div class="p-8 bg-slate-800 text-white flex flex-col md:flex-row justify-between items-center gap-6 border-t border-slate-700">
+                    <div>
+                        <h4 class="text-xs font-black uppercase tracking-widest text-emerald-400">Status Rekapitulasi</h4>
+                        <p class="text-xs font-bold text-slate-400 mt-1">Total Nasabah: <span class="text-white text-base bg-slate-700 px-2 py-1 rounded-md ml-1" x-text="totalSiswa"></span> Orang</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Dana Disiapkan</p>
+                        <p class="text-3xl font-black text-white tracking-tighter">Rp <span x-text="formatRp(totalNominal)"></span></p>
+                    </div>
+                </div>
+
+                <!-- Tombol Submit -->
+                <div class="p-8 bg-slate-50 flex justify-end">
+                    <button type="submit" onclick="return confirm('Peringatan: Saldo siswa akan berkurang sesuai rekap. Lanjutkan?')" class="px-10 py-4 bg-red-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-red-500/20 hover:bg-red-700 transition-all transform active:scale-95">
                         💳 Proses & Simpan Penarikan
                     </button>
                 </div>
