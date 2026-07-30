@@ -300,8 +300,9 @@ class SetoranController {
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
             
-            // 🛠️ DIPERBARUI: Karena guru memiliki kategori sendiri, tetap gunakan harga_dasar sebagai harga beli
-            $harga_satuan = (float)($kat['harga_dasar'] ?? 0); 
+            // 🛠️ PERBAIKAN HARGA: Cek harga khusus guru, jika tidak ada baru gunakan harga dasar
+            $harga_satuan = (!empty($kat['harga_guru']) && $kat['harga_guru'] > 0) ? (float)$kat['harga_guru'] : (float)($kat['harga_dasar'] ?? 0); 
+            
             $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
             $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
             
@@ -335,7 +336,7 @@ class SetoranController {
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // 🛠️ DIPERBARUI: VALIDASI MASSAL SEMUA ANTREAN (MENGGUNAKAN HARGA DASAR)
+    // 🛠️ PERBAIKAN: VALIDASI MASSAL SEMUA ANTREAN (MENGGUNAKAN HARGA DINAMIS)
     public function proses_validasi_semua() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf();
@@ -347,7 +348,7 @@ class SetoranController {
                 $persen_walas = ($stmtPersen->fetchColumn() ?? 0) / 100;
                 
                 $stmt = $this->db->query("
-                    SELECT s.*, k.harga_dasar, k.harga_pengepul, k.konversi_kg, u.role
+                    SELECT s.*, k.harga_dasar, k.harga_guru, k.harga_pengepul, k.konversi_kg, u.role
                     FROM setoran s 
                     JOIN kategori_sampah k ON s.kategori_id = k.id 
                     JOIN users u ON s.user_id = u.id
@@ -366,8 +367,12 @@ class SetoranController {
                 foreach ($pending_list as $data) {
                     $konversi_kg = (isset($data['konversi_kg']) && (float)$data['konversi_kg'] > 0) ? (float)$data['konversi_kg'] : 1;
                     
-                    // Semua nasabah (Guru & Siswa) menggunakan harga_dasar
-                    $harga_satuan = (float)$data['harga_dasar'];
+                    // 🛠️ PERBAIKAN HARGA: Tentukan harga satuan berdasarkan role
+                    if (in_array($data['role'], ['guru', 'staff', 'admin'])) {
+                        $harga_satuan = (!empty($data['harga_guru']) && $data['harga_guru'] > 0) ? (float)$data['harga_guru'] : (float)$data['harga_dasar'];
+                    } else {
+                        $harga_satuan = (float)$data['harga_dasar'];
+                    }
 
                     $total_harga = $data['berat'] * $harga_satuan;
                     $total_pengepul = ($data['berat'] / $konversi_kg) * (float)$data['harga_pengepul'];
@@ -411,7 +416,7 @@ class SetoranController {
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
-    // 🛠️ DIPERBARUI: UPDATE PENDING (MENGGUNAKAN HARGA DASAR)
+    // 🛠️ PERBAIKAN: UPDATE PENDING (MENGGUNAKAN HARGA DINAMIS SESUAI ROLE)
     public function update_pending($id) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Security::validate_csrf(); 
@@ -431,8 +436,13 @@ class SetoranController {
             $kat = $this->sampahModel->getById($_POST['kategori_id']);
             $jml = (float)$_POST['berat'];
             
-            // Semua nasabah (Guru & Siswa) menggunakan harga_dasar
-            $harga_satuan = (float)($kat['harga_dasar'] ?? 0);
+            // 🛠️ PERBAIKAN HARGA: Tentukan harga satuan berdasarkan role pengguna
+            if (in_array($role_pengguna, ['guru', 'staff', 'admin'])) {
+                $harga_satuan = (!empty($kat['harga_guru']) && $kat['harga_guru'] > 0) ? (float)$kat['harga_guru'] : (float)($kat['harga_dasar'] ?? 0);
+            } else {
+                $harga_satuan = (float)($kat['harga_dasar'] ?? 0);
+            }
+            
             $harga_pengepul = (float)($kat['harga_pengepul'] ?? 0);
             $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
             
@@ -443,14 +453,14 @@ class SetoranController {
                 'total_pengepul' => ($jml / $konversi_kg) * $harga_pengepul
             ]);
             
-            Logger::log("Edit Pending", "Petugas mengoreksi data setoran pending ID #$id menjadi $jml Pcs");
+            Logger::log("Edit Pending", "Petugas mengoreksi data setoran pending ID #$id menjadi $jml Pcs (Role: $role_pengguna)");
             $_SESSION['success'] = "Data diperbarui.";
             header('Location: ' . BASE_URL . '/setoran/validasi');
             exit;
         }
     }
 
-    // 🛠️ DIPERBARUI: PROSES VALIDASI (MENGGUNAKAN HARGA DASAR)
+    // 🛠️ PERBAIKAN: PROSES VALIDASI SATUAN (MENGGUNAKAN HARGA DINAMIS SESUAI ROLE)
     public function proses_validasi($id) {
         $data = $this->setoranModel->getById($id); 
         if ($data) {
@@ -464,8 +474,12 @@ class SetoranController {
             $stmtUser->execute([$data['user_id']]);
             $role_pengguna = $stmtUser->fetchColumn();
 
-            // Semua nasabah (Guru & Siswa) menggunakan harga_dasar
-            $harga_satuan = (float)$kat['harga_dasar'];
+            // 🛠️ PERBAIKAN HARGA: Tentukan harga satuan berdasarkan role pengguna
+            if (in_array($role_pengguna, ['guru', 'staff', 'admin'])) {
+                $harga_satuan = (!empty($kat['harga_guru']) && $kat['harga_guru'] > 0) ? (float)$kat['harga_guru'] : (float)$kat['harga_dasar'];
+            } else {
+                $harga_satuan = (float)$kat['harga_dasar'];
+            }
 
             $total_harga = $data['berat'] * $harga_satuan;
             $total_pengepul = ($data['berat'] / $konversi_kg) * (float)$kat['harga_pengepul'];

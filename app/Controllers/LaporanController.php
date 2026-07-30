@@ -157,7 +157,7 @@ class LaporanController {
             'persen_piket'     => $config['persen_honor_piket'] ?? 0
         ];
 
-        // 🛠️ PERBAIKAN HISTORI PENJUALAN KEUANGAN (GROUPING - TAMPILKAN KG SAJA)
+        // 🛠️ PERBAIKAN HISTORI PENJUALAN KEUANGAN (GROUPING - TAMPILKAN KG SAJA + TUTUP BOTOL)
         $sqlHistRaw = "SELECT p.*, k.nama_sampah, k.satuan, k.konversi_kg FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id $wherePenjualan ORDER BY p.tanggal_jual DESC LIMIT 30";
         $stmtHistRaw = $this->db->prepare($sqlHistRaw);
         $stmtHistRaw->execute($params);
@@ -170,14 +170,17 @@ class LaporanController {
                 $history_grup[$group_key] = [
                     'tanggal' => $row['tanggal_jual'],
                     'rincian' => [],
-                    'total_pendapatan' => 0
+                    'total_pendapatan' => 0,
+                    'total_kas_tutup_botol' => 0 // ✨ Menampung nilai tutup botol per transaksi
                 ];
             }
             
             // Konversi dari Pcs ke Kg
             $berat_kg = $row['total_pcs'] / ($row['konversi_kg'] ?: 1); 
             $history_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($berat_kg, 2) . " kg)";
+            
             $history_grup[$group_key]['total_pendapatan'] += $row['total_pendapatan'];
+            $history_grup[$group_key]['total_kas_tutup_botol'] += $row['kas_tutup_botol_rp']; // ✨ Menjumlahkan tutup botol
         }
         
         // Ambil 10 grup terbaru

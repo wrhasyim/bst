@@ -299,6 +299,13 @@
                             </td>
                             <td class="border border-slate-900 px-4 py-3 text-right align-top">
                                 <div class="font-black text-emerald-700 text-sm">Rp <?= number_format($grup['total_pendapatan'], 0, ',', '.') ?></div>
+                                
+                                <!-- ✨ Menampilkan Kas Tutup Botol di Histori Laporan Keuangan -->
+                                <?php if($grup['total_kas_tutup_botol'] > 0): ?>
+                                    <div class="text-[9px] font-bold text-blue-600 uppercase mt-1">
+                                        + TB: Rp <?= number_format($grup['total_kas_tutup_botol'], 0, ',', '.') ?>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
