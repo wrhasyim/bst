@@ -20,13 +20,65 @@ class PenjualanController {
             $sql = "SELECT p.*, k.nama_sampah, k.satuan, k.konversi_kg
                     FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id
                     ORDER BY p.tanggal_jual DESC";
-            $data['penjualan'] = $this->db->query($sql)->fetchAll();
+            $penjualan_raw = $this->db->query($sql)->fetchAll();
         } catch (Exception $e) {
             $sql = "SELECT p.*, k.nama_sampah, k.satuan, 1 as konversi_kg
                     FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id
                     ORDER BY p.tanggal_jual DESC";
-            $data['penjualan'] = $this->db->query($sql)->fetchAll();
+            $penjualan_raw = $this->db->query($sql)->fetchAll();
         }
+
+        // ==========================================================
+        // FITUR BARU: Mengelompokkan Penjualan Berdasarkan Waktu
+        // ==========================================================
+        $penjualan_grup = [];
+        
+        foreach ($penjualan_raw as $row) {
+            // Menggunakan format Y-m-d H:i (menit) sebagai group key.
+            // Mengapa menit? Karena penjualan gabungan diinput pada detik yang hampir bersamaan,
+            // sehingga jika digrup berdasarkan hari/tanggal saja, penjualan sore dan pagi akan tergabung.
+            $group_key = date('Y-m-d H:i', strtotime($row['tanggal_jual']));
+            
+            if (!isset($penjualan_grup[$group_key])) {
+                $penjualan_grup[$group_key] = [
+                    'tanggal' => $row['tanggal_jual'],
+                    'keterangan' => $row['keterangan'],
+                    'rincian' => [], 
+                    'total_pendapatan' => 0,
+                    'total_kas_tutup_botol' => 0,
+                    'total_margin' => 0,
+                    'total_beban_nasabah' => 0,
+                    'kas_sekolah' => 0,
+                    'honor_pengelola' => 0,
+                    'honor_piket' => 0,
+                    'kas_bst' => 0,
+                    // Menyimpan ID raw array jika ingin ada fitur hapus satuan (opsional)
+                    'raw_ids' => [] 
+                ];
+            }
+
+            // Memasukkan detail setiap sampah ke dalam array rincian
+            $berat_kg = $row['total_pcs'] / ($row['konversi_kg'] ?: 1); // Hitung ulang Kg
+$penjualan_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($berat_kg, 0) . " kg)";
+            
+            // Menjumlahkan seluruh nominal keuangan
+            $penjualan_grup[$group_key]['total_pendapatan'] += $row['total_pendapatan'];
+            $penjualan_grup[$group_key]['total_kas_tutup_botol'] += $row['kas_tutup_botol_rp'];
+            $penjualan_grup[$group_key]['total_margin'] += $row['margin_total_rp'];
+            $penjualan_grup[$group_key]['total_beban_nasabah'] += $row['beban_nasabah_rp'];
+            
+            // Menjumlahkan pembagian hasil (opsional, jika ingin ditampilkan di view)
+            $penjualan_grup[$group_key]['kas_sekolah'] += $row['kas_sekolah_rp'];
+            $penjualan_grup[$group_key]['honor_pengelola'] += $row['honor_pengelola_rp'];
+            $penjualan_grup[$group_key]['honor_piket'] += $row['honor_piket_rp'];
+            $penjualan_grup[$group_key]['kas_bst'] += $row['kas_bst_rp'];
+
+            // Mengumpulkan ID baris untuk kebutuhan tombol Hapus Masal
+            $penjualan_grup[$group_key]['raw_ids'][] = $row['id'];
+        }
+
+        // Kirim data yang sudah dikelompokkan ke View
+        $data['penjualan_grup'] = $penjualan_grup;
 
         // RENDER TAMPILAN
         extract($data);
@@ -216,29 +268,50 @@ class PenjualanController {
             
             Security::validate_csrf(); // 🛡️ Keamanan CSRF
 
-            $id = (int)$_POST['id'];
+            // Karena data digabung, id yang dikirim bisa berupa koma (contoh: "1,2,3")
+            // atau array jika dikirim via multi-select checkbox.
+            // Di sini kita menangani string ID yang digabung.
+            $ids = isset($_POST['id']) ? explode(',', $_POST['id']) : [];
+
+            if (empty($ids)) {
+                 $_SESSION['error'] = "Tidak ada data penjualan yang dipilih untuk dihapus.";
+                 header('Location: ' . BASE_URL . '/penjualan');
+                 exit;
+            }
 
             try {
                 $this->db->beginTransaction();
+                $jumlah_dihapus = 0;
 
-                $stmtCek = $this->db->prepare("SELECT kategori_id, tanggal_jual FROM penjualan WHERE id = ? FOR UPDATE");
-                $stmtCek->execute([$id]);
-                $penjualan = $stmtCek->fetch();
+                foreach ($ids as $id_str) {
+                    $id = (int) trim($id_str);
+                    if ($id <= 0) continue;
 
-                if (!$penjualan) {
-                    throw new Exception("Data penjualan tidak ditemukan.");
+                    $stmtCek = $this->db->prepare("SELECT kategori_id, tanggal_jual FROM penjualan WHERE id = ? FOR UPDATE");
+                    $stmtCek->execute([$id]);
+                    $penjualan = $stmtCek->fetch();
+
+                    if (!$penjualan) {
+                        continue; // Skip jika tidak ditemukan
+                    }
+
+                    $stmtDel = $this->db->prepare("DELETE FROM penjualan WHERE id = ?");
+                    $stmtDel->execute([$id]);
+
+                    $stmtRestore = $this->db->prepare("UPDATE setoran SET is_sold = 0 WHERE kategori_id = ? AND is_sold = 1 AND created_at <= ?");
+                    $stmtRestore->execute([$penjualan['kategori_id'], $penjualan['tanggal_jual']]);
+                    
+                    $jumlah_dihapus++;
                 }
 
-                $stmtDel = $this->db->prepare("DELETE FROM penjualan WHERE id = ?");
-                $stmtDel->execute([$id]);
-
-                $stmtRestore = $this->db->prepare("UPDATE setoran SET is_sold = 0 WHERE kategori_id = ? AND is_sold = 1 AND created_at <= ?");
-                $stmtRestore->execute([$penjualan['kategori_id'], $penjualan['tanggal_jual']]);
-
-                Logger::log("Batal Penjualan", "Admin membatalkan transaksi penjualan ID #$id dan mengembalikan stok ke gudang.");
-
-                $this->db->commit();
-                $_SESSION['success'] = "Penjualan dibatalkan. Stok dikembalikan ke gudang.";
+                if ($jumlah_dihapus > 0) {
+                    Logger::log("Batal Penjualan", "Admin membatalkan transaksi penjualan sebanyak $jumlah_dihapus item dan mengembalikan stok ke gudang.");
+                    $this->db->commit();
+                    $_SESSION['success'] = "Penjualan dibatalkan. Stok $jumlah_dihapus barang dikembalikan ke gudang.";
+                } else {
+                    $this->db->rollBack();
+                    $_SESSION['error'] = "Tidak ada data penjualan valid yang dihapus.";
+                }
 
             } catch (Exception $e) {
                 $this->db->rollBack();

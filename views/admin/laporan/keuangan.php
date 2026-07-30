@@ -268,6 +268,7 @@
             </p>
         </div>
 
+        <!-- 🛠️ UPDATE BAGIAN INI -->
         <div class="mt-12 break-inside-avoid">
             <div class="border-b-2 border-slate-900 pb-3 mb-6">
                 <h3 class="font-black text-slate-800 text-sm uppercase tracking-widest">Lampiran: Histori Penjualan Terakhir</h3>
@@ -277,27 +278,27 @@
                     <tr class="text-[10px] font-black text-slate-900 uppercase tracking-widest border-b border-slate-900">
                         <th class="border border-slate-900 px-4 py-3 text-center w-12">No</th>
                         <th class="border border-slate-900 px-4 py-3 text-center">Tanggal</th>
-                        <th class="border border-slate-900 px-4 py-3">Kategori Sampah</th>
-                        <th class="border border-slate-900 px-4 py-3 text-center">Volume (Pcs)</th>
-                        <th class="border border-slate-900 px-4 py-3 text-right">Pendapatan</th>
+                        <th class="border border-slate-900 px-4 py-3">Rincian Barang Terjual</th>
+                        <th class="border border-slate-900 px-4 py-3 text-right">Total Pendapatan</th>
                     </tr>
                 </thead>
                 <tbody class="text-xs">
                     <?php if(empty($history)): ?>
-                        <tr><td colspan="5" class="border border-slate-900 px-4 py-8 text-center text-slate-500 italic">Belum ada riwayat penjualan ke pengepul.</td></tr>
+                        <tr><td colspan="4" class="border border-slate-900 px-4 py-8 text-center text-slate-500 italic">Belum ada riwayat penjualan ke pengepul.</td></tr>
                     <?php else: ?>
-                        <?php foreach($history as $i => $h): ?>
+                        <?php foreach($history as $i => $grup): ?>
                         <tr class="hover:bg-slate-50">
-                            <td class="border border-slate-900 px-4 py-3 text-center font-bold text-slate-700"><?= $i+1 ?></td>
-                            <td class="border border-slate-900 px-4 py-3 text-center font-bold text-slate-600"><?= date('d/m/Y', strtotime($h['tanggal_jual'])) ?></td>
-                            <td class="border border-slate-900 px-4 py-3 font-semibold uppercase"><?= htmlspecialchars($h['nama_sampah']) ?></td>
-                            <td class="border border-slate-900 px-4 py-3 text-center font-bold"><?= number_format($h['total_pcs'], 0) ?> Pcs</td>
-                            <td class="border border-slate-900 px-4 py-3 text-right">
-                                <div class="font-black text-emerald-700">Rp <?= number_format($h['total_pendapatan'], 0, ',', '.') ?></div>
-                                <!-- ✨ Penambahan Indikator Kas Tutup Botol -->
-                                <?php if(isset($h['kas_tutup_botol_rp']) && $h['kas_tutup_botol_rp'] > 0): ?>
-                                    <div class="text-[9px] font-bold text-blue-600 uppercase mt-1">+ TB: Rp <?= number_format($h['kas_tutup_botol_rp'], 0, ',', '.') ?></div>
-                                <?php endif; ?>
+                            <td class="border border-slate-900 px-4 py-3 text-center font-bold text-slate-700 align-top"><?= $i+1 ?></td>
+                            <td class="border border-slate-900 px-4 py-3 text-center font-bold text-slate-600 align-top"><?= date('d/m/Y | H:i', strtotime($grup['tanggal'])) ?></td>
+                            <td class="border border-slate-900 px-4 py-3 align-top">
+                                <ul class="list-disc list-inside space-y-1 font-semibold uppercase">
+                                    <?php foreach($grup['rincian'] as $item): ?>
+                                        <li><?= htmlspecialchars($item) ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </td>
+                            <td class="border border-slate-900 px-4 py-3 text-right align-top">
+                                <div class="font-black text-emerald-700 text-sm">Rp <?= number_format($grup['total_pendapatan'], 0, ',', '.') ?></div>
                             </td>
                         </tr>
                         <?php endforeach; ?>

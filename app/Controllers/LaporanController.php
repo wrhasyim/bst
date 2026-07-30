@@ -65,7 +65,6 @@ class LaporanController {
             $whereKasTbOut .= " AND tanggal BETWEEN :start AND :end";
         }
         
-        // 🛠️ PERBAIKAN: total_pendapatan murni tanpa dikurangi kas_tutup_botol
         $sqlSnapshot = "SELECT 
                             SUM(total_pendapatan) as total_kotor,
                             SUM(beban_nasabah_rp) as beban_nasabah,
@@ -158,9 +157,31 @@ class LaporanController {
             'persen_piket'     => $config['persen_honor_piket'] ?? 0
         ];
 
-        $stmtHist = $this->db->prepare("SELECT p.*, k.nama_sampah FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id $wherePenjualan ORDER BY p.tanggal_jual DESC LIMIT 10");
-        $stmtHist->execute($params);
-        $data['history'] = $stmtHist->fetchAll();
+        // 🛠️ PERBAIKAN HISTORI PENJUALAN KEUANGAN (GROUPING - TAMPILKAN KG SAJA)
+        $sqlHistRaw = "SELECT p.*, k.nama_sampah, k.satuan, k.konversi_kg FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id $wherePenjualan ORDER BY p.tanggal_jual DESC LIMIT 30";
+        $stmtHistRaw = $this->db->prepare($sqlHistRaw);
+        $stmtHistRaw->execute($params);
+        $history_raw = $stmtHistRaw->fetchAll();
+        
+        $history_grup = [];
+        foreach ($history_raw as $row) {
+            $group_key = date('Y-m-d H:i', strtotime($row['tanggal_jual']));
+            if (!isset($history_grup[$group_key])) {
+                $history_grup[$group_key] = [
+                    'tanggal' => $row['tanggal_jual'],
+                    'rincian' => [],
+                    'total_pendapatan' => 0
+                ];
+            }
+            
+            // Konversi dari Pcs ke Kg
+            $berat_kg = $row['total_pcs'] / ($row['konversi_kg'] ?: 1); 
+            $history_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($berat_kg, 2) . " kg)";
+            $history_grup[$group_key]['total_pendapatan'] += $row['total_pendapatan'];
+        }
+        
+        // Ambil 10 grup terbaru
+        $data['history'] = array_slice(array_values($history_grup), 0, 10);
         $data['start_date'] = $start_date;
         $data['end_date'] = $end_date;
 
@@ -181,14 +202,16 @@ class LaporanController {
         $start_dt = $data['start_date'] . ' 00:00:00';
         $end_dt = $data['end_date'] . ' 23:59:59';
 
-        // 🛠️ PERBAIKAN: total_pendapatan masuk penuh ke kas_besar
+        // 🛠️ PERBAIKAN BUKU KAS (GROUPING PENJUALAN)
         $sql = "
             SELECT waktu, uraian, detail, debit, kredit, sumber_kas FROM (
-                SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, total_pendapatan AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
+                SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Pengepul' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(total_pendapatan) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
                 FROM penjualan WHERE tanggal_jual BETWEEN :p1a AND :p1b
+                GROUP BY DATE_FORMAT(tanggal_jual, '%Y-%m-%d %H:%i')
                 UNION ALL
-                SELECT tanggal_jual AS waktu, 'Penjualan Tutup Botol' AS uraian, keterangan AS detail, kas_tutup_botol_rp AS debit, 0 AS kredit, 'kas_tutup_botol' as sumber_kas
+                SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Tutup Botol' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(kas_tutup_botol_rp) AS debit, 0 AS kredit, 'kas_tutup_botol' as sumber_kas
                 FROM penjualan WHERE tanggal_jual BETWEEN :p2a AND :p2b AND kas_tutup_botol_rp > 0
+                GROUP BY DATE_FORMAT(tanggal_jual, '%Y-%m-%d %H:%i')
                 UNION ALL
                 SELECT CONCAT(tanggal, ' ', TIME(created_at)) AS waktu, CASE WHEN keterangan LIKE '%Refund%' THEN 'Koreksi' ELSE 'Pemasukan Kas' END AS uraian, keterangan AS detail, nominal AS debit, 0 AS kredit, sumber_kas
                 FROM kas_manual WHERE jenis = 'pemasukan' AND tanggal BETWEEN :p3a AND :p3b
@@ -221,7 +244,6 @@ class LaporanController {
         ]);
         $data['buku_kas'] = $stmt->fetchAll();
 
-        // 🛠️ PERBAIKAN: total_pendapatan ditarik murni tanpa pengurangan
         $sqlSaldoAwal = "
             SELECT 
                 (SELECT IFNULL(SUM(total_pendapatan), 0) FROM penjualan WHERE tanggal_jual < :s1) 
@@ -396,14 +418,16 @@ class LaporanController {
         $output = fopen('php://output', 'w');
         fputcsv($output, ['Waktu', 'Uraian Transaksi', 'Detail/Keterangan', 'Sumber Kas', 'Debit (Masuk)', 'Kredit (Keluar)']);
 
-        // 🛠️ PERBAIKAN: CSV total_pendapatan disesuaikan
+        // 🛠️ PERBAIKAN BUKU KAS EXCEL (GROUPING SAMA SEPERTI WEB)
         $sql = "
             SELECT waktu, uraian, detail, sumber_kas, debit, kredit FROM (
-                SELECT tanggal_jual AS waktu, 'Penjualan Pengepul' AS uraian, keterangan AS detail, total_pendapatan AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
+                SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Pengepul' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(total_pendapatan) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
                 FROM penjualan WHERE tanggal_jual BETWEEN :p1a AND :p1b 
+                GROUP BY DATE_FORMAT(tanggal_jual, '%Y-%m-%d %H:%i')
                 UNION ALL 
-                SELECT tanggal_jual AS waktu, 'Penjualan Tutup Botol' AS uraian, keterangan AS detail, kas_tutup_botol_rp AS debit, 0 AS kredit, 'kas_tutup_botol' as sumber_kas
+                SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Tutup Botol' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(kas_tutup_botol_rp) AS debit, 0 AS kredit, 'kas_tutup_botol' as sumber_kas
                 FROM penjualan WHERE tanggal_jual BETWEEN :p2a AND :p2b AND kas_tutup_botol_rp > 0
+                GROUP BY DATE_FORMAT(tanggal_jual, '%Y-%m-%d %H:%i')
                 UNION ALL 
                 SELECT CONCAT(tanggal, ' ', TIME(created_at)) AS waktu, 'Pemasukan Kas' AS uraian, keterangan AS detail, nominal AS debit, 0 AS kredit, sumber_kas 
                 FROM kas_manual WHERE jenis = 'pemasukan' AND tanggal BETWEEN :p3a AND :p3b 
