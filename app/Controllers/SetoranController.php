@@ -615,6 +615,95 @@ class SetoranController {
             header('Location: ' . BASE_URL . '/setoran/create_kesiswaan');
             exit;
         }
+    }// =================================================================
+    // 7. FITUR KHUSUS: SABTU CERIA (BELI PUTUS / TUNAI KOLEKTIF)
+    // =================================================================
+    public function sabtu_ceria() {
+        $data = [];
+        $data['kategori'] = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY nama_sampah ASC")->fetchAll();
+        
+        // Memuat semua kelas untuk ditampilkan di form
+        $data['kelas_list'] = $this->db->query("SELECT id, nama_kelas FROM kelas WHERE nama_kelas NOT LIKE '%KESISWAAN%' ORDER BY nama_kelas ASC")->fetchAll();
+        
+        $stmtCek = $this->db->query("SELECT id FROM users WHERE nama LIKE '%SABTU CERIA%' AND role = 'siswa' LIMIT 1");
+        $data['akun_sabtu_ceria'] = $stmtCek->fetch();
+
+        if (!$data['akun_sabtu_ceria']) {
+            $_SESSION['error'] = "Akun virtual 'SABTU CERIA' belum ada. Silakan buat akun siswa baru dengan nama persis 'SABTU CERIA' terlebih dahulu!";
+            header('Location: ' . BASE_URL . '/user');
+            exit;
+        }
+
+        extract($data);
+        $title = "Pembelian Tunai Kolektif (Sabtu Ceria)";
+        $content = __DIR__ . '/../../views/admin/setoran/sabtu_ceria.php';
+        require_once __DIR__ . '/../../views/layouts/admin.php';
+    }
+
+    public function store_sabtu_ceria() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            Security::validate_csrf(); 
+
+            $user_id = $_POST['user_id'];
+            $kategori_id = $_POST['kategori_id'];
+            $berat_kg_array = $_POST['berat_kg'] ?? []; 
+
+            $total_berat_kg = 0;
+            $rincian_kelas = [];
+
+            // Memproses inputan dari setiap kelas
+            foreach ($berat_kg_array as $nama_kelas => $kg) {
+                $kg = (float)$kg;
+                if ($kg > 0) {
+                    $total_berat_kg += $kg;
+                    // Format rincian: "XI TM 1 (5.5 Kg)"
+                    $rincian_kelas[] = htmlspecialchars($nama_kelas) . " (" . $kg . " Kg)";
+                }
+            }
+
+            if ($total_berat_kg <= 0) {
+                $_SESSION['error'] = "Tidak ada jumlah Kg yang diinput pada kelas manapun.";
+                header('Location: ' . BASE_URL . '/setoran/sabtu_ceria');
+                exit;
+            }
+
+            try {
+                $this->db->beginTransaction();
+
+                $stmtKat = $this->db->prepare("SELECT nama_sampah, harga_dasar, harga_pengepul, konversi_kg FROM kategori_sampah WHERE id = ?");
+                $stmtKat->execute([$kategori_id]);
+                $kat = $stmtKat->fetch();
+
+                $konversi_kg = (isset($kat['konversi_kg']) && (float)$kat['konversi_kg'] > 0) ? (float)$kat['konversi_kg'] : 1;
+                
+                // Kalkulasi ke Pcs dan Rupiah sesuai harga beli siswa dinamis
+                $total_pcs = round($total_berat_kg * $konversi_kg);
+                $total_harga = $total_pcs * (float)$kat['harga_dasar'];
+                $total_pengepul = $total_berat_kg * (float)$kat['harga_pengepul'];
+
+                // 1. Masukkan 1 transaksi SETORAN valid agar STOK bertambah secara gelondongan
+                $sqlSetoran = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
+                        VALUES (?, NULL, ?, ?, ?, ?, 'valid', 0)";
+                $this->db->prepare($sqlSetoran)->execute([$user_id, $kategori_id, $total_pcs, $total_harga, $total_pengepul]);
+                
+                // 2. Masukkan 1 transaksi PENGELUARAN (Tarik Tunai) dengan rincian teks kelas di keterangannya
+                $teks_rincian = implode(', ', $rincian_kelas);
+                $ket_tarik = "Beli Putus Sabtu Ceria: " . $kat['nama_sampah'] . " | Rincian: " . $teks_rincian;
+                
+                $sqlTarik = "INSERT INTO penarikan (user_id, jumlah, keterangan, tanggal_tarik) VALUES (?, ?, ?, NOW())";
+                $this->db->prepare($sqlTarik)->execute([$user_id, $total_harga, $ket_tarik]);
+                
+                $this->db->commit();
+                Logger::log("Sabtu Ceria", "Mencatat pembelian tunai Sabtu Ceria: $total_berat_kg Kg " . $kat['nama_sampah'] . " (Rp " . number_format($total_harga,0,',','.') . ")");
+                $_SESSION['success'] = "Berhasil mencatat pembelian tunai kolektif sebesar Rp " . number_format($total_harga,0,',','.');
+            } catch (Exception $e) {
+                $this->db->rollBack();
+                $_SESSION['error'] = "Gagal memproses transaksi: " . $e->getMessage();
+            }
+            
+            header('Location: ' . BASE_URL . '/setoran/sabtu_ceria');
+            exit;
+        }
     }
 }
 ?>
