@@ -677,7 +677,8 @@ class SetoranController {
                             $rp = $pcs * (float)$kat['harga_dasar'];
                             
                             $subtotal_kelas_rp += $rp;
-                            $rincian_teks[] = "{$kat['nama_sampah']} ({$kg} Kg)";
+                            // 💡 PERUBAHAN: Menambahkan nominal rupiah di rincian per item
+                            $rincian_teks[] = "{$kat['nama_sampah']} ({$kg} Kg = Rp " . number_format($rp, 0, ',', '.') . ")";
 
                             if (!isset($rekap_setoran_kategori[$kat_id])) {
                                 $rekap_setoran_kategori[$kat_id] = ['pcs' => 0, 'rp' => 0, 'rp_pengepul' => 0];
@@ -690,7 +691,8 @@ class SetoranController {
 
                     if ($subtotal_kelas_rp > 0) {
                         $teks_rincian = implode(', ', $rincian_teks);
-                        $rincian_semua_kelas[] = htmlspecialchars($nama_kelas) . " => " . $teks_rincian;
+                        // 💡 PERUBAHAN: Menambahkan subtotal ke rincian per kelas
+                        $rincian_semua_kelas[] = htmlspecialchars($nama_kelas) . " => " . $teks_rincian . " [Total: Rp " . number_format($subtotal_kelas_rp, 0, ',', '.') . "]";
                         $total_seluruh_rp += $subtotal_kelas_rp;
                     }
                 }
@@ -702,6 +704,7 @@ class SetoranController {
                     exit;
                 }
 
+                // Kita gunakan delimiter " || " agar mudah dipecah (explode) di View buku kas nanti
                 $ket_tarik = "Sabtu Ceria | " . implode(' || ', $rincian_semua_kelas);
                 $sqlTarik = "INSERT INTO penarikan (user_id, jumlah, keterangan, tanggal_tarik) VALUES (?, ?, ?, NOW())";
                 $this->db->prepare($sqlTarik)->execute([$user_id, $total_seluruh_rp, $ket_tarik]);

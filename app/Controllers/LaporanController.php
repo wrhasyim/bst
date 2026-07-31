@@ -202,7 +202,7 @@ class LaporanController {
         $start_dt = $data['start_date'] . ' 00:00:00';
         $end_dt = $data['end_date'] . ' 23:59:59';
 
-        // 🛠️ PERBAIKAN: MEMASUKKAN REWARD PRESTASI KE DALAM TABEL BUKU KAS
+        // 🛠️ PERBAIKAN: Menghapus UNION ALL untuk Reward Prestasi agar tidak dobel pencatatan kas keluar
         $sql = "
             SELECT waktu, uraian, detail, debit, kredit, sumber_kas FROM (
                 SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Pengepul' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(total_pendapatan) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
@@ -234,10 +234,6 @@ class LaporanController {
                 UNION ALL
                 SELECT CONCAT(tanggal, ' ', TIME(created_at)) AS waktu, 'Pengeluaran Kas' AS uraian, keterangan AS detail, 0 AS debit, nominal AS kredit, sumber_kas
                 FROM kas_manual WHERE jenis = 'pengeluaran' AND tanggal BETWEEN :p6a AND :p6b
-                UNION ALL
-                SELECT s.created_at AS waktu, 'Reward Prestasi' AS uraian, CONCAT('Bonus Nasabah: ', u.nama) AS detail, 0 AS debit, s.total_harga AS kredit, 'kas_besar' as sumber_kas
-                FROM setoran s JOIN users u ON s.user_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id
-                WHERE k.nama_sampah = '🌟 REWARD PRESTASI' AND s.created_at BETWEEN :p9a AND :p9b
             ) as mutasi ORDER BY waktu ASC";
 
         $stmt = $this->db->prepare($sql);
@@ -249,18 +245,17 @@ class LaporanController {
             'p8a'=>$start_dt, 'p8b'=>$end_dt, 
             'p7a'=>$start_dt, 'p7b'=>$end_dt, 
             'p5a'=>$start_dt, 'p5b'=>$end_dt,
-            'p6a'=>$start_dt, 'p6b'=>$end_dt,
-            'p9a'=>$start_dt, 'p9b'=>$end_dt
+            'p6a'=>$start_dt, 'p6b'=>$end_dt
         ]);
         $data['buku_kas'] = $stmt->fetchAll();
 
+        // 🛠️ PERBAIKAN: Menghapus potongan saldo awal dari Reward Prestasi
         $sqlSaldoAwal = "
             SELECT 
                 (SELECT IFNULL(SUM(total_pendapatan), 0) FROM penjualan WHERE tanggal_jual < :s1) 
                 + (SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pemasukan' AND sumber_kas = 'kas_besar' AND tanggal < :s2)
                 - (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE tanggal_tarik < :s3) 
                 - (SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE tanggal_cair < :s4) 
-                - (SELECT IFNULL(SUM(s.total_harga), 0) FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE k.nama_sampah = '🌟 REWARD PRESTASI' AND s.created_at < :s5) 
                 - (SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE jenis = 'pengeluaran' AND sumber_kas = 'kas_besar' AND tanggal < :s6)
             AS saldo_awal_besar,
                 (SELECT IFNULL(SUM(kas_tutup_botol_rp), 0) FROM penjualan WHERE tanggal_jual < :s7)
@@ -271,7 +266,7 @@ class LaporanController {
         
         $stmtAwal = $this->db->prepare($sqlSaldoAwal);
         $stmtAwal->execute([
-            's1' => $start_dt, 's2' => $start_dt, 's3' => $start_dt, 's4' => $start_dt, 's5' => $start_dt, 's6' => $start_dt,
+            's1' => $start_dt, 's2' => $start_dt, 's3' => $start_dt, 's4' => $start_dt, 's6' => $start_dt,
             's7' => $start_dt, 's8' => $start_dt, 's9' => $start_dt
         ]);
         
@@ -428,6 +423,7 @@ class LaporanController {
         $output = fopen('php://output', 'w');
         fputcsv($output, ['Waktu', 'Uraian Transaksi', 'Detail/Keterangan', 'Sumber Kas', 'Debit (Masuk)', 'Kredit (Keluar)']);
 
+        // 🛠️ PERBAIKAN: Menghapus UNION ALL Reward Prestasi pada eksport CSV
         $sql = "
             SELECT waktu, uraian, detail, sumber_kas, debit, kredit FROM (
                 SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Pengepul' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(total_pendapatan) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
@@ -459,10 +455,6 @@ class LaporanController {
                 UNION ALL 
                 SELECT CONCAT(tanggal, ' ', TIME(created_at)) AS waktu, 'Pengeluaran Kas' AS uraian, keterangan AS detail, 0 AS debit, nominal AS kredit, sumber_kas 
                 FROM kas_manual WHERE jenis = 'pengeluaran' AND tanggal BETWEEN :p6a AND :p6b
-                UNION ALL
-                SELECT s.created_at AS waktu, 'Reward Prestasi' AS uraian, CONCAT('Bonus Nasabah: ', u.nama) AS detail, 0 AS debit, s.total_harga AS kredit, 'kas_besar' as sumber_kas
-                FROM setoran s JOIN users u ON s.user_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id
-                WHERE k.nama_sampah = '🌟 REWARD PRESTASI' AND s.created_at BETWEEN :p9a AND :p9b
             ) as mutasi ORDER BY waktu ASC";
         
         $stmt = $this->db->prepare($sql);
@@ -474,8 +466,7 @@ class LaporanController {
             'p8a'=>$sd, 'p8b'=>$ed, 
             'p7a'=>$sd, 'p7b'=>$ed,
             'p5a'=>$sd, 'p5b'=>$ed, 
-            'p6a'=>$sd, 'p6b'=>$ed,
-            'p9a'=>$sd, 'p9b'=>$ed
+            'p6a'=>$sd, 'p6b'=>$ed
         ]);
 
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {

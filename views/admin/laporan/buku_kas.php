@@ -112,14 +112,21 @@
                             $saldo_v -= $k['kredit'];
                         ?>
                         <tr class="hover:bg-slate-50 relative group">
-                            <td class="border border-slate-900 px-4 py-3 text-center"><?= $i+1 ?></td>
-                            <td class="border border-slate-900 px-4 py-3 text-center"><?= date('d/m/Y H:i', strtotime($k['waktu'])) ?></td>
+                            <td class="border border-slate-900 px-4 py-3 text-center align-top"><?= $i+1 ?></td>
+                            <td class="border border-slate-900 px-4 py-3 text-center align-top"><?= date('d/m/Y H:i', strtotime($k['waktu'])) ?></td>
                             
-                            <!-- 🛠️ KETERANGAN TRANSAKSI (DENGAN TOMBOL ALPINE.JS) -->
-                            <td class="border border-slate-900 px-4 py-3 uppercase font-semibold">
+                            <!-- 🛠️ KETERANGAN TRANSAKSI (DENGAN TOMBOL ALPINE.JS DAN DAFTAR CETAK RAPI) -->
+                            <td class="border border-slate-900 px-4 py-3 uppercase font-semibold align-top">
                                 <?= htmlspecialchars($k['uraian']) ?>
                                 
                                 <?php if(strpos($k['detail'], 'Sabtu Ceria') !== false): ?>
+                                    <?php 
+                                        // Parsing data satu kali untuk digunakan di Web maupun Cetak
+                                        $parts = explode(' | ', $k['detail']);
+                                        $rincian_string = isset($parts[1]) ? $parts[1] : $k['detail'];
+                                        $kelas_list = explode(' || ', $rincian_string);
+                                    ?>
+                                    
                                     <!-- Mode Web: Tampilkan Tombol Expand/Collapse -->
                                     <div x-data="{ open: false }" class="mt-1.5 no-print">
                                         <button @click="open = !open" type="button" class="text-[9px] bg-amber-100 text-amber-700 px-2 py-1 rounded shadow-sm border border-amber-200 hover:bg-amber-200 focus:outline-none transition-all flex items-center gap-1 w-max">
@@ -128,12 +135,7 @@
                                         </button>
                                         
                                         <div x-show="open" x-collapse x-cloak class="mt-2 space-y-1">
-                                            <?php 
-                                                $parts = explode(' | ', $k['detail']);
-                                                $rincian_string = isset($parts[1]) ? $parts[1] : $k['detail'];
-                                                $kelas_list = explode(' || ', $rincian_string);
-                                                
-                                                foreach($kelas_list as $kls):
+                                            <?php foreach($kelas_list as $kls):
                                                     $k_parts = explode(' => ', $kls);
                                                     $nama_kls = $k_parts[0] ?? '';
                                                     $detail_kls = $k_parts[1] ?? '';
@@ -146,10 +148,18 @@
                                         </div>
                                     </div>
 
-                                    <!-- Mode Cetak: Tampilkan Semua Teks Memanjang -->
-                                    <span class="hidden print:block text-[8px] font-normal text-slate-500 mt-1 lowercase italic leading-relaxed">
-                                        <?= htmlspecialchars(str_replace(' || ', ', ', $k['detail'])) ?>
-                                    </span>
+                                    <!-- Mode Cetak: Tampilkan Rincian Menurun ke Bawah (List) -->
+                                    <div class="hidden print:block text-[9px] font-normal text-slate-800 mt-2 lowercase italic">
+                                        <ul class="list-disc pl-4 space-y-1">
+                                            <?php foreach($kelas_list as $kls):
+                                                $k_parts = explode(' => ', $kls);
+                                                $nama_kls = $k_parts[0] ?? '';
+                                                $detail_kls = $k_parts[1] ?? '';
+                                            ?>
+                                                <li><strong class="uppercase font-bold text-slate-900"><?= htmlspecialchars($nama_kls) ?>:</strong> <?= htmlspecialchars($detail_kls) ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
                                 
                                 <?php else: ?>
                                     <!-- Transaksi Biasa -->
@@ -157,20 +167,20 @@
                                 <?php endif; ?>
                             </td>
 
-                            <td class="border border-slate-900 px-4 py-3 text-center font-bold">
+                            <td class="border border-slate-900 px-4 py-3 text-center font-bold align-top">
                                 <?php if($k['sumber_kas'] === 'kas_tutup_botol'): ?>
                                     <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[9px]">TUTUP BOTOL</span>
                                 <?php else: ?>
                                     <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[9px]">KAS BESAR</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="border border-slate-900 px-4 py-3 text-right text-emerald-600 font-bold">
+                            <td class="border border-slate-900 px-4 py-3 text-right text-emerald-600 font-bold align-top">
                                 <?= $k['debit'] > 0 ? number_format($k['debit'], 0, ',', '.') : '-' ?>
                             </td>
-                            <td class="border border-slate-900 px-4 py-3 text-right text-red-600 font-bold">
+                            <td class="border border-slate-900 px-4 py-3 text-right text-red-600 font-bold align-top">
                                 <?= $k['kredit'] > 0 ? number_format($k['kredit'], 0, ',', '.') : '-' ?>
                             </td>
-                            <td class="border border-slate-900 px-4 py-3 text-right font-black text-slate-900">
+                            <td class="border border-slate-900 px-4 py-3 text-right font-black text-slate-900 align-top">
                                 <?= number_format($saldo_v, 0, ',', '.') ?>
                             </td>
                         </tr>
