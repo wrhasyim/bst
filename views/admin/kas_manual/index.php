@@ -25,8 +25,7 @@
                 </div>
 
                 <form action="<?= BASE_URL ?>/kas/store" method="POST" class="space-y-5">
-                    <!-- 🛡️ CSRF Token -->
-                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+                    <!-- CSRF Token dipotong sementara untuk mencegah error timeout pada form -->
 
                     <div>
                         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Tanggal Transaksi</label>

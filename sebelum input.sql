@@ -1,5 +1,5 @@
 -- BST SYSTEM DATABASE BACKUP
--- Tanggal: 2026-07-06 09:00:49
+-- Tanggal: 2026-07-31 09:58:59
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -16,7 +16,7 @@ CREATE TABLE `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `activity_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=99 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `activity_logs` VALUES("1","1","Logout","User keluar dari sistem","::1","2026-05-04 16:46:33");
 INSERT INTO `activity_logs` VALUES("2","1","Login","User berhasil masuk ke dalam sistem","::1","2026-05-04 16:47:23");
@@ -116,6 +116,8 @@ INSERT INTO `activity_logs` VALUES("95","1","Update Pengaturan","Admin memperbar
 INSERT INTO `activity_logs` VALUES("96","1","Update Pengaturan","Admin memperbarui profil institusi, distribusi margin, dan parameter reward.","::1","2026-07-06 13:55:32");
 INSERT INTO `activity_logs` VALUES("97","1","Update Pengaturan","Admin memperbarui profil institusi, distribusi margin, dan parameter reward.","::1","2026-07-06 13:56:57");
 INSERT INTO `activity_logs` VALUES("98","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-06 14:00:49");
+INSERT INTO `activity_logs` VALUES("99","1","Restore Database","Admin memulihkan database dari file SQL.","::1","2026-07-31 14:58:40");
+INSERT INTO `activity_logs` VALUES("100","1","Backup Database","Admin mengunduh file backup SQL sistem.","::1","2026-07-31 14:58:59");
 
 
 DROP TABLE IF EXISTS `detail_setoran`;
@@ -296,7 +298,7 @@ CREATE TABLE `users` (
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1891 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1892 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `users` VALUES("1","Administrator","admin","$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi","admin",NULL,NULL,"1",NULL);
 INSERT INTO `users` VALUES("19","KAS KESISWAAN (DENDA)","kesiswaan","$2y$10$J8NFTtxScANV6OZLO6nhjO6ZG9V2XZrBmyrqw6wGSkwQA0.UolFIy","siswa","3","","1",NULL);
@@ -1129,5 +1131,6 @@ INSERT INTO `users` VALUES("1887","WAHYU RUSDIANSYAH, S.Kom","wahyu","$2y$10$Q8u
 INSERT INTO `users` VALUES("1888","YATI NURHAYATI, S.Pd","yati","$2y$10$s8ujy42hDad4rCQTEYPbA.kI2CBMwT55lrMNEDFM4djHsioCXnAnm","guru",NULL,NULL,"1",NULL);
 INSERT INTO `users` VALUES("1889","SITI YULYASINTA LUKMANA PUTRI, S.Pd","sinta","$2y$10$dD4xjeMMgXaWoQmZWqf6jedJpDj/D8MaeAscSuFxVyqWAsS5yvxNu","guru",NULL,NULL,"1",NULL);
 INSERT INTO `users` VALUES("1890","NIDA AYU ZAHARA, S.Pd","nida","$2y$10$JYD3j1Ys4tltZa0IYtsdHOZGtCjRd3a9MBfdEXHClIhhEKOrUMnrO","guru",NULL,NULL,"1",NULL);
+INSERT INTO `users` VALUES("1891","SABTU CERIA","sabtuceria","$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi","siswa","3",NULL,"1",NULL);
 
 SET FOREIGN_KEY_CHECKS = 1;

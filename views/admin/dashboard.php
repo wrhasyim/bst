@@ -97,6 +97,24 @@ $role = $_SESSION['role'] ?? '';
                         </div>
                     </div>
 
+                    <!-- Indikator Informasi Jadwal Triwulan di dalam Modal -->
+                    <?php 
+                        $bulan_ini = (int) date('n');
+                        $is_reward_month = in_array($bulan_ini, [3, 6, 9, 12]);
+                    ?>
+                    <div class="mt-4">
+                        <?php if($is_reward_month): ?>
+                            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[10px] font-bold text-emerald-800 text-center">
+                                ✅ Saat ini adalah bulan akhir Triwulan. Waktu yang tepat untuk distribusi reward!
+                            </div>
+                        <?php else: ?>
+                            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-800 text-center leading-relaxed">
+                                ⚠️ <span class="uppercase">Info Jadwal:</span> Reward idealnya dibagikan pada akhir Triwulan (<span class="underline">Maret, Juni, September, Desember</span>). <br>
+                                <span class="italic font-normal opacity-80">*Tombol tetap bisa ditekan untuk uji coba/testing.</span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
                     <div class="mt-8 flex gap-3">
                         <button type="button" onclick="tutupModalReward()" class="flex-1 px-4 py-4 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-colors">
                             Batal
@@ -335,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     label: 'Uang Keluar (Penarikan)',
                     data: dataPenarikan,
-                    backgroundColor: 'rgba(245, 158, 11, 0.8)', // Amber 500 (Cocok dengan tema web Anda)
+                    backgroundColor: 'rgba(245, 158, 11, 0.8)', // Amber 500
                     borderColor: 'rgb(245, 158, 11)',
                     borderWidth: 1,
                     borderRadius: 6,

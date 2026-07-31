@@ -157,7 +157,6 @@ class LaporanController {
             'persen_piket'     => $config['persen_honor_piket'] ?? 0
         ];
 
-        // 🛠️ PERBAIKAN HISTORI PENJUALAN KEUANGAN (GROUPING - TAMPILKAN KG SAJA + TUTUP BOTOL)
         $sqlHistRaw = "SELECT p.*, k.nama_sampah, k.satuan, k.konversi_kg FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id $wherePenjualan ORDER BY p.tanggal_jual DESC LIMIT 30";
         $stmtHistRaw = $this->db->prepare($sqlHistRaw);
         $stmtHistRaw->execute($params);
@@ -171,19 +170,17 @@ class LaporanController {
                     'tanggal' => $row['tanggal_jual'],
                     'rincian' => [],
                     'total_pendapatan' => 0,
-                    'total_kas_tutup_botol' => 0 // ✨ Menampung nilai tutup botol per transaksi
+                    'total_kas_tutup_botol' => 0 
                 ];
             }
             
-            // Konversi dari Pcs ke Kg
             $berat_kg = $row['total_pcs'] / ($row['konversi_kg'] ?: 1); 
             $history_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($berat_kg, 2) . " kg)";
             
             $history_grup[$group_key]['total_pendapatan'] += $row['total_pendapatan'];
-            $history_grup[$group_key]['total_kas_tutup_botol'] += $row['kas_tutup_botol_rp']; // ✨ Menjumlahkan tutup botol
+            $history_grup[$group_key]['total_kas_tutup_botol'] += $row['kas_tutup_botol_rp']; 
         }
         
-        // Ambil 10 grup terbaru
         $data['history'] = array_slice(array_values($history_grup), 0, 10);
         $data['start_date'] = $start_date;
         $data['end_date'] = $end_date;
@@ -205,7 +202,7 @@ class LaporanController {
         $start_dt = $data['start_date'] . ' 00:00:00';
         $end_dt = $data['end_date'] . ' 23:59:59';
 
-        // 🛠️ PERBAIKAN BUKU KAS (GROUPING PENJUALAN)
+        // 🛠️ PERBAIKAN: MEMASUKKAN REWARD PRESTASI KE DALAM TABEL BUKU KAS
         $sql = "
             SELECT waktu, uraian, detail, debit, kredit, sumber_kas FROM (
                 SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Pengepul' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(total_pendapatan) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
@@ -221,8 +218,12 @@ class LaporanController {
                 UNION ALL
                 SELECT MAX(p.tanggal_tarik) AS waktu, CONCAT('Penarikan Kolektif: ', k.nama_kelas) AS uraian, 'Mutasi Siswa' AS detail, 0 AS debit, SUM(p.jumlah) AS kredit, 'kas_besar' as sumber_kas
                 FROM penarikan p JOIN users u ON p.user_id = u.id JOIN kelas k ON u.kelas_id = k.id 
-                WHERE p.tanggal_tarik BETWEEN :p4a AND :p4b AND u.role = 'siswa'
+                WHERE p.tanggal_tarik BETWEEN :p4a AND :p4b AND u.role = 'siswa' AND p.keterangan NOT LIKE '%Sabtu Ceria%'
                 GROUP BY DATE(p.tanggal_tarik), k.id, k.nama_kelas
+                UNION ALL
+                SELECT p.tanggal_tarik AS waktu, 'Pembelian Tunai' AS uraian, p.keterangan AS detail, 0 AS debit, p.jumlah AS kredit, 'kas_besar' as sumber_kas
+                FROM penarikan p JOIN users u ON p.user_id = u.id 
+                WHERE p.tanggal_tarik BETWEEN :p8a AND :p8b AND p.keterangan LIKE '%Sabtu Ceria%'
                 UNION ALL
                 SELECT p.tanggal_tarik AS waktu, CONCAT('Penarikan Guru: ', u.nama) AS uraian, p.keterangan AS detail, 0 AS debit, p.jumlah AS kredit, 'kas_besar' as sumber_kas
                 FROM penarikan p JOIN users u ON p.user_id = u.id 
@@ -233,6 +234,10 @@ class LaporanController {
                 UNION ALL
                 SELECT CONCAT(tanggal, ' ', TIME(created_at)) AS waktu, 'Pengeluaran Kas' AS uraian, keterangan AS detail, 0 AS debit, nominal AS kredit, sumber_kas
                 FROM kas_manual WHERE jenis = 'pengeluaran' AND tanggal BETWEEN :p6a AND :p6b
+                UNION ALL
+                SELECT s.created_at AS waktu, 'Reward Prestasi' AS uraian, CONCAT('Bonus Nasabah: ', u.nama) AS detail, 0 AS debit, s.total_harga AS kredit, 'kas_besar' as sumber_kas
+                FROM setoran s JOIN users u ON s.user_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id
+                WHERE k.nama_sampah = '🌟 REWARD PRESTASI' AND s.created_at BETWEEN :p9a AND :p9b
             ) as mutasi ORDER BY waktu ASC";
 
         $stmt = $this->db->prepare($sql);
@@ -241,9 +246,11 @@ class LaporanController {
             'p2a'=>$start_dt, 'p2b'=>$end_dt, 
             'p3a'=>$start_dt, 'p3b'=>$end_dt, 
             'p4a'=>$start_dt, 'p4b'=>$end_dt, 
+            'p8a'=>$start_dt, 'p8b'=>$end_dt, 
             'p7a'=>$start_dt, 'p7b'=>$end_dt, 
             'p5a'=>$start_dt, 'p5b'=>$end_dt,
-            'p6a'=>$start_dt, 'p6b'=>$end_dt
+            'p6a'=>$start_dt, 'p6b'=>$end_dt,
+            'p9a'=>$start_dt, 'p9b'=>$end_dt
         ]);
         $data['buku_kas'] = $stmt->fetchAll();
 
@@ -421,7 +428,6 @@ class LaporanController {
         $output = fopen('php://output', 'w');
         fputcsv($output, ['Waktu', 'Uraian Transaksi', 'Detail/Keterangan', 'Sumber Kas', 'Debit (Masuk)', 'Kredit (Keluar)']);
 
-        // 🛠️ PERBAIKAN BUKU KAS EXCEL (GROUPING SAMA SEPERTI WEB)
         $sql = "
             SELECT waktu, uraian, detail, sumber_kas, debit, kredit FROM (
                 SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Pengepul' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(total_pendapatan) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
@@ -437,8 +443,12 @@ class LaporanController {
                 UNION ALL 
                 SELECT MAX(p.tanggal_tarik) AS waktu, CONCAT('Penarikan Kolektif: ', k.nama_kelas) AS uraian, 'Mutasi Siswa' AS detail, 0 AS debit, SUM(p.jumlah) AS kredit, 'kas_besar' as sumber_kas 
                 FROM penarikan p JOIN users u ON p.user_id = u.id JOIN kelas k ON u.kelas_id = k.id 
-                WHERE p.tanggal_tarik BETWEEN :p4a AND :p4b AND u.role = 'siswa' 
+                WHERE p.tanggal_tarik BETWEEN :p4a AND :p4b AND u.role = 'siswa' AND p.keterangan NOT LIKE '%Sabtu Ceria%'
                 GROUP BY DATE(p.tanggal_tarik), k.id, k.nama_kelas 
+                UNION ALL
+                SELECT p.tanggal_tarik AS waktu, 'Pembelian Tunai' AS uraian, p.keterangan AS detail, 0 AS debit, p.jumlah AS kredit, 'kas_besar' as sumber_kas
+                FROM penarikan p JOIN users u ON p.user_id = u.id 
+                WHERE p.tanggal_tarik BETWEEN :p8a AND :p8b AND p.keterangan LIKE '%Sabtu Ceria%'
                 UNION ALL 
                 SELECT p.tanggal_tarik AS waktu, CONCAT('Penarikan Guru: ', u.nama) AS uraian, p.keterangan AS detail, 0 AS debit, p.jumlah AS kredit, 'kas_besar' as sumber_kas
                 FROM penarikan p JOIN users u ON p.user_id = u.id 
@@ -449,6 +459,10 @@ class LaporanController {
                 UNION ALL 
                 SELECT CONCAT(tanggal, ' ', TIME(created_at)) AS waktu, 'Pengeluaran Kas' AS uraian, keterangan AS detail, 0 AS debit, nominal AS kredit, sumber_kas 
                 FROM kas_manual WHERE jenis = 'pengeluaran' AND tanggal BETWEEN :p6a AND :p6b
+                UNION ALL
+                SELECT s.created_at AS waktu, 'Reward Prestasi' AS uraian, CONCAT('Bonus Nasabah: ', u.nama) AS detail, 0 AS debit, s.total_harga AS kredit, 'kas_besar' as sumber_kas
+                FROM setoran s JOIN users u ON s.user_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id
+                WHERE k.nama_sampah = '🌟 REWARD PRESTASI' AND s.created_at BETWEEN :p9a AND :p9b
             ) as mutasi ORDER BY waktu ASC";
         
         $stmt = $this->db->prepare($sql);
@@ -457,9 +471,11 @@ class LaporanController {
             'p2a'=>$sd, 'p2b'=>$ed, 
             'p3a'=>$sd, 'p3b'=>$ed, 
             'p4a'=>$sd, 'p4b'=>$ed, 
+            'p8a'=>$sd, 'p8b'=>$ed, 
             'p7a'=>$sd, 'p7b'=>$ed,
             'p5a'=>$sd, 'p5b'=>$ed, 
-            'p6a'=>$sd, 'p6b'=>$ed
+            'p6a'=>$sd, 'p6b'=>$ed,
+            'p9a'=>$sd, 'p9b'=>$ed
         ]);
 
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {

@@ -21,14 +21,14 @@ class DashboardController {
     public function index() {
         $role = $_SESSION['role'];
         $user_id = $_SESSION['user_id'];
-        $data = []; // Array untuk menampung semua data metrik
+        $data = []; 
 
-        // ✨ FIX: Ambil Tanggal Mulai Reward dari Pengaturan (Fallback ke bulan lalu jika kosong)
         $data['tgl_mulai_reward'] = $this->db->query("SELECT nilai FROM pengaturan WHERE kunci = 'tanggal_mulai_reward'")->fetchColumn() ?: date('Y-m-01', strtotime('-2 months'));
         $start_reward_dt = $data['tgl_mulai_reward'] . ' 00:00:00';
 
         // =======================================================
-        // DATA LEADERBOARD: TOP 5 NASABAH (DINAMIS SEJAK TANGGAL REWARD)
+        // DATA LEADERBOARD: TOP 5 NASABAH 
+        // 🛠️ FIX: Pengecualian KESISWAAN dan SABTU CERIA
         // =======================================================
         $stmtLb = $this->db->prepare("
             SELECT u.id, u.nama, k.nama_kelas, SUM(s.berat) as total_pcs 
@@ -41,6 +41,7 @@ class DashboardController {
             AND u.is_active = 1 
             AND u.kelas_id IS NOT NULL 
             AND u.nama NOT LIKE '%KESISWAAN%'
+            AND u.nama NOT LIKE '%SABTU CERIA%'
             GROUP BY u.id 
             ORDER BY total_pcs DESC LIMIT 5
         ");
@@ -52,10 +53,11 @@ class DashboardController {
         // =======================================================
         if ($role === 'admin' || $role === 'staff') {
             $data['stok_gudang'] = $this->db->query("SELECT SUM(berat) FROM setoran WHERE status = 'valid' AND is_sold = 0")->fetchColumn() ?? 0;
-            // Menghitung Sisa Saldo Mengendap (Total Setoran - Total Penarikan)
-$total_setoran_global = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE status = 'valid'")->fetchColumn() ?? 0;
-$total_penarikan_global = $this->db->query("SELECT SUM(jumlah) FROM penarikan")->fetchColumn() ?? 0;
-$data['total_tabungan'] = $total_setoran_global - $total_penarikan_global;
+            
+            $total_setoran_global = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE status = 'valid'")->fetchColumn() ?? 0;
+            $total_penarikan_global = $this->db->query("SELECT SUM(jumlah) FROM penarikan")->fetchColumn() ?? 0;
+            $data['total_tabungan'] = $total_setoran_global - $total_penarikan_global;
+            
             $data['kas_masuk'] = $this->db->query("SELECT SUM(total_pendapatan) FROM penjualan")->fetchColumn() ?? 0;
             
             $data['keuntungan_bersih'] = $this->db->query("
@@ -63,34 +65,27 @@ $data['total_tabungan'] = $total_setoran_global - $total_penarikan_global;
                 IFNULL((SELECT SUM(total_harga) FROM setoran WHERE is_sold = 1 AND status = 'valid' AND kategori_id NOT IN (SELECT id FROM kategori_sampah WHERE nama_sampah = '🌟 REWARD PRESTASI')), 0)
             ")->fetchColumn() ?? 0;
             
-            // Mengecualikan Akun Kesiswaan dari hitungan Total Siswa
-            $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1 AND nama NOT LIKE '%KESISWAAN%'")->fetchColumn() ?? 0;
+            // 🛠️ FIX: Mengecualikan Akun Kesiswaan dan Sabtu Ceria dari hitungan Total Siswa
+            $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1 AND nama NOT LIKE '%KESISWAAN%' AND nama NOT LIKE '%SABTU CERIA%'")->fetchColumn() ?? 0;
             $data['jml_guru'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'guru' AND is_active = 1")->fetchColumn() ?? 0;
 
-            // FITUR CHART.JS DATA: Arus Kas (Uang Masuk vs Uang Keluar 6 Bulan Terakhir)
             $chart_labels = []; 
             $chart_setoran = []; 
             $chart_penarikan = [];
 
-            // Melakukan looping dari 5 bulan lalu hingga bulan ini (total 6 bulan)
             for ($i = 5; $i >= 0; $i--) {
-                // Format "Y-m" untuk kueri SQL (Contoh: 2026-07)
                 $bulan_sql = date('Y-m', strtotime("-$i months"));
-                // Format untuk label di layar (Contoh: Jul 2026)
                 $chart_labels[] = date('M Y', strtotime("-$i months"));
 
-                // Hitung Uang Masuk (Setoran) per bulan
                 $stmtMasuk = $this->db->prepare("SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE status = 'valid' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
                 $stmtMasuk->execute([$bulan_sql]);
                 $chart_setoran[] = (float) $stmtMasuk->fetchColumn();
 
-                // Hitung Uang Keluar (Penarikan) per bulan
                 $stmtKeluar = $this->db->prepare("SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE DATE_FORMAT(tanggal_tarik, '%Y-%m') = ?");
                 $stmtKeluar->execute([$bulan_sql]);
                 $chart_penarikan[] = (float) $stmtKeluar->fetchColumn();
             }
 
-            // Ubah array PHP menjadi string JSON
             $data['json_labels'] = json_encode($chart_labels);
             $data['json_setoran'] = json_encode($chart_setoran);
             $data['json_penarikan'] = json_encode($chart_penarikan);
@@ -127,12 +122,13 @@ $data['total_tabungan'] = $total_setoran_global - $total_penarikan_global;
             $data['ranking_siswa'] = [];
             if($data['is_walikelas_aktif']) {
                 $kid = $data['kelas_dikelola']['id'];
-                // ✨ FIX: Menyamakan keadilan Ranking Internal Kelas dengan Tanggal Mulai Reward
+                // 🛠️ FIX: Mengecualikan Akun Virtual dari Ranking Internal Kelas Wali
                 $stmtRank = $this->db->prepare("
                     SELECT u.nama, SUM(s.berat) as total_pcs 
                     FROM users u 
                     LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid' AND s.created_at >= :tgl_mulai
-                    WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 AND u.nama NOT LIKE '%KESISWAAN%'
+                    WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 
+                    AND u.nama NOT LIKE '%KESISWAAN%' AND u.nama NOT LIKE '%SABTU CERIA%'
                     GROUP BY u.id ORDER BY total_pcs DESC LIMIT 5
                 ");
                 $stmtRank->execute(['tgl_mulai' => $start_reward_dt, 'kid' => $kid]);
@@ -140,9 +136,6 @@ $data['total_tabungan'] = $total_setoran_global - $total_penarikan_global;
             }
         }
 
-        // =======================================================
-        // 3. RENDER TAMPILAN (SATU FILE UNTUK SEMUA)
-        // =======================================================
         $title = "Dashboard BST System";
         
         extract($data); 

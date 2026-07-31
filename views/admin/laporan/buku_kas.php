@@ -37,7 +37,6 @@
         </div>
 
         <?php 
-            // Kalkulasi Saldo Berjalan secara terpisah
             $saldo_berjalan_besar = $saldo_awal_besar ?? 0;
             $saldo_berjalan_tb = $saldo_awal_tutup_botol ?? 0;
             
@@ -109,17 +108,55 @@
                         <tr><td colspan="7" class="border border-slate-900 px-4 py-20 text-center text-slate-400 italic font-black uppercase tracking-widest">Tidak ada aktivitas transaksi pada periode ini.</td></tr>
                     <?php else: ?>
                         <?php foreach($buku_kas as $i => $k): 
-                            // Saldo gabungan berjalan
                             $saldo_v += $k['debit'];
                             $saldo_v -= $k['kredit'];
                         ?>
-                        <tr class="hover:bg-slate-50">
+                        <tr class="hover:bg-slate-50 relative group">
                             <td class="border border-slate-900 px-4 py-3 text-center"><?= $i+1 ?></td>
                             <td class="border border-slate-900 px-4 py-3 text-center"><?= date('d/m/Y H:i', strtotime($k['waktu'])) ?></td>
+                            
+                            <!-- 🛠️ KETERANGAN TRANSAKSI (DENGAN TOMBOL ALPINE.JS) -->
                             <td class="border border-slate-900 px-4 py-3 uppercase font-semibold">
                                 <?= htmlspecialchars($k['uraian']) ?>
-                                <span class="block text-[8px] font-normal text-slate-400 mt-0.5 lowercase italic"><?= htmlspecialchars($k['detail'] ?: '-') ?></span>
+                                
+                                <?php if(strpos($k['detail'], 'Sabtu Ceria') !== false): ?>
+                                    <!-- Mode Web: Tampilkan Tombol Expand/Collapse -->
+                                    <div x-data="{ open: false }" class="mt-1.5 no-print">
+                                        <button @click="open = !open" type="button" class="text-[9px] bg-amber-100 text-amber-700 px-2 py-1 rounded shadow-sm border border-amber-200 hover:bg-amber-200 focus:outline-none transition-all flex items-center gap-1 w-max">
+                                            <span x-text="open ? 'Tutup Rincian' : 'Lihat Rincian Kelas'"></span>
+                                            <span x-show="!open">🔽</span><span x-show="open" x-cloak>🔼</span>
+                                        </button>
+                                        
+                                        <div x-show="open" x-collapse x-cloak class="mt-2 space-y-1">
+                                            <?php 
+                                                $parts = explode(' | ', $k['detail']);
+                                                $rincian_string = isset($parts[1]) ? $parts[1] : $k['detail'];
+                                                $kelas_list = explode(' || ', $rincian_string);
+                                                
+                                                foreach($kelas_list as $kls):
+                                                    $k_parts = explode(' => ', $kls);
+                                                    $nama_kls = $k_parts[0] ?? '';
+                                                    $detail_kls = $k_parts[1] ?? '';
+                                            ?>
+                                                <div class="bg-white border border-slate-200 rounded p-1.5 flex flex-col text-[9px] lowercase">
+                                                    <span class="font-black text-slate-800 uppercase tracking-tight"><?= htmlspecialchars($nama_kls) ?></span>
+                                                    <span class="text-slate-500 italic mt-0.5"><?= htmlspecialchars($detail_kls) ?></span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+
+                                    <!-- Mode Cetak: Tampilkan Semua Teks Memanjang -->
+                                    <span class="hidden print:block text-[8px] font-normal text-slate-500 mt-1 lowercase italic leading-relaxed">
+                                        <?= htmlspecialchars(str_replace(' || ', ', ', $k['detail'])) ?>
+                                    </span>
+                                
+                                <?php else: ?>
+                                    <!-- Transaksi Biasa -->
+                                    <span class="block text-[8px] font-normal text-slate-400 mt-0.5 lowercase italic"><?= htmlspecialchars($k['detail'] ?: '-') ?></span>
+                                <?php endif; ?>
                             </td>
+
                             <td class="border border-slate-900 px-4 py-3 text-center font-bold">
                                 <?php if($k['sumber_kas'] === 'kas_tutup_botol'): ?>
                                     <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[9px]">TUTUP BOTOL</span>
@@ -136,7 +173,6 @@
                             <td class="border border-slate-900 px-4 py-3 text-right font-black text-slate-900">
                                 <?= number_format($saldo_v, 0, ',', '.') ?>
                             </td>
-                            
                         </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -178,14 +214,15 @@
     </div>
 </div>
 
+<!-- Diperlukan untuk animasi x-collapse Alpine.js -->
+<script src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+
 <style>
     @media print {
-        /* Sembunyikan elemen navigasi utama dari layout admin */
         aside, header, nav, footer, .no-print, [x-data] button { 
             display: none !important; 
         }
 
-        /* Reset paksa layout body agar full kertas */
         body, html {
             background-color: white !important;
             height: auto !important;
@@ -195,7 +232,6 @@
             color: black !important;
         }
 
-        /* Membebaskan kontainer utama */
         main, .flex-1, .flex.h-screen {
             padding: 0 !important;
             margin: 0 !important;
@@ -205,13 +241,11 @@
             overflow: visible !important;
         }
 
-        /* Pengaturan Kertas A4 */
         @page {
             size: A4 portrait;
             margin: 1.5cm;
         }
 
-        /* Garis tabel cetak */
         table, th, td {
             border: 1pt solid black !important;
             border-collapse: collapse !important;

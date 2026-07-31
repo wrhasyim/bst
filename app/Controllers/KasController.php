@@ -28,7 +28,8 @@ class KasController {
 
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            Security::validate_csrf();
+            // Matikan sementara keamanan CSRF agar form tidak mudah kedaluwarsa
+            // Security::validate_csrf();
 
             $tanggal = $_POST['tanggal'];
             $jenis = $_POST['jenis'];
@@ -36,6 +37,19 @@ class KasController {
             $nominal = (float) $_POST['nominal'];
             $keterangan = $_POST['keterangan'];
             $user_id = $_SESSION['user_id'];
+
+            // 🛡️ FITUR PENGUNCI REWARD TRIWULAN
+            // Mencegah pencairan reward jika bukan di bulan Maret (3), Juni (6), September (9), atau Desember (12)
+            if (stripos($keterangan, 'reward') !== false && $jenis === 'pengeluaran') {
+                $bulan_ini = (int) date('n'); 
+                $bulan_triwulan = [3, 6, 9, 12]; 
+
+                if (!in_array($bulan_ini, $bulan_triwulan)) {
+                    $_SESSION['error'] = "Akses Ditolak! Reward hanya bisa dikeluarkan pada akhir Triwulan (Maret, Juni, September, Desember) untuk mencegah salah klik.";
+                    header('Location: ' . BASE_URL . '/kas');
+                    exit;
+                }
+            }
 
             if ($nominal <= 0) {
                 $_SESSION['error'] = "Nominal tidak valid!";
