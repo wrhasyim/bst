@@ -3,6 +3,13 @@
 $role = $_SESSION['role'] ?? ''; 
 ?>
 <div class="max-w-7xl mx-auto space-y-6 pb-10">
+    <?php 
+    // Hitung jadwal reward: minimal tepat 3 bulan dari tanggal dimulainya perlombaan
+    $waktu_mulai = strtotime($tgl_mulai_reward);
+    $waktu_target = strtotime('+3 months', $waktu_mulai);
+    $is_waktu_reward = time() >= $waktu_target;
+    ?>
+    
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
             <h2 class="text-3xl font-black text-slate-800 tracking-tight italic uppercase">
@@ -55,9 +62,15 @@ $role = $_SESSION['role'] ?? '';
                             
                             <?php if($role === 'admin'): ?>
                             <div class="absolute -bottom-4 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 group-hover:translate-y-2 transition-all duration-300 z-[60]">
-                                <button onclick="bukaModalReward(<?= $lb['id'] ?>, '<?= htmlspecialchars($lb['nama']) ?>')" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black shadow-lg shadow-black/20 transform active:scale-95 whitespace-nowrap">
-                                    🎁 Beri Hadiah
-                                </button>
+                                <?php if($is_waktu_reward): ?>
+                                    <button onclick="bukaModalReward(<?= $lb['id'] ?>, '<?= htmlspecialchars($lb['nama']) ?>')" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black shadow-lg shadow-black/20 transform active:scale-95 whitespace-nowrap">
+                                        🎁 Beri Hadiah
+                                    </button>
+                                <?php else: ?>
+                                    <button disabled class="bg-slate-400 text-slate-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed whitespace-nowrap" title="Reward terbuka pada <?= date('d M Y', $waktu_target) ?>">
+                                        ⏳ Belum Waktunya
+                                    </button>
+                                <?php endif; ?>
                             </div>
                             <?php endif; ?>
                         </div>
@@ -98,19 +111,14 @@ $role = $_SESSION['role'] ?? '';
                     </div>
 
                     <!-- Indikator Informasi Jadwal Triwulan di dalam Modal -->
-                    <?php 
-                        $bulan_ini = (int) date('n');
-                        $is_reward_month = in_array($bulan_ini, [3, 6, 9, 12]);
-                    ?>
                     <div class="mt-4">
-                        <?php if($is_reward_month): ?>
+                        <?php if($is_waktu_reward): ?>
                             <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[10px] font-bold text-emerald-800 text-center">
-                                ✅ Saat ini adalah bulan akhir Triwulan. Waktu yang tepat untuk distribusi reward!
+                                ✅ Waktu perlombaan triwulan telah tercapai. Reward siap didistribusikan!
                             </div>
                         <?php else: ?>
-                            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-800 text-center leading-relaxed">
-                                ⚠️ <span class="uppercase">Info Jadwal:</span> Reward idealnya dibagikan pada akhir Triwulan (<span class="underline">Maret, Juni, September, Desember</span>). <br>
-                                <span class="italic font-normal opacity-80">*Tombol tetap bisa ditekan untuk uji coba/testing.</span>
+                            <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-[10px] font-bold text-rose-800 text-center leading-relaxed">
+                                ⚠️ <span class="uppercase">Belum Waktunya:</span> Reward baru bisa dibagikan minimal 3 bulan dari tanggal mulai, yaitu pada atau setelah <strong class="text-rose-900"><?= date('d M Y', $waktu_target) ?></strong>.
                             </div>
                         <?php endif; ?>
                     </div>
@@ -119,7 +127,7 @@ $role = $_SESSION['role'] ?? '';
                         <button type="button" onclick="tutupModalReward()" class="flex-1 px-4 py-4 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-colors">
                             Batal
                         </button>
-                        <button type="submit" class="flex-1 px-4 py-4 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-amber-200 hover:bg-amber-600 transition-colors">
+                        <button type="submit" <?= !$is_waktu_reward ? 'disabled' : '' ?> class="flex-1 px-4 py-4 <?= $is_waktu_reward ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200' : 'bg-slate-300 text-slate-500 cursor-not-allowed' ?> text-[10px] font-black uppercase tracking-widest rounded-2xl transition-colors">
                             🚀 Eksekusi
                         </button>
                     </div>
