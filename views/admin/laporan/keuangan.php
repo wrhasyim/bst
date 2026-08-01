@@ -88,7 +88,7 @@
             <div class="p-6 bg-amber-50 border border-amber-200 rounded-3xl flex justify-between items-center">
                 <div>
                     <h3 class="text-sm font-black text-amber-800 uppercase tracking-widest">Beban Tabungan Kelas (HPP)</h3>
-                    <p class="text-[10px] text-amber-600 mt-1 italic">Kewajiban bayar/hutang ke virtual akun Kas Kelas (Hasil Sabtu Ceria).</p>
+                    <p class="text-[10px] text-amber-600 mt-1 italic">HPP/Kewajiban dari virtual akun Kas Kelas & Pencairan Tunai Sabtu Ceria.</p>
                 </div>
                 <div class="text-right">
                     <p class="text-xl font-black text-amber-600">- Rp <?= number_format($laporan['beban_kas_kelas'] ?? 0, 0, ',', '.') ?></p>
