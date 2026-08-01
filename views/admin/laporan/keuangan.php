@@ -73,20 +73,32 @@
                 </div>
             </div>
 
+            <!-- 🌟 KOTAK 1: BEBAN INDIVIDU (PRIBADI) -->
             <div class="p-6 bg-red-50 border border-red-200 rounded-3xl flex justify-between items-center">
                 <div>
-                    <h3 class="text-sm font-black text-red-800 uppercase tracking-widest">Beban Tabungan Nasabah (HPP)</h3>
-                    <p class="text-[10px] text-red-600 mt-1 italic">Kewajiban bayar ke siswa/guru sesuai harga dasar (Harga Beli Bank Sampah).</p>
+                    <h3 class="text-sm font-black text-red-800 uppercase tracking-widest">Beban Tabungan Pribadi (HPP)</h3>
+                    <p class="text-[10px] text-red-600 mt-1 italic">Kewajiban bayar ke siswa/guru individu sesuai Harga Beli Dasar.</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-xl font-black text-red-600">- Rp <?= number_format($laporan['beban_nasabah'], 0, ',', '.') ?></p>
+                    <p class="text-xl font-black text-red-600">- Rp <?= number_format($laporan['beban_nasabah_individu'] ?? 0, 0, ',', '.') ?></p>
+                </div>
+            </div>
+
+            <!-- 🌟 KOTAK 2: BEBAN KAS KELAS (SABTU CERIA) -->
+            <div class="p-6 bg-amber-50 border border-amber-200 rounded-3xl flex justify-between items-center">
+                <div>
+                    <h3 class="text-sm font-black text-amber-800 uppercase tracking-widest">Beban Tabungan Kelas (HPP)</h3>
+                    <p class="text-[10px] text-amber-600 mt-1 italic">Kewajiban bayar/hutang ke virtual akun Kas Kelas (Hasil Sabtu Ceria).</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xl font-black text-amber-600">- Rp <?= number_format($laporan['beban_kas_kelas'] ?? 0, 0, ',', '.') ?></p>
                 </div>
             </div>
 
             <div class="p-6 bg-slate-900 rounded-3xl flex justify-between items-center shadow-lg">
                 <div>
                     <h3 class="text-sm font-black text-emerald-400 uppercase tracking-widest">Laba / Margin Bersih Operasional</h3>
-                    <p class="text-[10px] text-slate-400 mt-1 italic">Keuntungan murni (Pendapatan Kotor dikurangi Beban Nasabah) yang siap didistribusikan.</p>
+                    <p class="text-[10px] text-slate-400 mt-1 italic">Keuntungan murni (Pendapatan Kotor dikurangi Beban) yang siap didistribusikan.</p>
                 </div>
                 <div class="text-right">
                     <p class="text-3xl font-black text-white">Rp <?= number_format($laporan['margin_total'], 0, ',', '.') ?></p>
@@ -102,9 +114,14 @@
                     <td class="border border-black px-2 py-1.5 font-bold uppercase w-2/3">Pendapatan Kotor Penjualan (Gross Revenue)</td>
                     <td class="border border-black px-2 py-1.5 text-right">Rp <?= number_format($laporan['total_kotor'], 0, ',', '.') ?></td>
                 </tr>
+                <!-- 🌟 PEMISAHAN HPP SAAT DICETAK -->
                 <tr>
-                    <td class="border border-black px-2 py-1.5 font-bold uppercase text-gray-700 w-2/3">Dikurangi: Beban Hak Tabungan Nasabah (HPP)</td>
-                    <td class="border border-black px-2 py-1.5 text-right">(Rp <?= number_format($laporan['beban_nasabah'], 0, ',', '.') ?>)</td>
+                    <td class="border border-black px-2 py-1.5 font-bold uppercase text-gray-700 w-2/3">Dikurangi: Beban Hak Tabungan Pribadi</td>
+                    <td class="border border-black px-2 py-1.5 text-right">(Rp <?= number_format($laporan['beban_nasabah_individu'] ?? 0, 0, ',', '.') ?>)</td>
+                </tr>
+                <tr>
+                    <td class="border border-black px-2 py-1.5 font-bold uppercase text-gray-700 w-2/3">Dikurangi: Beban Hak Tabungan Kelas (Sabtu Ceria)</td>
+                    <td class="border border-black px-2 py-1.5 text-right">(Rp <?= number_format($laporan['beban_kas_kelas'] ?? 0, 0, ',', '.') ?>)</td>
                 </tr>
                 <tr class="bg-gray-100 font-black">
                     <td class="border border-black px-2 py-2 uppercase text-[11px]">LABA BERSIH OPERASIONAL (NET MARGIN)</td>

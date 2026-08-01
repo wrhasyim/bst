@@ -735,9 +735,9 @@ class SetoranController {
                                 ]);
                             }
                         } else {
-                            // LOGIKA MODE TUNAI
+                            // 🌟 FIX: Menambahkan keterangan Rupiah di Buku Kas untuk Transparansi
                             $teks_rincian = implode(', ', $rincian_teks);
-                            $rincian_semua_kelas[] = htmlspecialchars($nama_kelas) . " => " . $teks_rincian;
+                            $rincian_semua_kelas[] = htmlspecialchars($nama_kelas) . " (Rp " . number_format($subtotal_kelas_rp, 0, ',', '.') . ") => " . $teks_rincian;
                         }
                     }
                 }

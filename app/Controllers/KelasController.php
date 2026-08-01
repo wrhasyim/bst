@@ -116,15 +116,26 @@ class KelasController {
     }
 
     // =================================================================
-    // 4. HAPUS DATA KELAS (INTEGRITAS SINKRONISASI NASABAH)
+    // 4. HAPUS DATA KELAS (INTEGRITAS SINKRONISASI NASABAH & SALDO)
     // =================================================================
     public function delete() {
         $id = $_GET['id'] ?? null;
 
         if ($id) {
             try {
-                // 🛡️ DATA INTEGRITY CHECK: Cek apakah masih ada siswa aktif di kelas ini
-                $cekSiswa = $this->db->prepare("SELECT COUNT(*) FROM users WHERE kelas_id = ?");
+                // 1. Ambil nama kelas untuk pengecekan KAS KELAS
+                $stmtNama = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
+                $stmtNama->execute([$id]);
+                $nama_kelas = $stmtNama->fetchColumn();
+
+                if (!$nama_kelas) {
+                    $_SESSION['error'] = "Kelas tidak ditemukan.";
+                    header('Location: ' . BASE_URL . '/kelas');
+                    exit;
+                }
+
+                // 2. 🛡️ DATA INTEGRITY CHECK: Cek apakah masih ada siswa reguler aktif di kelas ini
+                $cekSiswa = $this->db->prepare("SELECT COUNT(*) FROM users WHERE kelas_id = ? AND nama NOT LIKE 'KAS KELAS - %'");
                 $cekSiswa->execute([$id]);
                 
                 if ($cekSiswa->fetchColumn() > 0) {
@@ -133,6 +144,30 @@ class KelasController {
                     exit;
                 }
 
+                // 3. 🌟 FIX POIN 16: PENCEGAHAN ORPHAN ACCOUNT PADA KAS KELAS
+                $nama_akun_virtual = "KAS KELAS - " . strtoupper($nama_kelas);
+                $stmtCariKas = $this->db->prepare("SELECT id FROM users WHERE nama = ? AND role = 'siswa'");
+                $stmtCariKas->execute([$nama_akun_virtual]);
+                $akun_kas = $stmtCariKas->fetch();
+
+                if ($akun_kas) {
+                    $uid_kas = $akun_kas['id'];
+                    $masuk_kas = (float) $this->db->query("SELECT IFNULL(SUM(total_harga),0) FROM setoran WHERE user_id = $uid_kas AND status = 'valid'")->fetchColumn();
+                    $keluar_kas = (float) $this->db->query("SELECT IFNULL(SUM(jumlah),0) FROM penarikan WHERE user_id = $uid_kas")->fetchColumn();
+                    $saldo_tersisa = $masuk_kas - $keluar_kas;
+
+                    if ($saldo_tersisa > 0) {
+                        $_SESSION['error'] = "Gagal! Kelas tidak bisa dihapus karena Tabungan $nama_akun_virtual masih memiliki saldo sebesar Rp " . number_format($saldo_tersisa, 0, ',', '.') . ". Harap cairkan saldo tersebut terlebih dahulu sebelum membubarkan kelas.";
+                        header('Location: ' . BASE_URL . '/kelas');
+                        exit;
+                    } else {
+                        // Jika saldo sudah nol, Hapus/Soft-delete akun KAS KELAS tersebut
+                        $stmtHapusKas = $this->db->prepare("DELETE FROM users WHERE id = ?");
+                        $stmtHapusKas->execute([$uid_kas]);
+                    }
+                }
+
+                // 4. Jika lolos semua validasi, eksekusi hapus kelas
                 $stmt = $this->db->prepare("DELETE FROM kelas WHERE id = ?");
                 $stmt->execute([$id]);
                 $_SESSION['success'] = "Kelas berhasil dihapus.";

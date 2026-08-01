@@ -306,6 +306,16 @@ $role = $_SESSION['role'] ?? '';
                 </div>
                 <?php endif; ?>
 
+                <!-- 🌟 TAMBAHAN FIX POIN 12: WIDGET KAS KELAS KHUSUS WALI KELAS -->
+                <?php if(isset($is_walikelas_aktif) && $is_walikelas_aktif): ?>
+                <div class="bg-gradient-to-br from-amber-400 to-orange-500 p-6 rounded-[2.5rem] text-white shadow-xl shadow-orange-200">
+                    <p class="text-[9px] font-black uppercase tracking-widest opacity-90 mb-1 drop-shadow-sm">Tabungan Kas Kelas</p>
+                    <h4 class="text-3xl font-black mb-1 drop-shadow-md">Rp <?= number_format($saldo_kas_kelas_walas ?? 0, 0, ',', '.') ?></h4>
+                    <p class="text-[9px] opacity-90 font-bold uppercase tracking-widest border-t border-white/20 pt-2 mt-3">Hasil Sabtu Ceria Kelas <?= htmlspecialchars($kelas_dikelola['nama_kelas'] ?? '') ?></p>
+                    <p class="text-[9px] italic opacity-75 mt-1">*Saldo diendapkan. Hubungi Kasir untuk pencairan/penggunaan kas.</p>
+                </div>
+                <?php endif; ?>
+
                 <div class="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
                     <h3 class="font-black text-slate-800 text-[10px] uppercase tracking-widest border-b pb-3 mb-4 italic">Setoran Terakhir Anda</h3>
                     <div class="space-y-3">

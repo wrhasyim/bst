@@ -22,20 +22,30 @@ class PenarikanController {
         $kelas_id = $_GET['kelas_id'] ?? null;
         $data['kelas_id'] = $kelas_id;
         
-        // 🛡️ FIX: Sembunyikan kelas Kesiswaan dari Dropdown
-        $data['all_kelas'] = $this->db->query("SELECT * FROM kelas WHERE nama_kelas NOT LIKE '%KESISWAAN%' ORDER BY nama_kelas ASC")->fetchAll();
+        // 🌟 FIX DROPDOWN: Hanya tampilkan kelas yang memiliki riwayat setoran
+        $sqlKelas = "SELECT k.* 
+                     FROM kelas k 
+                     WHERE k.nama_kelas NOT LIKE '%KESISWAAN%' 
+                     AND EXISTS (
+                         SELECT 1 FROM users u 
+                         JOIN setoran s ON s.user_id = u.id 
+                         WHERE u.kelas_id = k.id AND s.status = 'valid'
+                     )
+                     ORDER BY k.nama_kelas ASC";
+        $data['all_kelas'] = $this->db->query($sqlKelas)->fetchAll();
         
         $data['siswa_list'] = [];
         $data['total_saldo_kelas'] = 0; // Untuk summary kasir
 
         if ($kelas_id) {
-            // 🛡️ FIX: Isolasi ganda, pastikan nama user kesiswaan juga tidak ikut terhitung
+            // 🌟 FIX LIST SISWA: Hanya tampilkan siswa yang memiliki saldo > 0
             // 🌟 FIX ORDER BY: Memisahkan KAS KELAS agar selalu berada di urutan paling ATAS
             $sql = "SELECT u.id, u.nama, u.username,
                     (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
                     (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_tersedia
                     FROM users u 
                     WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 AND u.nama NOT LIKE '%KESISWAAN%'
+                    HAVING saldo_tersedia > 0
                     ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC";
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['kid' => $kelas_id]);
@@ -127,9 +137,9 @@ class PenarikanController {
                     $nama_kelas = $stmtK->fetchColumn();
 
                     // 🛡️ Catat aktivitas pengeluaran uang ke Audit Trail
-                    Logger::log("Penarikan Saldo", "Kasir mencairkan total dana kelas $nama_kelas sebesar Rp" . number_format($total_keluar, 0, ',', '.') . " untuk $count siswa.");
+                    Logger::log("Penarikan Saldo", "Kasir mencairkan total dana kelas $nama_kelas sebesar Rp" . number_format($total_keluar, 0, ',', '.') . " untuk $count siswa/akun.");
 
-                    $_SESSION['success'] = "Selesai! Berhasil mencairkan saldo untuk $count siswa. Uang yang harus diserahkan ke Wali Kelas: Rp" . number_format($total_keluar, 0, ',', '.');
+                    $_SESSION['success'] = "Selesai! Berhasil mencairkan saldo untuk $count siswa/akun. Uang yang harus diserahkan: Rp" . number_format($total_keluar, 0, ',', '.');
                 } else {
                     $this->db->rollBack();
                     $_SESSION['error'] = "Gagal! Tidak ada nominal penarikan yang dimasukkan atau nominal tidak valid.";

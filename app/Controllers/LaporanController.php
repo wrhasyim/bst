@@ -81,13 +81,28 @@ class LaporanController {
         $data_snap = $stmtSnap->fetch();
 
         $total_kotor     = (float)($data_snap['total_kotor'] ?? 0);
-        $beban_nasabah   = (float)($data_snap['beban_nasabah'] ?? 0);
+        $beban_nasabah_kotor = (float)($data_snap['beban_nasabah'] ?? 0);
         $margin_total    = (float)($data_snap['margin_total'] ?? 0);
         $kas_sekolah     = (float)($data_snap['kas_sekolah'] ?? 0);
         $honor_pengelola = (float)($data_snap['honor_pengelola'] ?? 0);
         $honor_piket     = (float)($data_snap['honor_piket'] ?? 0);
         $kas_bst         = (float)($data_snap['kas_bst'] ?? 0);
         
+        // 🌟 FIX POIN 11 (REVISI): Menangkap "KAS KELAS" (Tabung) dan "SABTU CERIA" (Tunai) ke dalam satu keranjang HPP Kelas
+        $sqlKasKelas = "SELECT SUM(s.total_harga) 
+                        FROM setoran s 
+                        JOIN users u ON s.user_id = u.id 
+                        WHERE (u.nama LIKE 'KAS KELAS - %' OR u.nama LIKE '%SABTU CERIA%') AND s.is_sold = 1 AND s.status = 'valid'";
+        if (!empty($start_date) && !empty($end_date)) {
+            $sqlKasKelas .= " AND s.created_at BETWEEN :start AND :end";
+            $stmtKK = $this->db->prepare($sqlKasKelas);
+            $stmtKK->execute($params);
+        } else {
+            $stmtKK = $this->db->query($sqlKasKelas);
+        }
+        $beban_kas_kelas = (float)($stmtKK->fetchColumn() ?? 0);
+        $beban_nasabah_individu = $beban_nasabah_kotor - $beban_kas_kelas;
+
         $tutup_botol_in_auto = (float)($data_snap['total_tutup_botol_in_auto'] ?? 0);
         $stmtTbInMan = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasTbInMan");
         $stmtTbInMan->execute($params);
@@ -130,31 +145,33 @@ class LaporanController {
         $sisa_tutup_botol = $tutup_botol_in - $tutup_botol_out;
 
         $data['laporan'] = [
-            'total_kotor'      => $total_kotor,
-            'beban_nasabah'    => $beban_nasabah,
-            'margin_total'     => $margin_total,
-            'beban_reward'     => $beban_reward, 
-            'kas_bst'          => $kas_bst,
-            'kas_sekolah'      => $kas_sekolah,
-            'honor_pengelola'  => $honor_pengelola,
-            'honor_walikelas'  => $honor_walikelas,
-            'honor_piket'      => $honor_piket,
-            'cair_pengelola'   => $cair_pengelola,
-            'sisa_pengelola'   => $sisa_pengelola,
-            'cair_wali'        => $cair_wali,
-            'sisa_wali'        => $sisa_wali,
-            'cair_sekolah'     => $cair_sekolah,
-            'sisa_sekolah'     => $sisa_sekolah,
-            'cair_piket'       => $cair_piket,
-            'sisa_piket'       => $sisa_piket,
-            'tutup_botol_in'   => $tutup_botol_in,
-            'tutup_botol_out'  => $tutup_botol_out,
-            'sisa_tutup_botol' => $sisa_tutup_botol,
-            'persen_bst'       => $config['persen_kas_bst'] ?? 0,
-            'persen_sekolah'   => $config['persen_kas_sekolah'] ?? 0,
-            'persen_pengelola' => $config['persen_honor_pengelola'] ?? 0,
-            'persen_wali'      => $config['persen_honor_walikelas'] ?? 0,
-            'persen_piket'     => $config['persen_honor_piket'] ?? 0
+            'total_kotor'            => $total_kotor,
+            'beban_nasabah_kotor'    => $beban_nasabah_kotor, // Total gabungan
+            'beban_nasabah_individu' => $beban_nasabah_individu, // Hutang ke Siswa
+            'beban_kas_kelas'        => $beban_kas_kelas, // Hutang ke Kas Kelas
+            'margin_total'           => $margin_total,
+            'beban_reward'           => $beban_reward, 
+            'kas_bst'                => $kas_bst,
+            'kas_sekolah'            => $kas_sekolah,
+            'honor_pengelola'        => $honor_pengelola,
+            'honor_walikelas'        => $honor_walikelas,
+            'honor_piket'            => $honor_piket,
+            'cair_pengelola'         => $cair_pengelola,
+            'sisa_pengelola'         => $sisa_pengelola,
+            'cair_wali'              => $cair_wali,
+            'sisa_wali'              => $sisa_wali,
+            'cair_sekolah'           => $cair_sekolah,
+            'sisa_sekolah'           => $sisa_sekolah,
+            'cair_piket'             => $cair_piket,
+            'sisa_piket'             => $sisa_piket,
+            'tutup_botol_in'         => $tutup_botol_in,
+            'tutup_botol_out'        => $tutup_botol_out,
+            'sisa_tutup_botol'       => $sisa_tutup_botol,
+            'persen_bst'             => $config['persen_kas_bst'] ?? 0,
+            'persen_sekolah'         => $config['persen_kas_sekolah'] ?? 0,
+            'persen_pengelola'       => $config['persen_honor_pengelola'] ?? 0,
+            'persen_wali'            => $config['persen_honor_walikelas'] ?? 0,
+            'persen_piket'           => $config['persen_honor_piket'] ?? 0
         ];
 
         $sqlHistRaw = "SELECT p.*, k.nama_sampah, k.satuan, k.konversi_kg FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id $wherePenjualan ORDER BY p.tanggal_jual DESC LIMIT 30";
@@ -293,7 +310,6 @@ class LaporanController {
             $stmtKelas = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = :id"); 
             $stmtKelas->execute(['id' => $data['kelas_id']]); 
             $data['nama_kelas_aktif'] = $stmtKelas->fetchColumn(); 
-            // 🌟 FIX ORDER BY: Memisahkan KAS KELAS ke paling atas
             $sql = "SELECT u.nama, IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, IFNULL(SUM(s.total_harga), 0) as total_rp FROM users u LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid' LEFT JOIN kategori_sampah ks ON s.kategori_id = ks.id WHERE u.kelas_id = :kid AND u.role = 'siswa' GROUP BY u.id, u.nama ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC"; 
             $stmt = $this->db->prepare($sql); 
             $stmt->execute(['kid' => $data['kelas_id']]); 
@@ -310,7 +326,6 @@ class LaporanController {
         $data['user_id'] = $_GET['user_id'] ?? null; 
         $data['kelas_id'] = $_GET['kelas_id'] ?? null; 
         
-        // 🌟 FIX ORDER BY: Dropdown siswa agar KAS KELAS di atas
         $sqlSiswa = "SELECT u.id, u.nama, k.nama_kelas 
                      FROM users u 
                      LEFT JOIN kelas k ON u.kelas_id = k.id 
@@ -362,7 +377,6 @@ class LaporanController {
             $stmtKelas->execute([$data['kelas_id']]); 
             $data['detail_kelas'] = $stmtKelas->fetch(); 
             
-            // 🌟 FIX ORDER BY: Tabel riwayat agar KAS KELAS di atas
             $sqlRekap = "SELECT u.id, u.nama, (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') AS total_masuk, (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) AS total_keluar FROM users u WHERE u.kelas_id = ? AND u.role = 'siswa' AND u.nama NOT LIKE '%KESISWAAN%' ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC"; 
             $stmtRekap = $this->db->prepare($sqlRekap); 
             $stmtRekap->execute([$data['kelas_id']]); 
@@ -428,7 +442,6 @@ class LaporanController {
         $output = fopen('php://output', 'w'); 
         fputcsv($output, ['No', 'Nama Nasabah', 'Total Sampah (Pcs)', 'Total Tabungan (Rp)']); 
         
-        // 🌟 FIX ORDER BY: Export CSV agar KAS KELAS di atas
         $sql = "SELECT u.nama, IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, IFNULL(SUM(s.total_harga), 0) as total_rp FROM users u LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid' LEFT JOIN kategori_sampah ks ON s.kategori_id = ks.id WHERE u.kelas_id = :kid AND u.role = 'siswa' GROUP BY u.id, u.nama ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC"; 
         
         $stmt = $this->db->prepare($sql); 
