@@ -34,7 +34,7 @@ class SetoranController {
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         $offset = ($page > 1) ? ($page * $limit) - $limit : 0;
 
-        $total_data = $this->db->query("SELECT COUNT(*) FROM setoran s JOIN users u ON s.user_id = u.id WHERE u.role = 'siswa' AND s.status = 'valid'")->fetchColumn();
+        $total_data = $this->db->query("SELECT COUNT(*) FROM setoran s JOIN users u ON s.user_id = u.id WHERE u.role = 'siswa' AND u.nama NOT LIKE 'KAS KELAS - %' AND s.status = 'valid'")->fetchColumn();
         $total_pages = ceil($total_data / $limit);
 
         $sql = "SELECT s.*, u.nama, k.nama_sampah, k.satuan, kl.nama_kelas
@@ -42,7 +42,7 @@ class SetoranController {
                 JOIN users u ON s.user_id = u.id
                 JOIN kategori_sampah k ON s.kategori_id = k.id
                 LEFT JOIN kelas kl ON u.kelas_id = kl.id
-                WHERE u.role = 'siswa' AND s.status = 'valid'
+                WHERE u.role = 'siswa' AND u.nama NOT LIKE 'KAS KELAS - %' AND s.status = 'valid'
                 ORDER BY s.created_at DESC
                 LIMIT :limit OFFSET :offset";
         
@@ -74,7 +74,7 @@ class SetoranController {
         
         $kelas_id = $_GET['kelas_id'] ?? null;
         $data['kelas_id'] = $kelas_id;
-        $data['siswa_list'] = $kelas_id ? $this->db->query("SELECT id, nama FROM users WHERE kelas_id = $kelas_id AND role = 'siswa' AND is_active = 1 AND deleted_at IS NULL ORDER BY nama ASC")->fetchAll() : [];
+        $data['siswa_list'] = $kelas_id ? $this->db->query("SELECT id, nama FROM users WHERE kelas_id = $kelas_id AND role = 'siswa' AND is_active = 1 AND deleted_at IS NULL AND nama NOT LIKE 'KAS KELAS - %' AND nama NOT LIKE '%KESISWAAN%' AND nama NOT LIKE '%SABTU CERIA%' ORDER BY nama ASC")->fetchAll() : [];
         
         extract($data);
         $title = "Setoran Per Kelas (Pcs)";
@@ -142,7 +142,7 @@ class SetoranController {
         $stmtKelas->execute([$kelas_id]);
         $nama_kelas = $stmtKelas->fetchColumn();
         
-        $siswa_list = $this->db->query("SELECT id, nama FROM users WHERE kelas_id = $kelas_id AND role = 'siswa' AND is_active = 1 AND deleted_at IS NULL ORDER BY nama ASC")->fetchAll();
+        $siswa_list = $this->db->query("SELECT id, nama FROM users WHERE kelas_id = $kelas_id AND role = 'siswa' AND is_active = 1 AND deleted_at IS NULL AND nama NOT LIKE 'KAS KELAS - %' AND nama NOT LIKE '%KESISWAAN%' AND nama NOT LIKE '%SABTU CERIA%' ORDER BY nama ASC")->fetchAll();
         $all_sampah = $this->db->query("SELECT * FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI' ORDER BY id ASC")->fetchAll();
 
         $filename = "Template_Import_" . str_replace(' ', '_', $nama_kelas) . ".csv";
@@ -510,7 +510,6 @@ class SetoranController {
         Security::requireRole(['admin']);
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            // 🛠️ FIX: MATIKAN SEMENTARA VALIDASI CSRF UNTUK TOMBOL REWARD
             // Security::validate_csrf(); 
 
             $user_id = $_POST['user_id'];
@@ -612,7 +611,7 @@ class SetoranController {
     }
 
     // =================================================================
-    // 7. FITUR KHUSUS: SABTU CERIA (BELI PUTUS KOLEKTIF & MULTI-KATEGORI)
+    // 7. FITUR KHUSUS: SABTU CERIA (BELI PUTUS & TABUNGAN KAS KELAS)
     // =================================================================
     public function sabtu_ceria() {
         $data = [];
@@ -638,7 +637,7 @@ class SetoranController {
         }
 
         extract($data);
-        $title = "Pembelian Tunai Kolektif (Sabtu Ceria)";
+        $title = "Sabtu Ceria (Input Kolektif Kelas)";
         $content = __DIR__ . '/../../views/admin/setoran/sabtu_ceria.php';
         require_once __DIR__ . '/../../views/layouts/admin.php';
     }
@@ -646,9 +645,12 @@ class SetoranController {
     public function store_sabtu_ceria() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Security::validate_csrf(); 
-
-            $user_id = $_POST['user_id'];
+            
+            $opsi_pencairan = $_POST['opsi_pencairan'] ?? 'tunai'; 
+            $user_id_admin = $_POST['user_id']; 
+            
             $berat_kg_array = $_POST['berat_kg'] ?? []; 
+            $nama_kelas_array = $_POST['nama_kelas'] ?? [];
 
             $stmtKat = $this->db->query("SELECT id, nama_sampah, harga_dasar, harga_pengepul, konversi_kg FROM kategori_sampah WHERE nama_sampah != '🌟 REWARD PRESTASI'");
             $kategori_map = [];
@@ -663,9 +665,11 @@ class SetoranController {
             try {
                 $this->db->beginTransaction();
 
-                foreach ($berat_kg_array as $nama_kelas => $input_kategori) {
+                foreach ($berat_kg_array as $kelas_id => $input_kategori) {
+                    $nama_kelas = $nama_kelas_array[$kelas_id] ?? 'Kelas Unknown';
                     $rincian_teks = [];
                     $subtotal_kelas_rp = 0;
+                    $rekap_per_kelas = []; 
 
                     foreach ($input_kategori as $kat_id => $kg) {
                         $kg = (float)$kg;
@@ -675,25 +679,66 @@ class SetoranController {
                             
                             $pcs = round($kg * $konversi);
                             $rp = $pcs * (float)$kat['harga_dasar'];
+                            $rp_pengepul = ($kg * (float)$kat['harga_pengepul']);
                             
                             $subtotal_kelas_rp += $rp;
-                            // 💡 PERUBAHAN: Menambahkan nominal rupiah di rincian per item
-                            $rincian_teks[] = "{$kat['nama_sampah']} ({$kg} Kg = Rp " . number_format($rp, 0, ',', '.') . ")";
+                            $rincian_teks[] = "{$kat['nama_sampah']} ({$kg} Kg)";
 
+                            // Kumpulan data untuk mode TUNAI
                             if (!isset($rekap_setoran_kategori[$kat_id])) {
                                 $rekap_setoran_kategori[$kat_id] = ['pcs' => 0, 'rp' => 0, 'rp_pengepul' => 0];
                             }
                             $rekap_setoran_kategori[$kat_id]['pcs'] += $pcs;
                             $rekap_setoran_kategori[$kat_id]['rp'] += $rp;
-                            $rekap_setoran_kategori[$kat_id]['rp_pengepul'] += ($kg * (float)$kat['harga_pengepul']);
+                            $rekap_setoran_kategori[$kat_id]['rp_pengepul'] += $rp_pengepul;
+
+                            // Kumpulan data untuk mode TABUNG
+                            $rekap_per_kelas[] = [
+                                'kategori_id' => $kat_id,
+                                'pcs' => $pcs,
+                                'rp' => $rp,
+                                'rp_pengepul' => $rp_pengepul
+                            ];
                         }
                     }
 
                     if ($subtotal_kelas_rp > 0) {
-                        $teks_rincian = implode(', ', $rincian_teks);
-                        // 💡 PERUBAHAN: Menambahkan subtotal ke rincian per kelas
-                        $rincian_semua_kelas[] = htmlspecialchars($nama_kelas) . " => " . $teks_rincian . " [Total: Rp " . number_format($subtotal_kelas_rp, 0, ',', '.') . "]";
                         $total_seluruh_rp += $subtotal_kelas_rp;
+                        
+                        // 🌟 LOGIKA MODE TABUNG (AKUN VIRTUAL KELAS)
+                        if ($opsi_pencairan === 'tabung') {
+                            $nama_akun_virtual = "KAS KELAS - " . strtoupper($nama_kelas);
+                            
+                            // 1. Cari Akun Virtual (Jika tidak ada, sistem buat otomatis)
+                            $stmtCari = $this->db->prepare("SELECT id FROM users WHERE nama = ? AND role = 'siswa'");
+                            $stmtCari->execute([$nama_akun_virtual]);
+                            $akun_kelas = $stmtCari->fetch();
+                            
+                            if (!$akun_kelas) {
+                                $username_virtual = strtolower(str_replace(' ', '', $nama_akun_virtual)) . rand(100,999);
+                                $pass_hash = password_hash('123456', PASSWORD_DEFAULT);
+                                // FIX: Menghapus created_at dari query insert users
+                                $sqlBuat = "INSERT INTO users (nama, username, password, role, kelas_id, is_active) VALUES (?, ?, ?, 'siswa', ?, 1)";
+                                $this->db->prepare($sqlBuat)->execute([$nama_akun_virtual, $username_virtual, $pass_hash, $kelas_id]);
+                                $virtual_user_id = $this->db->lastInsertId();
+                            } else {
+                                $virtual_user_id = $akun_kelas['id'];
+                            }
+                            
+                            // 2. Suntikkan Saldo & Botol ke Akun Virtual tersebut (Tanpa memotong Kas Besar)
+                            // Walikelas_id diset NULL agar Walas tidak mendapat potongan honor dari tabungan kelas
+                            foreach ($rekap_per_kelas as $rpk) {
+                                $sqlSetoran = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
+                                        VALUES (?, NULL, ?, ?, ?, ?, 'valid', 0)";
+                                $this->db->prepare($sqlSetoran)->execute([
+                                    $virtual_user_id, $rpk['kategori_id'], $rpk['pcs'], $rpk['rp'], $rpk['rp_pengepul']
+                                ]);
+                            }
+                        } else {
+                            // LOGIKA MODE TUNAI
+                            $teks_rincian = implode(', ', $rincian_teks);
+                            $rincian_semua_kelas[] = htmlspecialchars($nama_kelas) . " => " . $teks_rincian;
+                        }
                     }
                 }
 
@@ -704,21 +749,26 @@ class SetoranController {
                     exit;
                 }
 
-                // Kita gunakan delimiter " || " agar mudah dipecah (explode) di View buku kas nanti
-                $ket_tarik = "Sabtu Ceria | " . implode(' || ', $rincian_semua_kelas);
-                $sqlTarik = "INSERT INTO penarikan (user_id, jumlah, keterangan, tanggal_tarik) VALUES (?, ?, ?, NOW())";
-                $this->db->prepare($sqlTarik)->execute([$user_id, $total_seluruh_rp, $ket_tarik]);
+                if ($opsi_pencairan === 'tunai') {
+                    // MODE TUNAI: Tarik Uang dari Kas Besar & Rekam Stok ke Akun SABTU CERIA
+                    $ket_tarik = "Sabtu Ceria | " . implode(' || ', $rincian_semua_kelas);
+                    $sqlTarik = "INSERT INTO penarikan (user_id, jumlah, keterangan, tanggal_tarik) VALUES (?, ?, ?, NOW())";
+                    $this->db->prepare($sqlTarik)->execute([$user_id_admin, $total_seluruh_rp, $ket_tarik]);
 
-                foreach ($rekap_setoran_kategori as $kat_id => $data) {
-                    $sqlSetoran = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
-                            VALUES (?, NULL, ?, ?, ?, ?, 'valid', 0)";
-                    $this->db->prepare($sqlSetoran)->execute([
-                        $user_id, $kat_id, $data['pcs'], $data['rp'], $data['rp_pengepul']
-                    ]);
+                    foreach ($rekap_setoran_kategori as $kat_id => $data) {
+                        $sqlSetoran = "INSERT INTO setoran (user_id, walikelas_id, kategori_id, berat, total_harga, total_pengepul, status, is_sold) 
+                                VALUES (?, NULL, ?, ?, ?, ?, 'valid', 0)";
+                        $this->db->prepare($sqlSetoran)->execute([
+                            $user_id_admin, $kat_id, $data['pcs'], $data['rp'], $data['rp_pengepul']
+                        ]);
+                    }
+                    $pesan_sukses = "Berhasil mencatat Pencairan Tunai Sabtu Ceria sebesar Rp " . number_format($total_seluruh_rp,0,',','.');
+                } else {
+                    $pesan_sukses = "Sukses! Uang sebesar Rp " . number_format($total_seluruh_rp,0,',','.') . " berhasil diendapkan ke dalam Tabungan Kas Kelas masing-masing. Saldo Buku Kas Anda tetap utuh.";
                 }
 
                 $this->db->commit();
-                $_SESSION['success'] = "Berhasil mencatat Beli Putus Multi-Kategori Sabtu Ceria sebesar Rp " . number_format($total_seluruh_rp,0,',','.');
+                $_SESSION['success'] = $pesan_sukses;
 
             } catch (Exception $e) {
                 $this->db->rollBack();

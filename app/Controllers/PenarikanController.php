@@ -30,12 +30,13 @@ class PenarikanController {
 
         if ($kelas_id) {
             // 🛡️ FIX: Isolasi ganda, pastikan nama user kesiswaan juga tidak ikut terhitung
+            // 🌟 FIX ORDER BY: Memisahkan KAS KELAS agar selalu berada di urutan paling ATAS
             $sql = "SELECT u.id, u.nama, u.username,
                     (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
                     (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_tersedia
                     FROM users u 
                     WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 AND u.nama NOT LIKE '%KESISWAAN%'
-                    ORDER BY u.nama ASC";
+                    ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC";
             $stmt = $this->db->prepare($sql);
             $stmt->execute(['kid' => $kelas_id]);
             $data['siswa_list'] = $stmt->fetchAll();

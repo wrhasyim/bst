@@ -202,7 +202,6 @@ class LaporanController {
         $start_dt = $data['start_date'] . ' 00:00:00';
         $end_dt = $data['end_date'] . ' 23:59:59';
 
-        // 🛠️ PERBAIKAN: Menghapus UNION ALL untuk Reward Prestasi agar tidak dobel pencatatan kas keluar
         $sql = "
             SELECT waktu, uraian, detail, debit, kredit, sumber_kas FROM (
                 SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Pengepul' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(total_pendapatan) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
@@ -249,7 +248,6 @@ class LaporanController {
         ]);
         $data['buku_kas'] = $stmt->fetchAll();
 
-        // 🛠️ PERBAIKAN: Menghapus potongan saldo awal dari Reward Prestasi
         $sqlSaldoAwal = "
             SELECT 
                 (SELECT IFNULL(SUM(total_pendapatan), 0) FROM penjualan WHERE tanggal_jual < :s1) 
@@ -291,7 +289,16 @@ class LaporanController {
 
     public function setoran() {
         $data = []; $data['kelas_id'] = $_GET['kelas_id'] ?? null; $data['kelas_list'] = $this->db->query("SELECT * FROM kelas ORDER BY nama_kelas ASC")->fetchAll(); $data['data_rekap'] = []; $data['nama_kelas_aktif'] = "";
-        if ($data['kelas_id']) { $stmtKelas = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = :id"); $stmtKelas->execute(['id' => $data['kelas_id']]); $data['nama_kelas_aktif'] = $stmtKelas->fetchColumn(); $sql = "SELECT u.nama, IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, IFNULL(SUM(s.total_harga), 0) as total_rp FROM users u LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid' LEFT JOIN kategori_sampah ks ON s.kategori_id = ks.id WHERE u.kelas_id = :kid AND u.role = 'siswa' GROUP BY u.id, u.nama ORDER BY u.nama ASC"; $stmt = $this->db->prepare($sql); $stmt->execute(['kid' => $data['kelas_id']]); $data['data_rekap'] = $stmt->fetchAll(); }
+        if ($data['kelas_id']) { 
+            $stmtKelas = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = :id"); 
+            $stmtKelas->execute(['id' => $data['kelas_id']]); 
+            $data['nama_kelas_aktif'] = $stmtKelas->fetchColumn(); 
+            // 🌟 FIX ORDER BY: Memisahkan KAS KELAS ke paling atas
+            $sql = "SELECT u.nama, IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, IFNULL(SUM(s.total_harga), 0) as total_rp FROM users u LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid' LEFT JOIN kategori_sampah ks ON s.kategori_id = ks.id WHERE u.kelas_id = :kid AND u.role = 'siswa' GROUP BY u.id, u.nama ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC"; 
+            $stmt = $this->db->prepare($sql); 
+            $stmt->execute(['kid' => $data['kelas_id']]); 
+            $data['data_rekap'] = $stmt->fetchAll(); 
+        }
         extract($data); $title = "Rekap Tabungan Per Kelas"; $content = __DIR__ . '/../../views/admin/laporan/setoran.php'; require_once __DIR__ . '/../../views/layouts/admin.php';
     }
 
@@ -303,12 +310,13 @@ class LaporanController {
         $data['user_id'] = $_GET['user_id'] ?? null; 
         $data['kelas_id'] = $_GET['kelas_id'] ?? null; 
         
+        // 🌟 FIX ORDER BY: Dropdown siswa agar KAS KELAS di atas
         $sqlSiswa = "SELECT u.id, u.nama, k.nama_kelas 
                      FROM users u 
                      LEFT JOIN kelas k ON u.kelas_id = k.id 
                      WHERE u.role = 'siswa' AND u.nama NOT LIKE '%KESISWAAN%' AND u.deleted_at IS NULL 
                      AND EXISTS (SELECT 1 FROM setoran s WHERE s.user_id = u.id AND s.status = 'valid')
-                     ORDER BY u.nama ASC";
+                     ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC";
         $data['siswa_list'] = $this->db->query($sqlSiswa)->fetchAll(); 
         
         $sqlGuru = "SELECT u.id, u.nama 
@@ -354,7 +362,8 @@ class LaporanController {
             $stmtKelas->execute([$data['kelas_id']]); 
             $data['detail_kelas'] = $stmtKelas->fetch(); 
             
-            $sqlRekap = "SELECT u.id, u.nama, (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') AS total_masuk, (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) AS total_keluar FROM users u WHERE u.kelas_id = ? AND u.role = 'siswa' AND u.nama NOT LIKE '%KESISWAAN%' ORDER BY u.nama ASC"; 
+            // 🌟 FIX ORDER BY: Tabel riwayat agar KAS KELAS di atas
+            $sqlRekap = "SELECT u.id, u.nama, (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') AS total_masuk, (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) AS total_keluar FROM users u WHERE u.kelas_id = ? AND u.role = 'siswa' AND u.nama NOT LIKE '%KESISWAAN%' ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC"; 
             $stmtRekap = $this->db->prepare($sqlRekap); 
             $stmtRekap->execute([$data['kelas_id']]); 
             $data['rekap_kelas'] = $stmtRekap->fetchAll(); 
@@ -407,7 +416,30 @@ class LaporanController {
     public function cairkan_honor_pengelola() { if ($_SERVER['REQUEST_METHOD'] === 'POST') { Security::validate_csrf(); $nominal = (float) $_POST['nominal']; $user_id = $_SESSION['user_id']; if ($nominal > 0) { try { $ket = "Pencairan Honor Pengelola (Berdasarkan Margin Pembagian)"; $sql = "INSERT INTO pencairan_honor (user_id, jumlah, jenis, keterangan, tanggal_cair) VALUES (?, ?, 'pengelola', ?, NOW())"; $this->db->prepare($sql)->execute([$user_id, $nominal, $ket]); $_SESSION['success'] = "Berhasil mencairkan Honor Pengelola."; } catch (PDOException $e) { $_SESSION['error'] = "Gagal memproses data: " . $e->getMessage(); } } } header('Location: ' . BASE_URL . '/laporan/keuangan'); exit; }
     public function cairkan_honor_piket() { if ($_SERVER['REQUEST_METHOD'] === 'POST') { Security::validate_csrf(); $nominal = (float) $_POST['nominal']; if ($nominal > 0) { try { $ket = "Pencairan Honor Siswa Piket (Berdasarkan Margin Pembagian)"; $sql = "INSERT INTO pencairan_honor (user_id, jumlah, jenis, keterangan, tanggal_cair) VALUES (?, ?, 'piket', ?, NOW())"; $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket]); $_SESSION['success'] = "Berhasil mencairkan Honor Siswa Piket."; } catch (PDOException $e) { $_SESSION['error'] = "Gagal memproses data: " . $e->getMessage(); } } } header('Location: ' . BASE_URL . '/laporan/keuangan'); exit; }
     public function refund_lebih_bayar() { if ($_SERVER['REQUEST_METHOD'] === 'POST') { Security::validate_csrf(); $nominal = (float) $_POST['nominal']; $jenis = $_POST['jenis_refund']; if ($nominal > 0) { $ket = ""; if ($jenis === 'sekolah') $ket = "Refund Kas Sekolah (Koreksi)"; if ($jenis === 'pengelola') $ket = "Refund Honor Pengelola (Koreksi)"; if ($jenis === 'wali') $ket = "Refund Honor Walas (Koreksi)"; if ($jenis === 'piket') $ket = "Refund Honor Piket (Koreksi)"; if ($ket !== "") { try { $sql = "INSERT INTO kas_manual (user_id, tanggal, jenis, nominal, keterangan, created_at) VALUES (?, NOW(), 'pemasukan', ?, ?, NOW())"; $this->db->prepare($sql)->execute([$_SESSION['user_id'], $nominal, $ket]); $_SESSION['success'] = "Berhasil menarik kembali kelebihan dana Rp " . number_format($nominal, 0, ',', '.') . " ke Kas Utama."; } catch (PDOException $e) { $_SESSION['error'] = "Gagal melakukan refund: " . $e->getMessage(); } } } } header('Location: ' . BASE_URL . '/laporan/keuangan'); exit; }
-    public function export_setoran() { $kelas_id = $_GET['kelas_id'] ?? null; if (!$kelas_id) exit("Pilih kelas terlebih dahulu."); $stmtKelas = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = ?"); $stmtKelas->execute([$kelas_id]); $nama_kelas = $stmtKelas->fetchColumn(); $filename = "Rekap_Tabungan_" . str_replace(" ", "_", $nama_kelas) . "_" . date('Ymd') . ".csv"; header('Content-Type: text/csv'); header('Content-Disposition: attachment; filename="' . $filename . '"'); $output = fopen('php://output', 'w'); fputcsv($output, ['No', 'Nama Nasabah', 'Total Sampah (Pcs)', 'Total Tabungan (Rp)']); $sql = "SELECT u.nama, IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, IFNULL(SUM(s.total_harga), 0) as total_rp FROM users u LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid' LEFT JOIN kategori_sampah ks ON s.kategori_id = ks.id WHERE u.kelas_id = :kid AND u.role = 'siswa' GROUP BY u.id, u.nama ORDER BY u.nama ASC"; $stmt = $this->db->prepare($sql); $stmt->execute(['kid' => $kelas_id]); $i = 1; while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) { fputcsv($output, [$i++, $row['nama'], $row['total_pcs'], $row['total_rp']]); } fclose($output); exit; }
+    public function export_setoran() { 
+        $kelas_id = $_GET['kelas_id'] ?? null; 
+        if (!$kelas_id) exit("Pilih kelas terlebih dahulu."); 
+        $stmtKelas = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = ?"); 
+        $stmtKelas->execute([$kelas_id]); 
+        $nama_kelas = $stmtKelas->fetchColumn(); 
+        $filename = "Rekap_Tabungan_" . str_replace(" ", "_", $nama_kelas) . "_" . date('Ymd') . ".csv"; 
+        header('Content-Type: text/csv'); 
+        header('Content-Disposition: attachment; filename="' . $filename . '"'); 
+        $output = fopen('php://output', 'w'); 
+        fputcsv($output, ['No', 'Nama Nasabah', 'Total Sampah (Pcs)', 'Total Tabungan (Rp)']); 
+        
+        // 🌟 FIX ORDER BY: Export CSV agar KAS KELAS di atas
+        $sql = "SELECT u.nama, IFNULL(SUM(CASE WHEN ks.nama_sampah != '🌟 REWARD PRESTASI' THEN s.berat ELSE 0 END), 0) as total_pcs, IFNULL(SUM(s.total_harga), 0) as total_rp FROM users u LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid' LEFT JOIN kategori_sampah ks ON s.kategori_id = ks.id WHERE u.kelas_id = :kid AND u.role = 'siswa' GROUP BY u.id, u.nama ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC"; 
+        
+        $stmt = $this->db->prepare($sql); 
+        $stmt->execute(['kid' => $kelas_id]); 
+        $i = 1; 
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) { 
+            fputcsv($output, [$i++, $row['nama'], $row['total_pcs'], $row['total_rp']]); 
+        } 
+        fclose($output); 
+        exit; 
+    }
     
     public function export_buku_kas() {
         $start_date = $_GET['start_date'] ?? date('Y-m-01');
@@ -423,7 +455,6 @@ class LaporanController {
         $output = fopen('php://output', 'w');
         fputcsv($output, ['Waktu', 'Uraian Transaksi', 'Detail/Keterangan', 'Sumber Kas', 'Debit (Masuk)', 'Kredit (Keluar)']);
 
-        // 🛠️ PERBAIKAN: Menghapus UNION ALL Reward Prestasi pada eksport CSV
         $sql = "
             SELECT waktu, uraian, detail, sumber_kas, debit, kredit FROM (
                 SELECT MIN(tanggal_jual) AS waktu, 'Penjualan Pengepul' AS uraian, GROUP_CONCAT(DISTINCT keterangan SEPARATOR ', ') AS detail, SUM(total_pendapatan) AS debit, 0 AS kredit, 'kas_besar' as sumber_kas
