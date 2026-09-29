@@ -510,7 +510,7 @@ class SetoranController {
         Security::requireRole(['admin']);
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            // Security::validate_csrf(); 
+            Security::validate_csrf();
 
             $user_id = $_POST['user_id'];
             $nominal = (float) $_POST['nominal'];
@@ -644,7 +644,7 @@ class SetoranController {
 
     public function store_sabtu_ceria() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            // Security::validate_csrf(); 
+            Security::validate_csrf();
             
             $opsi_pencairan = $_POST['opsi_pencairan'] ?? 'tunai'; 
             $user_id_admin = $_POST['user_id']; 
