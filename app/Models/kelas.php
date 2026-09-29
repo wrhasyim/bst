@@ -5,8 +5,8 @@ require_once __DIR__ . '/../Core/Database.php';
 class Kelas {
     private $db;
 
-    public function __construct() {
-        $this->db = Database::getInstance()->getConnection();
+    public function __construct($db = null) {
+        $this->db = $db ?? Database::getInstance()->getConnection();
     }
 
     // Ambil semua data kelas beserta nama Wali Kelas dan Total Siswa
