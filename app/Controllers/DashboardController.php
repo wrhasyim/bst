@@ -40,9 +40,7 @@ class DashboardController {
             AND u.role = 'siswa'
             AND u.is_active = 1 
             AND u.kelas_id IS NOT NULL 
-            AND u.nama NOT LIKE '%KESISWAAN%'
-            AND u.nama NOT LIKE '%SABTU CERIA%'
-            AND u.nama NOT LIKE 'KAS KELAS - %'
+            AND u.is_virtual = 0
             GROUP BY u.id 
             ORDER BY total_pcs DESC LIMIT 5
         ");
@@ -67,7 +65,7 @@ class DashboardController {
             ")->fetchColumn() ?? 0;
             
             // 🛠️ FIX: Mengecualikan Akun Kesiswaan, Sabtu Ceria, dan Kas Kelas dari hitungan Total Siswa
-            $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1 AND nama NOT LIKE '%KESISWAAN%' AND nama NOT LIKE '%SABTU CERIA%' AND nama NOT LIKE 'KAS KELAS - %'")->fetchColumn() ?? 0;
+            $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1 AND is_virtual = 0")->fetchColumn() ?? 0;
             $data['jml_guru'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'guru' AND is_active = 1")->fetchColumn() ?? 0;
 
             $chart_labels = []; 
@@ -130,7 +128,7 @@ class DashboardController {
                     FROM users u 
                     LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid' AND s.created_at >= :tgl_mulai
                     WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 
-                    AND u.nama NOT LIKE '%KESISWAAN%' AND u.nama NOT LIKE '%SABTU CERIA%' AND u.nama NOT LIKE 'KAS KELAS - %'
+                    AND u.is_virtual = 0
                     GROUP BY u.id ORDER BY total_pcs DESC LIMIT 5
                 ");
                 $stmtRank->execute(['tgl_mulai' => $start_reward_dt, 'kid' => $kid]);

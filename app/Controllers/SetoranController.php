@@ -718,7 +718,7 @@ class SetoranController {
                                 $username_virtual = strtolower(str_replace(' ', '', $nama_akun_virtual)) . rand(100,999);
                                 $pass_hash = password_hash('123456', PASSWORD_DEFAULT);
                                 // FIX: Menghapus created_at dari query insert users
-                                $sqlBuat = "INSERT INTO users (nama, username, password, role, kelas_id, is_active) VALUES (?, ?, ?, 'siswa', ?, 1)";
+                                $sqlBuat = "INSERT INTO users (nama, username, password, role, kelas_id, is_active, is_virtual) VALUES (?, ?, ?, 'siswa', ?, 1, 1)";
                                 $this->db->prepare($sqlBuat)->execute([$nama_akun_virtual, $username_virtual, $pass_hash, $kelas_id]);
                                 $virtual_user_id = $this->db->lastInsertId();
                             } else {
