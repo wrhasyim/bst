@@ -158,6 +158,21 @@ class PengaturanController {
 
             $file = $_FILES['backup_file'];
             if ($file['error'] == UPLOAD_ERR_OK && is_uploaded_file($file['tmp_name'])) {
+                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                if ($ext !== 'sql') {
+                    $_SESSION['error'] = "Gagal restore: File harus berformat .sql";
+                    header('Location: ' . BASE_URL . '/pengaturan/maintenance');
+                    exit;
+                }
+
+                $mime = mime_content_type($file['tmp_name']);
+                $allowed_mimes = ['text/plain', 'text/x-sql', 'application/sql', 'application/x-sql'];
+                if (!in_array($mime, $allowed_mimes)) {
+                    $_SESSION['error'] = "Gagal restore: Tipe file tidak diizinkan.";
+                    header('Location: ' . BASE_URL . '/pengaturan/maintenance');
+                    exit;
+                }
+
                 $sql = file_get_contents($file['tmp_name']);
                 try {
                     $this->db->setAttribute(PDO::ATTR_EMULATE_PREPARES, 0);
