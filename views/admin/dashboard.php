@@ -92,6 +92,7 @@ $role = $_SESSION['role'] ?? '';
 
             <div class="p-8">
                 <form action="<?= BASE_URL ?>/setoran/reward" method="POST">
+                    <?= Security::csrf_field(); ?>
                     <input type="hidden" name="user_id" id="userIdTarget">
                     <input type="hidden" name="nama_siswa" id="namaSiswaInput">
                     
