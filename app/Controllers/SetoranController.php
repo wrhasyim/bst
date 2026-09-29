@@ -682,7 +682,7 @@ class SetoranController {
                             $rp_pengepul = ($kg * (float)$kat['harga_pengepul']);
                             
                             $subtotal_kelas_rp += $rp;
-                            $rincian_teks[] = "{$kat['nama_sampah']} ({$kg} Kg)";
+                            $rincian_teks[] = "{$kat['nama_sampah']} ({$kg} Kg - Rp " . number_format($rp, 0, ',', '.') . ")";
 
                             // Kumpulan data untuk mode TUNAI
                             if (!isset($rekap_setoran_kategori[$kat_id])) {
