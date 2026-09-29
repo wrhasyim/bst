@@ -117,16 +117,18 @@ class PengaturanController {
         $sqlScript .= "SET FOREIGN_KEY_CHECKS = 0;\n\n";
 
         foreach ($tables as $table) {
-            $query = $this->db->query("SHOW CREATE TABLE `$table`");
+            $safe_table = str_replace('`', '``', $table);
+
+            $query = $this->db->query("SHOW CREATE TABLE `$safe_table`");
             $row = $query->fetch(PDO::FETCH_NUM);
-            $sqlScript .= "\n\nDROP TABLE IF EXISTS `$table`;\n";
+            $sqlScript .= "\n\nDROP TABLE IF EXISTS `$safe_table`;\n";
             $sqlScript .= $row[1] . ";\n\n";
 
-            $query = $this->db->query("SELECT * FROM `$table`");
+            $query = $this->db->query("SELECT * FROM `$safe_table`");
             $columnCount = $query->columnCount();
 
             while ($row = $query->fetch(PDO::FETCH_NUM)) {
-                $sqlScript .= "INSERT INTO `$table` VALUES(";
+                $sqlScript .= "INSERT INTO `$safe_table` VALUES(";
                 for ($j = 0; $j < $columnCount; $j++) {
                     if (isset($row[$j])) {
                         $row[$j] = addslashes($row[$j]);
