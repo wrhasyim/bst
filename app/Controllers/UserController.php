@@ -158,6 +158,18 @@ class UserController {
             $sukses = 0; $gagal = 0; $kelas_baru = 0; $baris = 0;
             $password_default = password_hash('123456', PASSWORD_DEFAULT);
 
+            // Caching kelas to avoid N+1 query
+            $kelasCache = [];
+            $stmtAllKelas = $this->db->query("SELECT id, nama_kelas FROM kelas");
+            while ($row = $stmtAllKelas->fetch()) {
+                $kelasCache[$row['nama_kelas']] = $row['id'];
+            }
+
+            // Prepared statements for loop
+            $stmtNewKelas = $this->db->prepare("INSERT INTO kelas (nama_kelas) VALUES (?)");
+            $stmtCheckUsername = $this->db->prepare("SELECT id FROM users WHERE username = ? LIMIT 1");
+            $stmtInsertUser = $this->db->prepare("INSERT INTO users (username, password, nama, role, kelas_id, angkatan, is_active) VALUES (?, ?, ?, 'siswa', ?, ?, 1)");
+
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                 $baris++;
                 
@@ -174,29 +186,22 @@ class UserController {
                 if (!empty($nama) && !empty($username) && !empty($nama_kelas)) {
                     
                     // 1. CEK KELAS: Jika ada, ambil ID. Jika tidak ada, BUAT BARU OTOMATIS!
-                    $stmtKelas = $this->db->prepare("SELECT id FROM kelas WHERE nama_kelas = ? LIMIT 1");
-                    $stmtKelas->execute([$nama_kelas]);
-                    $kelasRow = $stmtKelas->fetch();
-                    
-                    if ($kelasRow) {
-                        $kelas_id = $kelasRow['id'];
+                    if (isset($kelasCache[$nama_kelas])) {
+                        $kelas_id = $kelasCache[$nama_kelas];
                     } else {
                         // Bikin kelas baru secara ajaib di background
-                        $stmtNewKelas = $this->db->prepare("INSERT INTO kelas (nama_kelas) VALUES (?)");
                         $stmtNewKelas->execute([$nama_kelas]);
                         $kelas_id = $this->db->lastInsertId();
+                        $kelasCache[$nama_kelas] = $kelas_id; // Add to cache
                         $kelas_baru++;
                     }
 
                     // 2. CEK USERNAME & INSERT (Pastikan tidak ada username kembar)
-                    $cek = $this->db->prepare("SELECT id FROM users WHERE username = ? LIMIT 1");
-                    $cek->execute([$username]);
+                    $stmtCheckUsername->execute([$username]);
                     
-                    if (!$cek->fetch()) {
+                    if (!$stmtCheckUsername->fetch()) {
                         try {
-                            $sql = "INSERT INTO users (username, password, nama, role, kelas_id, angkatan, is_active) VALUES (?, ?, ?, 'siswa', ?, ?, 1)";
-                            $stmt = $this->db->prepare($sql);
-                            if ($stmt->execute([$username, $password_default, $nama, $kelas_id, $angkatan])) {
+                            if ($stmtInsertUser->execute([$username, $password_default, $nama, $kelas_id, $angkatan])) {
                                 $sukses++;
                             }
                         } catch (PDOException $e) {
