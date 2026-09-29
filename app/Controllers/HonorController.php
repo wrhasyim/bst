@@ -33,14 +33,28 @@ class HonorController {
         $data_honor = $this->db->query($sql)->fetchAll();
         
         if (is_array($data_honor) && count($data_honor) > 0) {
+            $userIds = array_column($data_honor, 'user_id');
+            $cairData = [];
+
+            if (!empty($userIds)) {
+                $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+                $stmtCair = $this->db->prepare("
+                    SELECT user_id, IFNULL(SUM(jumlah), 0) as total_cair
+                    FROM pencairan_honor
+                    WHERE jenis = 'walikelas' AND user_id IN ($placeholders)
+                    GROUP BY user_id
+                ");
+                $stmtCair->execute($userIds);
+                // Fetch as key-value pair: [user_id => total_cair]
+                $cairData = $stmtCair->fetchAll(PDO::FETCH_KEY_PAIR);
+            }
+
             foreach ($data_honor as &$h) {
                 $user_id = $h['user_id'] ?? 0;
                 $total_jatah = $h['total_jatah'] ?? 0;
                 
                 // 🛠️ Mencegah uang Pengelola/Piket ikut terhitung jika Admin merangkap sbg Wali Kelas
-                $stmtCair = $this->db->prepare("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE user_id = ? AND jenis = 'walikelas'");
-                $stmtCair->execute([$user_id]);
-                $h['sudah_cair'] = $stmtCair->fetchColumn() ?? 0;
+                $h['sudah_cair'] = $cairData[$user_id] ?? 0;
                 
                 // Sisa honor murni kalkulasi (Jatah Permanen - Pencairan Historis)
                 $h['sisa_honor'] = $total_jatah - $h['sudah_cair'];
@@ -115,14 +129,27 @@ class HonorController {
         $data_honor = [];
 
         if (is_array($potensi_honor) && count($potensi_honor) > 0) {
+            $userIds = array_column($potensi_honor, 'user_id');
+            $cairData = [];
+
+            if (!empty($userIds)) {
+                $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+                $stmtCair = $this->db->prepare("
+                    SELECT user_id, IFNULL(SUM(jumlah), 0) as total_cair
+                    FROM pencairan_honor
+                    WHERE jenis = 'walikelas' AND user_id IN ($placeholders)
+                    GROUP BY user_id
+                ");
+                $stmtCair->execute($userIds);
+                $cairData = $stmtCair->fetchAll(PDO::FETCH_KEY_PAIR);
+            }
+
             foreach ($potensi_honor as $h) {
                 $user_id = $h['user_id'] ?? 0;
                 $total_jatah = $h['total_jatah'] ?? 0;
                 
                 // Cari total yang sudah pernah dicairkan
-                $stmtCair = $this->db->prepare("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE user_id = ? AND jenis = 'walikelas'");
-                $stmtCair->execute([$user_id]);
-                $sudah_cair = $stmtCair->fetchColumn() ?? 0;
+                $sudah_cair = $cairData[$user_id] ?? 0;
                 
                 $sisa_honor = $total_jatah - $sudah_cair;
 
