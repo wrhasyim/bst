@@ -23,14 +23,12 @@ class PenarikanController {
         $data['kelas_id'] = $kelas_id;
         
         // 🌟 FIX DROPDOWN: Hanya tampilkan kelas yang memiliki riwayat setoran
-        $sqlKelas = "SELECT k.* 
-                     FROM kelas k 
+        $sqlKelas = "SELECT DISTINCT k.*
+                     FROM kelas k
+                     JOIN users u ON u.kelas_id = k.id
+                     JOIN setoran s ON s.user_id = u.id
                      WHERE k.nama_kelas NOT LIKE '%KESISWAAN%' 
-                     AND EXISTS (
-                         SELECT 1 FROM users u 
-                         JOIN setoran s ON s.user_id = u.id 
-                         WHERE u.kelas_id = k.id AND s.status = 'valid'
-                     )
+                     AND s.status = 'valid'
                      ORDER BY k.nama_kelas ASC";
         $data['all_kelas'] = $this->db->query($sqlKelas)->fetchAll();
         
