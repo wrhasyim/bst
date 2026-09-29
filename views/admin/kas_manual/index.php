@@ -26,6 +26,7 @@
 
                 <form action="<?= BASE_URL ?>/kas/store" method="POST" class="space-y-5">
                     <!-- CSRF Token dipotong sementara untuk mencegah error timeout pada form -->
+                    <?= Security::csrf_field(); ?>
 
                     <div>
                         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Tanggal Transaksi</label>
