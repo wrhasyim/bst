@@ -48,7 +48,7 @@
                             $konversi = $k['konversi_kg'] ?? 1;
                             
                             $modal_per_kg = $harga_beli_tertinggi * $konversi;
-                            $margin = $k['harga_pengepul'] - $modal_per_kg;
+                            $margin_kotor = $k['harga_pengepul'] - $modal_per_kg;
                         ?>
                         <tr class="hover:bg-slate-50 transition-all">
                             <td class="px-8 py-5">
@@ -63,8 +63,8 @@
                             <td class="px-6 py-5 text-right font-black text-purple-500 text-sm">Rp<?= number_format($harga_guru, 0, ',', '.') ?> <span class="text-[9px] text-slate-400 font-bold block mt-1">/ Pcs</span></td>
                             <td class="px-6 py-5 text-right font-black text-blue-600 text-sm">Rp<?= number_format($k['harga_pengepul'], 0, ',', '.') ?> <span class="text-[9px] text-slate-400 font-bold block mt-1">/ KG</span></td>
                             <td class="px-8 py-5 text-center">
-                                <span class="px-3 py-1.5 <?= $margin >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200' ?> rounded-xl text-[10px] font-black uppercase tracking-widest">
-                                    <?= $margin >= 0 ? '+' : '' ?> Rp<?= number_format($margin, 0, ',', '.') ?>
+                                <span class="px-3 py-1.5 <?= $margin_kotor >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200' ?> rounded-xl text-[10px] font-black uppercase tracking-widest">
+                                    <?= $margin_kotor >= 0 ? '+' : '' ?> Rp<?= number_format($margin_kotor, 0, ',', '.') ?>
                                 </span>
                             </td>
                             <td class="px-8 py-5 text-center space-x-2">
