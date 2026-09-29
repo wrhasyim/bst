@@ -26,9 +26,12 @@ class DashboardController {
         $data['tgl_mulai_reward'] = $this->db->query("SELECT nilai FROM pengaturan WHERE kunci = 'tanggal_mulai_reward'")->fetchColumn() ?: date('Y-m-01', strtotime('-2 months'));
         $start_reward_dt = $data['tgl_mulai_reward'] . ' 00:00:00';
 
+        // 🛠️ FIX: Pengecualian KESISWAAN, SABTU CERIA, dan KAS KELAS
+        $where_pengecualian = "u.nama NOT LIKE '%KESISWAAN%' AND u.nama NOT LIKE '%SABTU CERIA%' AND u.nama NOT LIKE 'KAS KELAS - %'";
+        $where_pengecualian_no_u = "nama NOT LIKE '%KESISWAAN%' AND nama NOT LIKE '%SABTU CERIA%' AND nama NOT LIKE 'KAS KELAS - %'";
+
         // =======================================================
         // DATA LEADERBOARD: TOP 5 NASABAH 
-        // 🛠️ FIX: Pengecualian KESISWAAN, SABTU CERIA, dan KAS KELAS
         // =======================================================
         $stmtLb = $this->db->prepare("
             SELECT u.id, u.nama, k.nama_kelas, SUM(s.berat) as total_pcs 
@@ -40,9 +43,7 @@ class DashboardController {
             AND u.role = 'siswa'
             AND u.is_active = 1 
             AND u.kelas_id IS NOT NULL 
-            AND u.nama NOT LIKE '%KESISWAAN%'
-            AND u.nama NOT LIKE '%SABTU CERIA%'
-            AND u.nama NOT LIKE 'KAS KELAS - %'
+            AND {$where_pengecualian}
             GROUP BY u.id 
             ORDER BY total_pcs DESC LIMIT 5
         ");
@@ -67,7 +68,7 @@ class DashboardController {
             ")->fetchColumn() ?? 0;
             
             // 🛠️ FIX: Mengecualikan Akun Kesiswaan, Sabtu Ceria, dan Kas Kelas dari hitungan Total Siswa
-            $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1 AND nama NOT LIKE '%KESISWAAN%' AND nama NOT LIKE '%SABTU CERIA%' AND nama NOT LIKE 'KAS KELAS - %'")->fetchColumn() ?? 0;
+            $data['jml_siswa'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'siswa' AND is_active = 1 AND {$where_pengecualian_no_u}")->fetchColumn() ?? 0;
             $data['jml_guru'] = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'guru' AND is_active = 1")->fetchColumn() ?? 0;
 
             $chart_labels = []; 
@@ -130,7 +131,7 @@ class DashboardController {
                     FROM users u 
                     LEFT JOIN setoran s ON u.id = s.user_id AND s.status = 'valid' AND s.created_at >= :tgl_mulai
                     WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 
-                    AND u.nama NOT LIKE '%KESISWAAN%' AND u.nama NOT LIKE '%SABTU CERIA%' AND u.nama NOT LIKE 'KAS KELAS - %'
+                    AND {$where_pengecualian}
                     GROUP BY u.id ORDER BY total_pcs DESC LIMIT 5
                 ");
                 $stmtRank->execute(['tgl_mulai' => $start_reward_dt, 'kid' => $kid]);
