@@ -123,12 +123,15 @@ class KelasController {
 
         if ($id) {
             try {
+                $this->db->beginTransaction();
+
                 // 1. Ambil nama kelas untuk pengecekan KAS KELAS
                 $stmtNama = $this->db->prepare("SELECT nama_kelas FROM kelas WHERE id = ?");
                 $stmtNama->execute([$id]);
                 $nama_kelas = $stmtNama->fetchColumn();
 
                 if (!$nama_kelas) {
+                    $this->db->rollBack();
                     $_SESSION['error'] = "Kelas tidak ditemukan.";
                     header('Location: ' . BASE_URL . '/kelas');
                     exit;
@@ -139,6 +142,7 @@ class KelasController {
                 $cekSiswa->execute([$id]);
                 
                 if ($cekSiswa->fetchColumn() > 0) {
+                    $this->db->rollBack();
                     $_SESSION['error'] = "Gagal! Kelas ini tidak bisa dihapus karena masih ada siswa di dalamnya. Pindahkan atau luluskan siswa terlebih dahulu di menu Akademik.";
                     header('Location: ' . BASE_URL . '/kelas');
                     exit;
@@ -150,13 +154,14 @@ class KelasController {
                 $stmtCariKas->execute([$nama_akun_virtual]);
                 $akun_kas = $stmtCariKas->fetch();
 
-                if ($akun_kas) {
+                if ($akun_kas !== false) {
                     $uid_kas = $akun_kas['id'];
                     $masuk_kas = (float) $this->db->query("SELECT IFNULL(SUM(total_harga),0) FROM setoran WHERE user_id = $uid_kas AND status = 'valid'")->fetchColumn();
                     $keluar_kas = (float) $this->db->query("SELECT IFNULL(SUM(jumlah),0) FROM penarikan WHERE user_id = $uid_kas")->fetchColumn();
                     $saldo_tersisa = $masuk_kas - $keluar_kas;
 
-                    if ($saldo_tersisa > 0) {
+                    if ($saldo_tersisa > 0.0) {
+                        $this->db->rollBack();
                         $_SESSION['error'] = "Gagal! Kelas tidak bisa dihapus karena Tabungan $nama_akun_virtual masih memiliki saldo sebesar Rp " . number_format($saldo_tersisa, 0, ',', '.') . ". Harap cairkan saldo tersebut terlebih dahulu sebelum membubarkan kelas.";
                         header('Location: ' . BASE_URL . '/kelas');
                         exit;
@@ -170,9 +175,14 @@ class KelasController {
                 // 4. Jika lolos semua validasi, eksekusi hapus kelas
                 $stmt = $this->db->prepare("DELETE FROM kelas WHERE id = ?");
                 $stmt->execute([$id]);
+
+                $this->db->commit();
                 $_SESSION['success'] = "Kelas berhasil dihapus.";
 
             } catch (Exception $e) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
                 $_SESSION['error'] = "Terjadi kesalahan sistem saat menghapus kelas.";
             }
         }
