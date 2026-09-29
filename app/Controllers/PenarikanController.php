@@ -110,6 +110,7 @@ class PenarikanController {
                 $total_keluar = 0;
 
                 // 2. Eksekusi penarikan berdasarkan input form (bukan asal tarik semua)
+                $stmtI = $this->db->prepare("INSERT INTO penarikan (user_id, jumlah, keterangan) VALUES (?, ?, ?)");
                 foreach ($siswa_kelas as $s) {
                     $user_id = $s['id'];
                     $saldo_maksimal = (float)$s['saldo_aktif'];
@@ -119,7 +120,6 @@ class PenarikanController {
                     
                     // Validasi: Pastikan nominal ditarik lebih dari 0 dan tidak melebihi saldo maksimal
                     if ($nominal_ditarik > 0 && $nominal_ditarik <= $saldo_maksimal) {
-                        $stmtI = $this->db->prepare("INSERT INTO penarikan (user_id, jumlah, keterangan) VALUES (?, ?, ?)");
                         $stmtI->execute([$user_id, $nominal_ditarik, $keterangan_global]);
                         
                         $count++;
