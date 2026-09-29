@@ -96,30 +96,49 @@ class DashboardController {
         // 2. DASHBOARD SISWA, GURU & WALI KELAS (METRIK PERSONAL)
         // =======================================================
         else {
-            $setoran = $this->db->query("SELECT SUM(total_harga) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn() ?? 0;
-            $tarik = $this->db->query("SELECT SUM(jumlah) FROM penarikan WHERE user_id = $user_id")->fetchColumn() ?? 0;
+            $stmtSetoran = $this->db->prepare("SELECT SUM(total_harga) FROM setoran WHERE user_id = ? AND status = 'valid'");
+            $stmtSetoran->execute([$user_id]);
+            $setoran = $stmtSetoran->fetchColumn() ?? 0;
+
+            $stmtTarik = $this->db->prepare("SELECT SUM(jumlah) FROM penarikan WHERE user_id = ?");
+            $stmtTarik->execute([$user_id]);
+            $tarik = $stmtTarik->fetchColumn() ?? 0;
             $data['saldo_pribadi'] = $setoran - $tarik;
             
-            $data['total_pcs'] = $this->db->query("SELECT SUM(berat) FROM setoran WHERE user_id = $user_id AND status = 'valid'")->fetchColumn() ?? 0;
-            $data['riwayat_pribadi'] = $this->db->query("SELECT s.*, k.nama_sampah FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.user_id = $user_id ORDER BY s.created_at DESC LIMIT 5")->fetchAll();
+            $stmtPcs = $this->db->prepare("SELECT SUM(berat) FROM setoran WHERE user_id = ? AND status = 'valid'");
+            $stmtPcs->execute([$user_id]);
+            $data['total_pcs'] = $stmtPcs->fetchColumn() ?? 0;
 
-            $cek_wali = $this->db->query("SELECT * FROM kelas WHERE walikelas_id = $user_id LIMIT 1")->fetch();
+            $stmtRiwayat = $this->db->prepare("SELECT s.*, k.nama_sampah FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.user_id = ? ORDER BY s.created_at DESC LIMIT 5");
+            $stmtRiwayat->execute([$user_id]);
+            $data['riwayat_pribadi'] = $stmtRiwayat->fetchAll();
+
+            $stmtWali = $this->db->prepare("SELECT * FROM kelas WHERE walikelas_id = ? LIMIT 1");
+            $stmtWali->execute([$user_id]);
+            $cek_wali = $stmtWali->fetch();
             $data['is_walikelas_aktif'] = $cek_wali ? true : false;
             $data['kelas_dikelola'] = $cek_wali;
             $data['saldo_kas_kelas_walas'] = 0; // Default
 
             $persen_wali = ($this->db->query("SELECT nilai FROM pengaturan WHERE kunci = 'persen_honor_walikelas'")->fetchColumn() ?? 0) / 100;
-            $total_jatah = $this->db->query("
+            $stmtJatah = $this->db->prepare("
                 SELECT SUM(total_pengepul - total_harga) * $persen_wali 
                 FROM setoran 
-                WHERE walikelas_id = $user_id AND status = 'valid' AND is_sold = 1 
+                WHERE walikelas_id = ? AND status = 'valid' AND is_sold = 1
                 AND kategori_id NOT IN (SELECT id FROM kategori_sampah WHERE nama_sampah = '🌟 REWARD PRESTASI')
-            ")->fetchColumn() ?? 0;
+            ");
+            $stmtJatah->execute([$user_id]);
+            $total_jatah = $stmtJatah->fetchColumn() ?? 0;
             
-            $total_cair = $this->db->query("SELECT SUM(jumlah) FROM pencairan_honor WHERE user_id = $user_id")->fetchColumn() ?? 0;
+            $stmtCair = $this->db->prepare("SELECT SUM(jumlah) FROM pencairan_honor WHERE user_id = ?");
+            $stmtCair->execute([$user_id]);
+            $total_cair = $stmtCair->fetchColumn() ?? 0;
             
             $data['honor_belum_cair'] = $total_jatah - $total_cair;
-            $data['history_honor'] = $this->db->query("SELECT * FROM pencairan_honor WHERE user_id = $user_id ORDER BY tanggal_cair DESC LIMIT 5")->fetchAll();
+
+            $stmtHistory = $this->db->prepare("SELECT * FROM pencairan_honor WHERE user_id = ? ORDER BY tanggal_cair DESC LIMIT 5");
+            $stmtHistory->execute([$user_id]);
+            $data['history_honor'] = $stmtHistory->fetchAll();
 
             $data['ranking_siswa'] = [];
             if($data['is_walikelas_aktif']) {
