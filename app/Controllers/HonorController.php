@@ -51,13 +51,8 @@ class HonorController {
         
         $data['data_honor'] = $data_honor;
 
-        // 🛠️ BUG FIX: Override Query untuk Sidebar Riwayat
-        $sqlRiwayat = "SELECT ph.*, u.nama 
-                       FROM pencairan_honor ph 
-                       JOIN users u ON ph.user_id = u.id 
-                       WHERE ph.jenis = 'walikelas' 
-                       ORDER BY ph.tanggal_cair DESC LIMIT 20";
-        $data['riwayat'] = $this->db->query($sqlRiwayat)->fetchAll();
+        // 🛠️ BUG FIX: Override Query untuk Sidebar Riwayat - REFACTORED to use model
+        $data['riwayat'] = $this->honorModel->getRiwayat('walikelas', 20);
         
         // RENDER TAMPILAN DENGAN LAYOUT UNIVERSAL
         extract($data);

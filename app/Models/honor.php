@@ -56,8 +56,23 @@ class Honor {
         return $stmt->execute($data);
     }
 
-    public function getRiwayat() {
-        $sql = "SELECT ph.*, u.nama FROM pencairan_honor ph JOIN users u ON ph.user_id = u.id ORDER BY ph.tanggal_cair DESC LIMIT 50";
-        return $this->db->query($sql)->fetchAll();
+    public function getRiwayat($jenis = null, $limit = 50) {
+        $sql = "SELECT ph.*, u.nama FROM pencairan_honor ph JOIN users u ON ph.user_id = u.id";
+
+        $params = [];
+        if ($jenis !== null) {
+            $sql .= " WHERE ph.jenis = :jenis";
+            $params['jenis'] = $jenis;
+        }
+
+        $sql .= " ORDER BY ph.tanggal_cair DESC LIMIT " . (int)$limit;
+
+        if (empty($params)) {
+            return $this->db->query($sql)->fetchAll();
+        } else {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll();
+        }
     }
 }
