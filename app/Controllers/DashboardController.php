@@ -74,18 +74,39 @@ class DashboardController {
             $chart_setoran = []; 
             $chart_penarikan = [];
 
+            $months_map = [];
+
             for ($i = 5; $i >= 0; $i--) {
                 $bulan_sql = date('Y-m', strtotime("-$i months"));
                 $chart_labels[] = date('M Y', strtotime("-$i months"));
 
-                $stmtMasuk = $this->db->prepare("SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE status = 'valid' AND DATE_FORMAT(created_at, '%Y-%m') = ?");
-                $stmtMasuk->execute([$bulan_sql]);
-                $chart_setoran[] = (float) $stmtMasuk->fetchColumn();
-
-                $stmtKeluar = $this->db->prepare("SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE DATE_FORMAT(tanggal_tarik, '%Y-%m') = ?");
-                $stmtKeluar->execute([$bulan_sql]);
-                $chart_penarikan[] = (float) $stmtKeluar->fetchColumn();
+                $months_map[$bulan_sql] = 0.0;
             }
+
+            $min_month = date('Y-m', strtotime("-5 months"));
+            $max_month = date('Y-m');
+
+            $setoran_map = $months_map;
+            $penarikan_map = $months_map;
+
+            $stmtMasuk = $this->db->prepare("SELECT DATE_FORMAT(created_at, '%Y-%m') as month, SUM(total_harga) as total FROM setoran WHERE status = 'valid' AND DATE_FORMAT(created_at, '%Y-%m') BETWEEN ? AND ? GROUP BY DATE_FORMAT(created_at, '%Y-%m')");
+            $stmtMasuk->execute([$min_month, $max_month]);
+            while ($row = $stmtMasuk->fetch(PDO::FETCH_ASSOC)) {
+                if (isset($setoran_map[$row['month']])) {
+                    $setoran_map[$row['month']] = (float)$row['total'];
+                }
+            }
+
+            $stmtKeluar = $this->db->prepare("SELECT DATE_FORMAT(tanggal_tarik, '%Y-%m') as month, SUM(jumlah) as total FROM penarikan WHERE DATE_FORMAT(tanggal_tarik, '%Y-%m') BETWEEN ? AND ? GROUP BY DATE_FORMAT(tanggal_tarik, '%Y-%m')");
+            $stmtKeluar->execute([$min_month, $max_month]);
+            while ($row = $stmtKeluar->fetch(PDO::FETCH_ASSOC)) {
+                if (isset($penarikan_map[$row['month']])) {
+                    $penarikan_map[$row['month']] = (float)$row['total'];
+                }
+            }
+
+            $chart_setoran = array_values($setoran_map);
+            $chart_penarikan = array_values($penarikan_map);
 
             $data['json_labels'] = json_encode($chart_labels);
             $data['json_setoran'] = json_encode($chart_setoran);
