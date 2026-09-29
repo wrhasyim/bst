@@ -135,11 +135,10 @@ $penjualan_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($be
                 $this->db->beginTransaction();
 
                 // Ambil Konfigurasi Persentase (Diluar loop agar lebih cepat & hemat kueri)
-                $stmtConfig = $this->db->query("SELECT kunci, nilai FROM pengaturan WHERE kunci LIKE 'persen_%'");
-                $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
-                $p_pengelola = (float)($config['persen_honor_pengelola'] ?? 0) / 100;
-                $p_sekolah   = (float)($config['persen_kas_sekolah'] ?? 0) / 100;
-                $p_piket     = (float)($config['persen_honor_piket'] ?? 0) / 100;
+                $config = $this->getPersentaseConfig();
+                $p_pengelola = $config['p_pengelola'];
+                $p_sekolah   = $config['p_sekolah'];
+                $p_piket     = $config['p_piket'];
 
                 $tutup_botol_tercatat = false;
                 $jumlah_barang_berhasil = 0;
@@ -155,69 +154,13 @@ $penjualan_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($be
                     // Skip jika baris ini kosong
                     if ($kategori_id <= 0 || $pcs_jual <= 0) continue;
 
-                    // Tambahkan 'user_id' ke dalam list SELECT agar kepemilikan sisa setoran tidak hilang
-                    $stmtRows = $this->db->prepare("SELECT id, user_id, berat, total_harga, honor_walas_rp FROM setoran WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0 ORDER BY id ASC FOR UPDATE");
-                    $stmtRows->execute([$kategori_id]);
-                    $rows = $stmtRows->fetchAll();
-
-                    $total_tersedia = 0;
-                    foreach ($rows as $row) { $total_tersedia += (float)$row['berat']; }
-
-                    if ($pcs_jual > $total_tersedia) {
-                        throw new Exception("Stok untuk Barang ID {$kategori_id} tidak cukup! Diminta: {$pcs_jual} Pcs. Tersedia: {$total_tersedia} Pcs.");
-                    }
-
-                    $sisa_diminta = $pcs_jual;
-                    $hpp_terpakai = 0;
-                    $walas_terpakai = 0;
-
-                    foreach ($rows as $row) {
-                        if ($sisa_diminta <= 0) break;
-                        
-                        $id_setoran = $row['id'];
-                        $berat_row  = (float)$row['berat'];
-                        
-                        if ($berat_row <= $sisa_diminta) {
-                            // Baris ini habis terjual
-                            $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE id = ?")->execute([$id_setoran]);
-                            $hpp_terpakai += (float)$row['total_harga'];
-                            $walas_terpakai += (float)$row['honor_walas_rp'];
-                            $sisa_diminta -= $berat_row;
-                        } else {
-                            // Baris ini hanya terpakai sebagian, buat baris "Sisa" baru
-                            $sisa_berat = $berat_row - $sisa_diminta;
-                            $proporsi = $sisa_diminta / $berat_row;
-                            
-                            // Tandai baris lama sebagai terjual
-                            $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE id = ?")->execute([$id_setoran]);
-                            
-                            // Hapus kolom kelas_id dari query INSERT karena tidak ada di database
-                            $stmtNew = $this->db->prepare("INSERT INTO setoran (user_id, kategori_id, berat, total_harga, honor_walas_rp, status, is_sold, created_at) VALUES (?, ?, ?, ?, ?, 'valid', 0, NOW())");
-                            $stmtNew->execute([
-                                $row['user_id'], // Mengambil user_id yang berhasil di SELECT di atas
-                                $kategori_id,
-                                $sisa_berat,
-                                $row['total_harga'] * ($sisa_berat / $berat_row),
-                                $row['honor_walas_rp'] * ($sisa_berat / $berat_row)
-                            ]);
-                            
-                            $hpp_terpakai += ($row['total_harga'] * $proporsi);
-                            $walas_terpakai += ($row['honor_walas_rp'] * $proporsi);
-                            $sisa_diminta = 0;
-                        }
-                    }
-
-                    $beban_nasabah = $hpp_terpakai;
-                    $total_walas_setoran = $walas_terpakai;
+                    // Kurangi stok dan dapatkan beban nasabah serta honor walas
+                    $stockData = $this->deductStock($kategori_id, $pcs_jual);
+                    $beban_nasabah = $stockData['beban_nasabah'];
+                    $total_walas_setoran = $stockData['total_walas_setoran'];
 
                     // Kalkulasi Pendapatan
-                    $total_pendapatan = $total_kg * $harga_per_kg;
-                    $margin_total     = $total_pendapatan - $beban_nasabah;
-                    
-                    $kas_sekolah_rp      = $margin_total * $p_sekolah;
-                    $honor_pengelola_rp  = $margin_total * $p_pengelola;
-                    $honor_piket_rp      = $margin_total * $p_piket;
-                    $kas_bst_rp = $margin_total - ($kas_sekolah_rp + $honor_pengelola_rp + $honor_piket_rp + $total_walas_setoran);
+                    $margins = $this->calculateMargins($total_kg, $harga_per_kg, $beban_nasabah, $total_walas_setoran, $p_sekolah, $p_pengelola, $p_piket);
 
                     // Mencegah Nilai Kas Tutup Botol Berganda!
                     // Uang ekstra hanya dicatat pada barang PERTAMA yang berhasil diproses.
@@ -228,22 +171,10 @@ $penjualan_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($be
                     }
 
                     // Insert Data Penjualan
-                    $sqlInsert = "INSERT INTO penjualan (
-                                    kategori_id, total_pcs, harga_per_pcs, total_pendapatan, 
-                                    beban_nasabah_rp, margin_total_rp, kas_sekolah_rp, 
-                                    honor_pengelola_rp, honor_piket_rp, kas_bst_rp, kas_tutup_botol_rp,
-                                    tanggal_jual, keterangan
-                                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
-                    $stmtInsert = $this->db->prepare($sqlInsert);
-                    $stmtInsert->execute([
-                        $kategori_id, $pcs_jual, $harga_per_kg, $total_pendapatan,
-                        $beban_nasabah, $margin_total, $kas_sekolah_rp,
-                        $honor_pengelola_rp, $honor_piket_rp, $kas_bst_rp, $current_tutup_botol,
-                        $keterangan
-                    ]);
+                    $this->insertPenjualanRecord($kategori_id, $pcs_jual, $harga_per_kg, $margins, $beban_nasabah, $current_tutup_botol, $keterangan);
 
                     $jumlah_barang_berhasil++;
-                    $total_semua_pendapatan += $total_pendapatan;
+                    $total_semua_pendapatan += $margins['total_pendapatan'];
                 }
 
                 if ($jumlah_barang_berhasil === 0) {
@@ -261,6 +192,117 @@ $penjualan_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($be
             header('Location: ' . BASE_URL . '/penjualan');
             exit;
         }
+    }
+
+    private function getPersentaseConfig() {
+        $stmtConfig = $this->db->query("SELECT kunci, nilai FROM pengaturan WHERE kunci LIKE 'persen_%'");
+        $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
+        return [
+            'p_pengelola' => (float)($config['persen_honor_pengelola'] ?? 0) / 100,
+            'p_sekolah'   => (float)($config['persen_kas_sekolah'] ?? 0) / 100,
+            'p_piket'     => (float)($config['persen_honor_piket'] ?? 0) / 100,
+        ];
+    }
+
+    private function deductStock($kategori_id, $pcs_jual) {
+        $stmtRows = $this->db->prepare("SELECT id, user_id, berat, total_harga, honor_walas_rp FROM setoran WHERE kategori_id = ? AND status = 'valid' AND is_sold = 0 ORDER BY id ASC FOR UPDATE");
+        $stmtRows->execute([$kategori_id]);
+        $rows = $stmtRows->fetchAll();
+
+        $total_tersedia = 0;
+        foreach ($rows as $row) { $total_tersedia += (float)$row['berat']; }
+
+        if ($pcs_jual > $total_tersedia) {
+            throw new Exception("Stok untuk Barang ID {$kategori_id} tidak cukup! Diminta: {$pcs_jual} Pcs. Tersedia: {$total_tersedia} Pcs.");
+        }
+
+        $sisa_diminta = $pcs_jual;
+        $hpp_terpakai = 0;
+        $walas_terpakai = 0;
+
+        foreach ($rows as $row) {
+            if ($sisa_diminta <= 0) break;
+
+            $id_setoran = $row['id'];
+            $berat_row  = (float)$row['berat'];
+
+            if ($berat_row <= $sisa_diminta) {
+                // Baris ini habis terjual
+                $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE id = ?")->execute([$id_setoran]);
+                $hpp_terpakai += (float)$row['total_harga'];
+                $walas_terpakai += (float)$row['honor_walas_rp'];
+                $sisa_diminta -= $berat_row;
+            } else {
+                // Baris ini hanya terpakai sebagian, buat baris "Sisa" baru
+                $sisa_berat = $berat_row - $sisa_diminta;
+                $proporsi = $sisa_diminta / $berat_row;
+
+                // Tandai baris lama sebagai terjual
+                $this->db->prepare("UPDATE setoran SET is_sold = 1 WHERE id = ?")->execute([$id_setoran]);
+
+                // Hapus kolom kelas_id dari query INSERT karena tidak ada di database
+                $stmtNew = $this->db->prepare("INSERT INTO setoran (user_id, kategori_id, berat, total_harga, honor_walas_rp, status, is_sold, created_at) VALUES (?, ?, ?, ?, ?, 'valid', 0, NOW())");
+                $stmtNew->execute([
+                    $row['user_id'], // Mengambil user_id yang berhasil di SELECT di atas
+                    $kategori_id,
+                    $sisa_berat,
+                    $row['total_harga'] * ($sisa_berat / $berat_row),
+                    $row['honor_walas_rp'] * ($sisa_berat / $berat_row)
+                ]);
+
+                $hpp_terpakai += ($row['total_harga'] * $proporsi);
+                $walas_terpakai += ($row['honor_walas_rp'] * $proporsi);
+                $sisa_diminta = 0;
+            }
+        }
+
+        return [
+            'beban_nasabah' => $hpp_terpakai,
+            'total_walas_setoran' => $walas_terpakai
+        ];
+    }
+
+    private function calculateMargins($total_kg, $harga_per_kg, $beban_nasabah, $total_walas_setoran, $p_sekolah, $p_pengelola, $p_piket) {
+        $total_pendapatan = $total_kg * $harga_per_kg;
+        $margin_total     = $total_pendapatan - $beban_nasabah;
+
+        $kas_sekolah_rp      = $margin_total * $p_sekolah;
+        $honor_pengelola_rp  = $margin_total * $p_pengelola;
+        $honor_piket_rp      = $margin_total * $p_piket;
+        $kas_bst_rp = $margin_total - ($kas_sekolah_rp + $honor_pengelola_rp + $honor_piket_rp + $total_walas_setoran);
+
+        return [
+            'total_pendapatan' => $total_pendapatan,
+            'margin_total' => $margin_total,
+            'kas_sekolah_rp' => $kas_sekolah_rp,
+            'honor_pengelola_rp' => $honor_pengelola_rp,
+            'honor_piket_rp' => $honor_piket_rp,
+            'kas_bst_rp' => $kas_bst_rp
+        ];
+    }
+
+    private function insertPenjualanRecord($kategori_id, $pcs_jual, $harga_per_kg, $margins, $beban_nasabah, $current_tutup_botol, $keterangan) {
+        $sqlInsert = "INSERT INTO penjualan (
+                        kategori_id, total_pcs, harga_per_pcs, total_pendapatan,
+                        beban_nasabah_rp, margin_total_rp, kas_sekolah_rp,
+                        honor_pengelola_rp, honor_piket_rp, kas_bst_rp, kas_tutup_botol_rp,
+                        tanggal_jual, keterangan
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+        $stmtInsert = $this->db->prepare($sqlInsert);
+        $stmtInsert->execute([
+            $kategori_id,
+            $pcs_jual,
+            $harga_per_kg,
+            $margins['total_pendapatan'],
+            $beban_nasabah,
+            $margins['margin_total'],
+            $margins['kas_sekolah_rp'],
+            $margins['honor_pengelola_rp'],
+            $margins['honor_piket_rp'],
+            $margins['kas_bst_rp'],
+            $current_tutup_botol,
+            $keterangan
+        ]);
     }
 
     public function delete() {
