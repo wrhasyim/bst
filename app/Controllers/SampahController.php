@@ -43,7 +43,7 @@ class SampahController {
             $harga_pengepul = $_POST['harga_pengepul'];
             
             // 🛠️ FIX: Tangkap input konversi_kg dari form (Default 1 jika dikosongkan)
-            $konversi_kg = !empty($_POST['konversi_kg']) ? (int)$_POST['konversi_kg'] : 1;
+            $konversi_kg = !empty($_POST['konversi_kg']) ? max(1, (int)$_POST['konversi_kg']) : 1;
 
             // Validasi: Harga pengepul tidak boleh lebih kecil dari harga terdiversifikasi yang tertinggi
             $max_harga_beli = max($harga_dasar, $harga_guru);
@@ -78,7 +78,7 @@ class SampahController {
             $harga_pengepul = $_POST['harga_pengepul'];
             
             // 🛠️ FIX: Tangkap input konversi_kg untuk proses update
-            $konversi_kg = !empty($_POST['konversi_kg']) ? (int)$_POST['konversi_kg'] : 1;
+            $konversi_kg = !empty($_POST['konversi_kg']) ? max(1, (int)$_POST['konversi_kg']) : 1;
 
             $max_harga_beli = max($harga_dasar, $harga_guru);
 
