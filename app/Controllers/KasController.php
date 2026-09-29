@@ -28,8 +28,7 @@ class KasController {
 
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            // Matikan sementara keamanan CSRF agar form tidak mudah kedaluwarsa
-            // Security::validate_csrf();
+            Security::validate_csrf();
 
             $tanggal = $_POST['tanggal'];
             $jenis = $_POST['jenis'];
