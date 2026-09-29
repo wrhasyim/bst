@@ -1,0 +1,10 @@
+{
+    "name": "project/test",
+    "description": "Test setup",
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "classmap": ["app/"]
+    }
+}
