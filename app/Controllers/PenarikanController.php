@@ -41,9 +41,19 @@ class PenarikanController {
             // 🌟 FIX LIST SISWA: Hanya tampilkan siswa yang memiliki saldo > 0
             // 🌟 FIX ORDER BY: Memisahkan KAS KELAS agar selalu berada di urutan paling ATAS
             $sql = "SELECT u.id, u.nama, u.username,
-                    (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
-                    (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_tersedia
+                    (IFNULL(s.total_setoran, 0) - IFNULL(p.total_penarikan, 0)) as saldo_tersedia
                     FROM users u 
+                    LEFT JOIN (
+                        SELECT user_id, SUM(total_harga) as total_setoran
+                        FROM setoran
+                        WHERE status = 'valid'
+                        GROUP BY user_id
+                    ) s ON u.id = s.user_id
+                    LEFT JOIN (
+                        SELECT user_id, SUM(jumlah) as total_penarikan
+                        FROM penarikan
+                        GROUP BY user_id
+                    ) p ON u.id = p.user_id
                     WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 AND u.nama NOT LIKE '%KESISWAAN%'
                     HAVING saldo_tersedia > 0
                     ORDER BY CASE WHEN u.nama LIKE 'KAS KELAS - %' THEN 0 ELSE 1 END, u.nama ASC";
@@ -98,9 +108,20 @@ class PenarikanController {
 
                 // 1. Ambil seluruh siswa di kelas ini beserta saldo maksimalnya untuk validasi keamanan
                 $sqlSaldo = "SELECT u.id,
-                             (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
-                             (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_aktif
-                             FROM users u WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 AND u.nama NOT LIKE '%KESISWAAN%'";
+                             (IFNULL(s.total_setoran, 0) - IFNULL(p.total_penarikan, 0)) as saldo_aktif
+                             FROM users u
+                             LEFT JOIN (
+                                 SELECT user_id, SUM(total_harga) as total_setoran
+                                 FROM setoran
+                                 WHERE status = 'valid'
+                                 GROUP BY user_id
+                             ) s ON u.id = s.user_id
+                             LEFT JOIN (
+                                 SELECT user_id, SUM(jumlah) as total_penarikan
+                                 FROM penarikan
+                                 GROUP BY user_id
+                             ) p ON u.id = p.user_id
+                             WHERE u.kelas_id = :kid AND u.role = 'siswa' AND u.is_active = 1 AND u.nama NOT LIKE '%KESISWAAN%'";
                 
                 $stmtS = $this->db->prepare($sqlSaldo);
                 $stmtS->execute(['kid' => $kelas_id]);
@@ -221,9 +242,19 @@ class PenarikanController {
         // 🛡️ FITUR BARU: Menambahkan klausa HAVING saldo_tersedia > 0 
         // agar hanya guru yang memiliki saldo tabungan yang muncul di form penarikan.
         $sql = "SELECT u.id, u.nama, u.username,
-                (SELECT IFNULL(SUM(total_harga), 0) FROM setoran WHERE user_id = u.id AND status = 'valid') - 
-                (SELECT IFNULL(SUM(jumlah), 0) FROM penarikan WHERE user_id = u.id) as saldo_tersedia
+                (IFNULL(s.total_setoran, 0) - IFNULL(p.total_penarikan, 0)) as saldo_tersedia
                 FROM users u 
+                LEFT JOIN (
+                    SELECT user_id, SUM(total_harga) as total_setoran
+                    FROM setoran
+                    WHERE status = 'valid'
+                    GROUP BY user_id
+                ) s ON u.id = s.user_id
+                LEFT JOIN (
+                    SELECT user_id, SUM(jumlah) as total_penarikan
+                    FROM penarikan
+                    GROUP BY user_id
+                ) p ON u.id = p.user_id
                 WHERE u.role != 'siswa' AND u.role != 'admin' AND u.is_active = 1
                 HAVING saldo_tersedia > 0
                 ORDER BY u.nama ASC";
