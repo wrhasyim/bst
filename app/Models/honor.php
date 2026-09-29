@@ -11,36 +11,34 @@ class Honor {
 
     // Fungsi untuk Pencairan (Sisa Saldo)
     public function getHonorWaliKelas() {
-        $stmtPersen = $this->db->query("SELECT nilai FROM pengaturan WHERE kunci = 'persen_honor_walikelas'");
-        $persen = (float)($stmtPersen->fetchColumn() ?? 0) / 100;
-
         $sql = "SELECT 
-                    u.id as user_id, u.nama as nama_guru, k.nama_kelas,
-                    SUM(s.total_pengepul - s.total_harga) * :persen as total_jatah
+                    s.walikelas_id as user_id, u.nama as nama_guru, k.nama_kelas,
+                    SUM(s.honor_walas_rp) as total_jatah
                 FROM setoran s
                 JOIN users u ON s.walikelas_id = u.id
                 JOIN kelas k ON u.id = k.walikelas_id
                 WHERE s.status = 'valid' AND s.is_sold = 1
-                GROUP BY u.id";
+                GROUP BY s.walikelas_id";
         
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['persen' => $persen]);
+        $stmt->execute();
         return $stmt->fetchAll();
     }
 
     // --- FITUR BARU: Method untuk Laporan Honor (Fix Error) ---
-    public function getRekapHonorWaliKelas($persen_decimal) {
+    public function getRekapHonorWaliKelas() {
         $sql = "SELECT 
-                    u.nama, k.nama_kelas, 
-                    SUM(s.total_pengepul - s.total_harga) as margin_kelas,
-                    SUM(s.total_pengepul - s.total_harga) * :persen as jatah_honor
+                    u.nama AS nama_guru, k.nama_kelas,
+                    SUM(CASE WHEN s.is_sold = 0 THEN s.honor_walas_rp ELSE 0 END) as total_potensi,
+                    SUM(CASE WHEN s.is_sold = 1 THEN s.honor_walas_rp ELSE 0 END) as total_realisasi
                 FROM setoran s
                 JOIN users u ON s.walikelas_id = u.id
                 JOIN kelas k ON u.id = k.walikelas_id
-                WHERE s.status = 'valid' AND s.is_sold = 1
+                JOIN kategori_sampah ks ON s.kategori_id = ks.id
+                WHERE s.status = 'valid' AND ks.nama_sampah != '🌟 REWARD PRESTASI'
                 GROUP BY u.id";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['persen' => $persen_decimal]);
+        $stmt->execute();
         return $stmt->fetchAll();
     }
 
