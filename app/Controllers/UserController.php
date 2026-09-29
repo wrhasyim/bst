@@ -53,9 +53,10 @@ class UserController {
             }
 
             try {
-                $sql = "INSERT INTO users (username, password, nama, role, kelas_id, angkatan, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                $is_kas_kelas = (strpos($nama, 'KAS KELAS - ') === 0 || strpos($nama, 'SABTU CERIA') !== false) ? 1 : 0;
+                $sql = "INSERT INTO users (username, password, nama, role, kelas_id, angkatan, is_active, is_kas_kelas) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $this->db->prepare($sql);
-                $stmt->execute([$username, $password, $nama, $role, $kelas_id, $angkatan, $is_active]);
+                $stmt->execute([$username, $password, $nama, $role, $kelas_id, $angkatan, $is_active, $is_kas_kelas]);
                 $_SESSION['success'] = "Pengguna berhasil ditambahkan!";
             } catch (PDOException $e) {
                 $_SESSION['error'] = "Terjadi kesalahan database.";
@@ -194,9 +195,10 @@ class UserController {
                     
                     if (!$cek->fetch()) {
                         try {
-                            $sql = "INSERT INTO users (username, password, nama, role, kelas_id, angkatan, is_active) VALUES (?, ?, ?, 'siswa', ?, ?, 1)";
+                            $is_kas_kelas = (strpos($nama, 'KAS KELAS - ') === 0 || strpos($nama, 'SABTU CERIA') !== false) ? 1 : 0;
+                            $sql = "INSERT INTO users (username, password, nama, role, kelas_id, angkatan, is_active, is_kas_kelas) VALUES (?, ?, ?, 'siswa', ?, ?, 1, ?)";
                             $stmt = $this->db->prepare($sql);
-                            if ($stmt->execute([$username, $password_default, $nama, $kelas_id, $angkatan])) {
+                            if ($stmt->execute([$username, $password_default, $nama, $kelas_id, $angkatan, $is_kas_kelas])) {
                                 $sukses++;
                             }
                         } catch (PDOException $e) {

@@ -92,7 +92,7 @@ class LaporanController {
         $sqlKasKelas = "SELECT SUM(s.total_harga) 
                         FROM setoran s 
                         JOIN users u ON s.user_id = u.id 
-                        WHERE (u.nama LIKE 'KAS KELAS - %' OR u.nama LIKE '%SABTU CERIA%') AND s.is_sold = 1 AND s.status = 'valid'";
+                        WHERE u.is_kas_kelas = 1 AND s.is_sold = 1 AND s.status = 'valid'";
         if (!empty($start_date) && !empty($end_date)) {
             $sqlKasKelas .= " AND s.created_at BETWEEN :start AND :end";
             $stmtKK = $this->db->prepare($sqlKasKelas);
