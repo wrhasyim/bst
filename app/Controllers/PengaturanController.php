@@ -66,21 +66,10 @@ class PengaturanController {
                 // 4. Logika Cerdas UPSERT (Update or Insert)
                 // Catatan: Karena menggunakan looping dinamis, input baru seperti 'tanggal_mulai_reward'
                 // akan otomatis ditangkap dan disimpan tanpa perlu hardcode variabelnya di sini.
+                $stmt = $this->db->prepare("INSERT INTO pengaturan (kunci, nilai) VALUES (:k, :v) ON DUPLICATE KEY UPDATE nilai = VALUES(nilai)");
                 foreach ($_POST as $kunci => $nilai) {
                     if ($kunci !== 'csrf_token') {
-                        // Cek apakah kunci sudah ada di database?
-                        $cek = $this->db->prepare("SELECT id FROM pengaturan WHERE kunci = ?");
-                        $cek->execute([$kunci]);
-                        
-                        if ($cek->rowCount() > 0) {
-                            // Jika ADA -> Lakukan UPDATE
-                            $stmt = $this->db->prepare("UPDATE pengaturan SET nilai = :v WHERE kunci = :k");
-                            $stmt->execute(['v' => $nilai, 'k' => $kunci]);
-                        } else {
-                            // Jika BELUM ADA -> Lakukan INSERT Otomatis
-                            $stmt = $this->db->prepare("INSERT INTO pengaturan (kunci, nilai) VALUES (:k, :v)");
-                            $stmt->execute(['k' => $kunci, 'v' => $nilai]);
-                        }
+                        $stmt->execute(['k' => $kunci, 'v' => $nilai]);
                     }
                 }
                 
