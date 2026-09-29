@@ -2,13 +2,16 @@
 // app/Controllers/LaporanController.php
 require_once __DIR__ . '/../Core/Database.php';
 require_once __DIR__ . '/../Core/Security.php'; 
+require_once __DIR__ . '/../Models/honor.php';
 
 class LaporanController {
     private $db;
+    private $honorModel;
 
     public function __construct() {
         Security::requireRole(['admin', 'staff']);
         $this->db = Database::getInstance()->getConnection();
+        $this->honorModel = new Honor();
     }
 
     // =================================================================
@@ -297,8 +300,7 @@ class LaporanController {
 
     public function honor() {
         $data = [];
-        $qRekap = "SELECT u.nama AS nama_guru, k.nama_kelas, SUM(CASE WHEN s.is_sold = 0 THEN s.honor_walas_rp ELSE 0 END) as total_potensi, SUM(CASE WHEN s.is_sold = 1 THEN s.honor_walas_rp ELSE 0 END) as total_realisasi FROM setoran s JOIN users u ON s.walikelas_id = u.id JOIN kelas k ON u.id = k.walikelas_id JOIN kategori_sampah ks ON s.kategori_id = ks.id WHERE s.status = 'valid' AND ks.nama_sampah != '🌟 REWARD PRESTASI' GROUP BY u.id";
-        $stmt = $this->db->query($qRekap); $data['rekap_honor'] = $stmt->fetchAll();
+        $data['rekap_honor'] = $this->honorModel->getRekapHonorWaliKelas();
         $data['total_margin_potensi'] = 0; $data['total_margin_realisasi'] = 0;
         foreach ($data['rekap_honor'] as $rh) { $data['total_margin_potensi'] += (float)$rh['total_potensi']; $data['total_margin_realisasi'] += (float)$rh['total_realisasi']; }
         extract($data); $title = "Laporan Honor & Insentif"; $content = __DIR__ . '/../../views/admin/laporan/honor.php'; require_once __DIR__ . '/../../views/layouts/admin.php';

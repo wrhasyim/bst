@@ -1,6 +1,6 @@
 <?php
 // app/Controllers/HonorController.php
-require_once __DIR__ . '/../Models/Honor.php';
+require_once __DIR__ . '/../Models/honor.php';
 require_once __DIR__ . '/../Core/Database.php'; 
 require_once __DIR__ . '/../Core/Security.php'; // 🛡️ Load Security untuk proteksi CSRF
 
@@ -23,14 +23,7 @@ class HonorController {
         $data = []; // Wadah untuk data View
 
         // 🚀 CRITICAL RULE APPLIED: ARCHITECT SNAPSHOT PATTERN
-        $sql = "SELECT s.walikelas_id as user_id, u.nama as nama_guru, k.nama_kelas, SUM(s.honor_walas_rp) as total_jatah
-                FROM setoran s
-                JOIN users u ON s.walikelas_id = u.id
-                JOIN kelas k ON u.id = k.walikelas_id
-                WHERE s.status = 'valid' AND s.is_sold = 1
-                GROUP BY s.walikelas_id";
-                
-        $data_honor = $this->db->query($sql)->fetchAll();
+        $data_honor = $this->honorModel->getHonorWaliKelas();
         
         if (is_array($data_honor) && count($data_honor) > 0) {
             foreach ($data_honor as &$h) {
@@ -104,14 +97,13 @@ class HonorController {
     public function cetak_batch() {
         // 🛠️ REFACTORING ULTIMATE: Mengubah Laporan Histori menjadi Manifest Daftar Tunggu!
         
-        $sql = "SELECT s.walikelas_id as user_id, u.nama as nama_guru, SUM(s.honor_walas_rp) as total_jatah
-                FROM setoran s
-                JOIN users u ON s.walikelas_id = u.id
-                WHERE s.status = 'valid' AND s.is_sold = 1
-                GROUP BY s.walikelas_id
-                ORDER BY u.nama ASC";
-                
-        $potensi_honor = $this->db->query($sql)->fetchAll();
+        $potensi_honor = $this->honorModel->getHonorWaliKelas();
+
+        // Sort by nama_guru ascending like the original query did
+        usort($potensi_honor, function($a, $b) {
+            return strcmp($a['nama_guru'], $b['nama_guru']);
+        });
+
         $data_honor = [];
 
         if (is_array($potensi_honor) && count($potensi_honor) > 0) {
