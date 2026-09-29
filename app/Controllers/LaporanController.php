@@ -12,59 +12,50 @@ class LaporanController {
     }
 
     // =================================================================
-    // 1. LAPORAN KEUANGAN GLOBAL (IMMUTABLE SNAPSHOT + DATE FILTER)
-    // =================================================================
-    public function keuangan() {
-        $data = []; 
-
-        $stmtConfig = $this->db->query("SELECT kunci, nilai FROM pengaturan WHERE kunci LIKE 'persen_%'");
-        $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
-        
-        $start_date = $_GET['start_date'] ?? '';
-        $end_date = $_GET['end_date'] ?? '';
-        
+    private function getFilters($start_date, $end_date) {
         $params = [];
-        $wherePenjualan = "";
-        $whereSetoran = "s.status = 'valid' AND k.nama_sampah != '🌟 REWARD PRESTASI'";
-        $whereReward = "k.nama_sampah = '🌟 REWARD PRESTASI'";
-        
-        $whereCairP = "keterangan LIKE '%Pengelola%'";
-        $whereCairW = "jenis = 'walikelas'";
-        $whereCairK = "keterangan LIKE '%Piket%'";
-        
-        $whereKasOut = "jenis = 'pengeluaran' AND keterangan LIKE '%Sumbangan Kas Sekolah%'";
-        $whereKasInP = "jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Pengelola%'";
-        $whereKasInW = "jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Wali Kelas%'";
-        $whereKasInS = "jenis = 'pemasukan' AND keterangan LIKE '%Refund Kas Sekolah%'";
-        $whereKasInK = "jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Piket%'";
-        
-        $whereKasTbInMan = "jenis = 'pemasukan' AND sumber_kas = 'kas_tutup_botol'";
-        $whereKasTbOut = "jenis = 'pengeluaran' AND sumber_kas = 'kas_tutup_botol'";
+        $filters = [
+            'wherePenjualan' => "",
+            'whereSetoran' => "s.status = 'valid' AND k.nama_sampah != '🌟 REWARD PRESTASI'",
+            'whereReward' => "k.nama_sampah = '🌟 REWARD PRESTASI'",
+            'whereCairP' => "keterangan LIKE '%Pengelola%'",
+            'whereCairW' => "jenis = 'walikelas'",
+            'whereCairK' => "keterangan LIKE '%Piket%'",
+            'whereKasOut' => "jenis = 'pengeluaran' AND keterangan LIKE '%Sumbangan Kas Sekolah%'",
+            'whereKasInP' => "jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Pengelola%'",
+            'whereKasInW' => "jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Wali Kelas%'",
+            'whereKasInS' => "jenis = 'pemasukan' AND keterangan LIKE '%Refund Kas Sekolah%'",
+            'whereKasInK' => "jenis = 'pemasukan' AND keterangan LIKE '%Refund Honor Piket%'",
+            'whereKasTbInMan' => "jenis = 'pemasukan' AND sumber_kas = 'kas_tutup_botol'",
+            'whereKasTbOut' => "jenis = 'pengeluaran' AND sumber_kas = 'kas_tutup_botol'",
+        ];
 
         if (!empty($start_date) && !empty($end_date)) {
             $sd = $start_date . ' 00:00:00';
             $ed = $end_date . ' 23:59:59';
             $params = ['start' => $sd, 'end' => $ed];
             
-            $wherePenjualan = "WHERE tanggal_jual BETWEEN :start AND :end";
-            $whereSetoran .= " AND s.created_at BETWEEN :start AND :end";
-            $whereReward .= " AND s.created_at BETWEEN :start AND :end";
-            
-            $whereCairP .= " AND tanggal_cair BETWEEN :start AND :end";
-            $whereCairW .= " AND ph.tanggal_cair BETWEEN :start AND :end";
-            $whereCairK .= " AND tanggal_cair BETWEEN :start AND :end";
-            
-            $whereKasOut .= " AND tanggal BETWEEN :start AND :end";
-            
-            $whereKasInP .= " AND tanggal BETWEEN :start AND :end";
-            $whereKasInW .= " AND tanggal BETWEEN :start AND :end";
-            $whereKasInS .= " AND tanggal BETWEEN :start AND :end";
-            $whereKasInK .= " AND tanggal BETWEEN :start AND :end";
-            
-            $whereKasTbInMan .= " AND tanggal BETWEEN :start AND :end";
-            $whereKasTbOut .= " AND tanggal BETWEEN :start AND :end";
+            $filters['wherePenjualan'] = "WHERE tanggal_jual BETWEEN :start AND :end";
+            $filters['whereSetoran'] .= " AND s.created_at BETWEEN :start AND :end";
+            $filters['whereReward'] .= " AND s.created_at BETWEEN :start AND :end";
+            $filters['whereCairP'] .= " AND tanggal_cair BETWEEN :start AND :end";
+            $filters['whereCairW'] .= " AND ph.tanggal_cair BETWEEN :start AND :end";
+            $filters['whereCairK'] .= " AND tanggal_cair BETWEEN :start AND :end";
+            $filters['whereKasOut'] .= " AND tanggal BETWEEN :start AND :end";
+            $filters['whereKasInP'] .= " AND tanggal BETWEEN :start AND :end";
+            $filters['whereKasInW'] .= " AND tanggal BETWEEN :start AND :end";
+            $filters['whereKasInS'] .= " AND tanggal BETWEEN :start AND :end";
+            $filters['whereKasInK'] .= " AND tanggal BETWEEN :start AND :end";
+            $filters['whereKasTbInMan'] .= " AND tanggal BETWEEN :start AND :end";
+            $filters['whereKasTbOut'] .= " AND tanggal BETWEEN :start AND :end";
         }
         
+        return [$params, $filters];
+    }
+
+    // 1. LAPORAN KEUANGAN GLOBAL (IMMUTABLE SNAPSHOT + DATE FILTER)
+    // =================================================================
+    private function getSnapshotData($wherePenjualan, $params) {
         $sqlSnapshot = "SELECT 
                             SUM(total_pendapatan) as total_kotor,
                             SUM(beban_nasabah_rp) as beban_nasabah,
@@ -80,14 +71,19 @@ class LaporanController {
         $stmtSnap->execute($params);
         $data_snap = $stmtSnap->fetch();
 
-        $total_kotor     = (float)($data_snap['total_kotor'] ?? 0);
-        $beban_nasabah_kotor = (float)($data_snap['beban_nasabah'] ?? 0);
-        $margin_total    = (float)($data_snap['margin_total'] ?? 0);
-        $kas_sekolah     = (float)($data_snap['kas_sekolah'] ?? 0);
-        $honor_pengelola = (float)($data_snap['honor_pengelola'] ?? 0);
-        $honor_piket     = (float)($data_snap['honor_piket'] ?? 0);
-        $kas_bst         = (float)($data_snap['kas_bst'] ?? 0);
-        
+        return [
+            'data_snap' => $data_snap,
+            'total_kotor' => (float)($data_snap['total_kotor'] ?? 0),
+            'beban_nasabah_kotor' => (float)($data_snap['beban_nasabah'] ?? 0),
+            'margin_total' => (float)($data_snap['margin_total'] ?? 0),
+            'kas_sekolah' => (float)($data_snap['kas_sekolah'] ?? 0),
+            'honor_pengelola' => (float)($data_snap['honor_pengelola'] ?? 0),
+            'honor_piket' => (float)($data_snap['honor_piket'] ?? 0),
+            'kas_bst' => (float)($data_snap['kas_bst'] ?? 0),
+        ];
+    }
+
+    private function getBebanKasKelas($start_date, $end_date, $params) {
         // 🌟 FIX POIN 11 (REVISI): Menangkap "KAS KELAS" (Tabung) dan "SABTU CERIA" (Tunai) ke dalam satu keranjang HPP Kelas
         $sqlKasKelas = "SELECT SUM(s.total_harga) 
                         FROM setoran s 
@@ -100,44 +96,101 @@ class LaporanController {
         } else {
             $stmtKK = $this->db->query($sqlKasKelas);
         }
-        $beban_kas_kelas = (float)($stmtKK->fetchColumn() ?? 0);
-        $beban_nasabah_individu = $beban_nasabah_kotor - $beban_kas_kelas;
+        return (float)($stmtKK->fetchColumn() ?? 0);
+    }
 
-        $tutup_botol_in_auto = (float)($data_snap['total_tutup_botol_in_auto'] ?? 0);
+    private function getTutupBotolIn($whereKasTbInMan, $params, $tutup_botol_in_auto) {
         $stmtTbInMan = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasTbInMan");
         $stmtTbInMan->execute($params);
         $tutup_botol_in_manual = (float)$stmtTbInMan->fetchColumn();
-        $tutup_botol_in = $tutup_botol_in_auto + $tutup_botol_in_manual;
+        return $tutup_botol_in_auto + $tutup_botol_in_manual;
+    }
 
+    private function getHonorWalikelas($whereSetoran, $params) {
         $sql_honor_wali = "SELECT SUM(s.honor_walas_rp) FROM setoran s JOIN users u ON s.walikelas_id = u.id JOIN kategori_sampah k ON s.kategori_id = k.id WHERE s.is_sold = 1 AND $whereSetoran";
         $stmtWalas = $this->db->prepare($sql_honor_wali);
         $stmtWalas->execute($params);
-        $honor_walikelas = $stmtWalas->fetchColumn() ?? 0;
+        return $stmtWalas->fetchColumn() ?? 0;
+    }
 
+    private function getBebanReward($whereReward, $params) {
         $sqlBebanReward = "SELECT SUM(s.total_harga) FROM setoran s JOIN kategori_sampah k ON s.kategori_id = k.id WHERE $whereReward";
         $stmtReward = $this->db->prepare($sqlBebanReward);
         $stmtReward->execute($params);
-        $beban_reward = $stmtReward->fetchColumn() ?? 0;
+        return $stmtReward->fetchColumn() ?? 0;
+    }
 
-        $stmt = $this->db->prepare("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE $whereCairP"); $stmt->execute($params); $cair_pengelola_out = $stmt->fetchColumn();
-        $stmt = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasInP"); $stmt->execute($params); $refund_pengelola = $stmt->fetchColumn();
-        $cair_pengelola = (float)$cair_pengelola_out - (float)$refund_pengelola;
-        $sisa_pengelola = $honor_pengelola - $cair_pengelola;
+    private function calculateBalance($tableOut, $whereOut, $tableIn, $whereIn, $params, $baseValue) {
+        // Handle table alias if needed for out sum column
+        $sumColumnOut = strpos($tableOut, 'kas_manual') !== false ? 'nominal' : (strpos($tableOut, 'ph JOIN') !== false ? 'ph.jumlah' : 'jumlah');
+        $stmtOut = $this->db->prepare("SELECT IFNULL(SUM($sumColumnOut), 0) FROM $tableOut WHERE $whereOut");
+        $stmtOut->execute($params);
+        $total_out = $stmtOut->fetchColumn();
 
-        $stmt = $this->db->prepare("SELECT IFNULL(SUM(ph.jumlah), 0) FROM pencairan_honor ph JOIN users u ON ph.user_id = u.id WHERE $whereCairW"); $stmt->execute($params); $cair_wali_out = $stmt->fetchColumn();
-        $stmt = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasInW"); $stmt->execute($params); $refund_wali = $stmt->fetchColumn();
-        $cair_wali = (float)$cair_wali_out - (float)$refund_wali;
-        $sisa_wali = $honor_walikelas - $cair_wali;
+        $stmtIn = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM $tableIn WHERE $whereIn");
+        $stmtIn->execute($params);
+        $total_refund = $stmtIn->fetchColumn();
 
-        $stmt = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasOut"); $stmt->execute($params); $cair_sekolah_out = $stmt->fetchColumn();
-        $stmt = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasInS"); $stmt->execute($params); $refund_sekolah = $stmt->fetchColumn();
-        $cair_sekolah = (float)$cair_sekolah_out - (float)$refund_sekolah;
-        $sisa_sekolah = $kas_sekolah - $cair_sekolah;
+        $cair = (float)$total_out - (float)$total_refund;
+        $sisa = $baseValue - $cair;
 
-        $stmt = $this->db->prepare("SELECT IFNULL(SUM(jumlah), 0) FROM pencairan_honor WHERE $whereCairK"); $stmt->execute($params); $cair_piket_out = $stmt->fetchColumn();
-        $stmt = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasInK"); $stmt->execute($params); $refund_piket = $stmt->fetchColumn();
-        $cair_piket = (float)$cair_piket_out - (float)$refund_piket;
-        $sisa_piket = $honor_piket - $cair_piket;
+        return [$cair, $sisa];
+    }
+
+    private function getHistoryData($wherePenjualan, $params) {
+        $sqlHistRaw = "SELECT p.*, k.nama_sampah, k.satuan, k.konversi_kg FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id $wherePenjualan ORDER BY p.tanggal_jual DESC LIMIT 30";
+        $stmtHistRaw = $this->db->prepare($sqlHistRaw);
+        $stmtHistRaw->execute($params);
+        $history_raw = $stmtHistRaw->fetchAll();
+
+        $history_grup = [];
+        foreach ($history_raw as $row) {
+            $group_key = date('Y-m-d H:i', strtotime($row['tanggal_jual']));
+            if (!isset($history_grup[$group_key])) {
+                $history_grup[$group_key] = [
+                    'tanggal' => $row['tanggal_jual'],
+                    'rincian' => [],
+                    'total_pendapatan' => 0,
+                    'total_kas_tutup_botol' => 0
+                ];
+            }
+
+            $berat_kg = $row['total_pcs'] / ($row['konversi_kg'] ?: 1);
+            $history_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($berat_kg, 2) . " kg)";
+
+            $history_grup[$group_key]['total_pendapatan'] += $row['total_pendapatan'];
+            $history_grup[$group_key]['total_kas_tutup_botol'] += $row['kas_tutup_botol_rp'];
+        }
+
+        return array_slice(array_values($history_grup), 0, 10);
+    }
+
+    public function keuangan() {
+        $data = [];
+
+        $stmtConfig = $this->db->query("SELECT kunci, nilai FROM pengaturan WHERE kunci LIKE 'persen_%'");
+        $config = $stmtConfig->fetchAll(PDO::FETCH_KEY_PAIR);
+
+        $start_date = $_GET['start_date'] ?? '';
+        $end_date = $_GET['end_date'] ?? '';
+
+        list($params, $filters) = $this->getFilters($start_date, $end_date);
+        extract($filters);
+
+        $snapshot = $this->getSnapshotData($wherePenjualan, $params);
+        extract($snapshot);
+
+        $beban_kas_kelas = $this->getBebanKasKelas($start_date, $end_date, $params);
+        $beban_nasabah_individu = $beban_nasabah_kotor - $beban_kas_kelas;
+
+        $tutup_botol_in = $this->getTutupBotolIn($whereKasTbInMan, $params, (float)($data_snap['total_tutup_botol_in_auto'] ?? 0));
+        $honor_walikelas = $this->getHonorWalikelas($whereSetoran, $params);
+        $beban_reward = $this->getBebanReward($whereReward, $params);
+
+        list($cair_pengelola, $sisa_pengelola) = $this->calculateBalance('pencairan_honor', $whereCairP, 'kas_manual', $whereKasInP, $params, $honor_pengelola);
+        list($cair_wali, $sisa_wali) = $this->calculateBalance('pencairan_honor ph JOIN users u ON ph.user_id = u.id', $whereCairW, 'kas_manual', $whereKasInW, $params, $honor_walikelas);
+        list($cair_sekolah, $sisa_sekolah) = $this->calculateBalance('kas_manual', $whereKasOut, 'kas_manual', $whereKasInS, $params, $kas_sekolah);
+        list($cair_piket, $sisa_piket) = $this->calculateBalance('pencairan_honor', $whereCairK, 'kas_manual', $whereKasInK, $params, $honor_piket);
 
         $stmtTbOut = $this->db->prepare("SELECT IFNULL(SUM(nominal), 0) FROM kas_manual WHERE $whereKasTbOut");
         $stmtTbOut->execute($params);
@@ -174,31 +227,7 @@ class LaporanController {
             'persen_piket'           => $config['persen_honor_piket'] ?? 0
         ];
 
-        $sqlHistRaw = "SELECT p.*, k.nama_sampah, k.satuan, k.konversi_kg FROM penjualan p JOIN kategori_sampah k ON p.kategori_id = k.id $wherePenjualan ORDER BY p.tanggal_jual DESC LIMIT 30";
-        $stmtHistRaw = $this->db->prepare($sqlHistRaw);
-        $stmtHistRaw->execute($params);
-        $history_raw = $stmtHistRaw->fetchAll();
-        
-        $history_grup = [];
-        foreach ($history_raw as $row) {
-            $group_key = date('Y-m-d H:i', strtotime($row['tanggal_jual']));
-            if (!isset($history_grup[$group_key])) {
-                $history_grup[$group_key] = [
-                    'tanggal' => $row['tanggal_jual'],
-                    'rincian' => [],
-                    'total_pendapatan' => 0,
-                    'total_kas_tutup_botol' => 0 
-                ];
-            }
-            
-            $berat_kg = $row['total_pcs'] / ($row['konversi_kg'] ?: 1); 
-            $history_grup[$group_key]['rincian'][] = "{$row['nama_sampah']} (" . round($berat_kg, 2) . " kg)";
-            
-            $history_grup[$group_key]['total_pendapatan'] += $row['total_pendapatan'];
-            $history_grup[$group_key]['total_kas_tutup_botol'] += $row['kas_tutup_botol_rp']; 
-        }
-        
-        $data['history'] = array_slice(array_values($history_grup), 0, 10);
+        $data['history'] = $this->getHistoryData($wherePenjualan, $params);
         $data['start_date'] = $start_date;
         $data['end_date'] = $end_date;
 
